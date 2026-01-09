@@ -1,0 +1,63 @@
+/* 应用主样式 */
+
+.app {
+  display: flex;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.game-area {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.controls-area {
+  width: 300px;
+  margin-left: 20px;
+}
+
+.no-game {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 540px;
+  height: 600px;
+  background: #e8c87a;
+  border: 3px solid #8b4513;
+  border-radius: 5px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.no-game p {
+  font-size: 18px;
+  color: #8b4513;
+}
+
+.error-message {
+  margin-top: 15px;
+  padding: 12px;
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+  border-radius: 6px;
+  text-align: center;
+}
+
+/* 响应式布局 */
+@media (max-width: 900px) {
+  .app {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .controls-area {
+    width: 100%;
+    max-width: 540px;
+    margin-left: 0;
+    margin-top: 20px;
+  }
+}
