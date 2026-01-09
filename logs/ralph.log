@@ -1,0 +1,4 @@
+[2026-01-10 06:39:53] [SUCCESS] 🚀 Ralph loop starting with Claude Code
+[2026-01-10 06:39:53] [INFO] Max calls per hour: 100
+[2026-01-10 06:39:53] [INFO] Logs: logs/ | Docs: docs/generated/ | Status: status.json
+[2026-01-10 06:39:53] [ERROR] Prompt file 'PROMPT.md' not found!
