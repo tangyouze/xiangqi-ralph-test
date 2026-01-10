@@ -116,7 +116,10 @@ class Game:
             "move_count": len(self.move_history),
             "is_in_check": self.is_in_check(),
             "legal_moves": [
-                {"from": {"row": m.from_pos.row, "col": m.from_pos.col}, "to": {"row": m.to_pos.row, "col": m.to_pos.col}}
+                {
+                    "from": {"row": m.from_pos.row, "col": m.from_pos.col},
+                    "to": {"row": m.to_pos.row, "col": m.to_pos.col},
+                }
                 for m in self.get_legal_moves()
             ],
         }
@@ -136,4 +139,6 @@ class Game:
         ]
 
     def __repr__(self) -> str:
-        return f"Game({self.game_id}, turn={self.current_turn.value}, moves={len(self.move_history)})"
+        return (
+            f"Game({self.game_id}, turn={self.current_turn.value}, moves={len(self.move_history)})"
+        )

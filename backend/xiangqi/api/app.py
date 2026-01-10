@@ -12,6 +12,7 @@ from xiangqi.api.game_manager import game_manager
 from xiangqi.api.models import (
     AIInfoResponse,
     AILevel,
+    AIStrategy,
     CreateGameRequest,
     GameMode,
     GameStateResponse,
@@ -24,12 +25,22 @@ from xiangqi.api.models import (
 from xiangqi.types import GameResult
 
 
+# AI 策略描述
+AI_STRATEGY_DESCRIPTIONS = {
+    "random": "Random - picks a random legal move",
+    "greedy": "Greedy - picks the best move for the current turn only",
+    "defensive": "Defensive - considers opponent's counter-attacks",
+    "aggressive": "Aggressive - prioritizes captures and checks",
+    "minimax": "Minimax - deep search with alpha-beta pruning",
+}
+
+
 def create_app() -> FastAPI:
     """创建 FastAPI 应用"""
     app = FastAPI(
         title="Xiangqi API",
         description="Chinese Chess (Xiangqi) game engine API",
-        version="0.1.0",
+        version="0.2.0",
     )
 
     # CORS 配置
@@ -45,7 +56,7 @@ def create_app() -> FastAPI:
     @app.get("/")
     def root():
         """API 根路径"""
-        return {"message": "Xiangqi API", "version": "0.1.0"}
+        return {"message": "Xiangqi API", "version": "0.2.0"}
 
     @app.get("/health")
     def health():
@@ -58,6 +69,7 @@ def create_app() -> FastAPI:
         return AIInfoResponse(
             available_strategies=AIEngine.list_strategies(),
             levels=[level.value for level in AILevel],
+            strategy_descriptions=AI_STRATEGY_DESCRIPTIONS,
         )
 
     @app.post("/games", response_model=GameStateResponse)
@@ -67,6 +79,12 @@ def create_app() -> FastAPI:
             mode=request.mode,
             ai_level=request.ai_level,
             ai_color=request.ai_color,
+            ai_strategy=request.ai_strategy,
+            search_depth=request.search_depth,
+            red_ai_strategy=request.red_ai_strategy,
+            red_search_depth=request.red_search_depth,
+            black_ai_strategy=request.black_ai_strategy,
+            black_search_depth=request.black_search_depth,
         )
         return _game_to_response(game, request.mode)
 
@@ -120,7 +138,9 @@ def create_app() -> FastAPI:
                     ai_move_obj.to_pos.col,
                 )
                 ai_move = MoveModel(
-                    from_pos=PositionModel(row=ai_move_obj.from_pos.row, col=ai_move_obj.from_pos.col),
+                    from_pos=PositionModel(
+                        row=ai_move_obj.from_pos.row, col=ai_move_obj.from_pos.col
+                    ),
                     to_pos=PositionModel(row=ai_move_obj.to_pos.row, col=ai_move_obj.to_pos.col),
                 )
 

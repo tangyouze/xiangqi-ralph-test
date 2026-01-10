@@ -4,9 +4,16 @@
 管理游戏实例和 AI 配置
 """
 
-from xiangqi.ai import AIEngine, AIStrategy, MinimaxAI, RandomAI
+from xiangqi.ai import (
+    AIEngine,
+    AggressiveAI,
+    DefensiveAI,
+    GreedyAI,
+    MinimaxAI,
+    RandomAI,
+)
 from xiangqi.ai.base import AIConfig
-from xiangqi.api.models import AILevel, GameMode
+from xiangqi.api.models import AILevel, AIStrategy, GameMode
 from xiangqi.game import Game
 from xiangqi.types import Color, Move, Position
 
@@ -24,7 +31,18 @@ class GameManager:
         self._ai_colors: dict[str, list[Color]] = {}  # game_id -> list of AI colors
 
     def create_game(
-        self, mode: GameMode, ai_level: AILevel = AILevel.EASY, ai_color: str = "black"
+        self,
+        mode: GameMode,
+        ai_level: AILevel = AILevel.EASY,
+        ai_color: str = "black",
+        # 高级设置
+        ai_strategy: AIStrategy | None = None,
+        search_depth: int | None = None,
+        # AI vs AI 设置
+        red_ai_strategy: AIStrategy | None = None,
+        red_search_depth: int | None = None,
+        black_ai_strategy: AIStrategy | None = None,
+        black_search_depth: int | None = None,
     ) -> Game:
         """创建新游戏"""
         game = Game()
@@ -37,30 +55,78 @@ class GameManager:
 
         if mode == GameMode.HUMAN_VS_AI:
             color = Color.BLACK if ai_color == "black" else Color.RED
-            self._setup_ai(game.game_id, color, ai_level)
+            # 如果指定了策略，使用高级设置；否则用难度等级
+            if ai_strategy:
+                self._setup_ai_by_strategy(game.game_id, color, ai_strategy, search_depth)
+            else:
+                self._setup_ai_by_level(game.game_id, color, ai_level)
             self._ai_colors[game.game_id].append(color)
+
         elif mode == GameMode.AI_VS_AI:
-            self._setup_ai(game.game_id, Color.RED, ai_level)
-            self._setup_ai(game.game_id, Color.BLACK, ai_level)
+            # 红方 AI
+            if red_ai_strategy:
+                self._setup_ai_by_strategy(
+                    game.game_id, Color.RED, red_ai_strategy, red_search_depth
+                )
+            else:
+                self._setup_ai_by_level(game.game_id, Color.RED, ai_level)
+
+            # 黑方 AI
+            if black_ai_strategy:
+                self._setup_ai_by_strategy(
+                    game.game_id, Color.BLACK, black_ai_strategy, black_search_depth
+                )
+            else:
+                self._setup_ai_by_level(game.game_id, Color.BLACK, ai_level)
+
             self._ai_colors[game.game_id] = [Color.RED, Color.BLACK]
 
         return game
 
-    def _setup_ai(self, game_id: str, color: Color, level: AILevel) -> None:
-        """设置 AI 引擎"""
+    def _setup_ai_by_level(self, game_id: str, color: Color, level: AILevel) -> None:
+        """根据难度等级设置 AI 引擎"""
         engine = AIEngine()
 
         if level == AILevel.RANDOM:
             engine.set_strategy(RandomAI())
-        else:
-            # 根据难度设置搜索深度
-            depth_map = {
-                AILevel.EASY: 2,
-                AILevel.MEDIUM: 3,
-                AILevel.HARD: 4,
-            }
-            config = AIConfig(depth=depth_map.get(level, 2))
+        elif level == AILevel.EASY:
+            # 贪婪 AI
+            engine.set_strategy(GreedyAI())
+        elif level == AILevel.MEDIUM:
+            # 防守型 AI
+            engine.set_strategy(DefensiveAI())
+        elif level == AILevel.HARD:
+            # Minimax 深度 3
+            config = AIConfig(depth=3)
             engine.set_strategy(MinimaxAI(config))
+        elif level == AILevel.EXPERT:
+            # Minimax 深度 4
+            config = AIConfig(depth=4)
+            engine.set_strategy(MinimaxAI(config))
+
+        self._ai_engines[game_id][color.value] = engine
+
+    def _setup_ai_by_strategy(
+        self, game_id: str, color: Color, strategy: AIStrategy, depth: int | None
+    ) -> None:
+        """根据策略类型设置 AI 引擎"""
+        engine = AIEngine()
+
+        strategy_map = {
+            AIStrategy.RANDOM: RandomAI,
+            AIStrategy.GREEDY: GreedyAI,
+            AIStrategy.DEFENSIVE: DefensiveAI,
+            AIStrategy.AGGRESSIVE: AggressiveAI,
+            AIStrategy.MINIMAX: MinimaxAI,
+        }
+
+        ai_class = strategy_map.get(strategy, RandomAI)
+
+        if strategy == AIStrategy.MINIMAX and depth:
+            config = AIConfig(depth=depth)
+            engine.set_strategy(ai_class(config))
+        else:
+            engine.set_strategy(ai_class())
 
         self._ai_engines[game_id][color.value] = engine
 
@@ -92,7 +158,9 @@ class GameManager:
 
         return engine.select_move(game)
 
-    def make_move(self, game_id: str, from_row: int, from_col: int, to_row: int, to_col: int) -> bool:
+    def make_move(
+        self, game_id: str, from_row: int, from_col: int, to_row: int, to_col: int
+    ) -> bool:
         """执行走棋"""
         game = self._games.get(game_id)
         if not game:

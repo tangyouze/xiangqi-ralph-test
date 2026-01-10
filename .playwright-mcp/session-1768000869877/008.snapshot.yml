@@ -1,0 +1,84 @@
+- generic [ref=e3]:
+  - generic [ref=e27]:
+    - generic [ref=e28]:
+      - generic [ref=e29]:
+        - generic [ref=e33] [cursor=pointer]: 車
+        - generic [ref=e35] [cursor=pointer]: 象
+        - generic [ref=e37] [cursor=pointer]: 士
+        - generic [ref=e39] [cursor=pointer]: 將
+        - generic [ref=e41] [cursor=pointer]: 士
+        - generic [ref=e43] [cursor=pointer]: 象
+        - generic [ref=e45] [cursor=pointer]: 馬
+        - generic [ref=e47] [cursor=pointer]: 車
+      - generic [ref=e58]:
+        - generic [ref=e61] [cursor=pointer]: 砲
+        - generic [ref=e68] [cursor=pointer]: 砲
+      - generic [ref=e70]:
+        - generic [ref=e72] [cursor=pointer]: 卒
+        - generic [ref=e75] [cursor=pointer]: 卒
+        - generic [ref=e78] [cursor=pointer]: 卒
+        - generic [ref=e81] [cursor=pointer]: 卒
+        - generic [ref=e84] [cursor=pointer]: 卒
+      - generic [ref=e105]:
+        - generic [ref=e107] [cursor=pointer]: 兵
+        - generic [ref=e110] [cursor=pointer]: 兵
+        - generic [ref=e113] [cursor=pointer]: 兵
+        - generic [ref=e116] [cursor=pointer]: 兵
+        - generic [ref=e119] [cursor=pointer]: 兵
+      - generic [ref=e130] [cursor=pointer]: 炮
+      - generic [ref=e142]:
+        - generic [ref=e144] [cursor=pointer]: 車
+        - generic [ref=e146] [cursor=pointer]: 馬
+        - generic [ref=e148] [cursor=pointer]: 相
+        - generic [ref=e150] [cursor=pointer]: 仕
+        - generic [ref=e152] [cursor=pointer]: 帥
+        - generic [ref=e154] [cursor=pointer]: 仕
+        - generic [ref=e156] [cursor=pointer]: 相
+        - generic [ref=e158] [cursor=pointer]: 馬
+        - generic [ref=e160] [cursor=pointer]: 車
+      - img
+      - img
+    - generic:
+      - generic: 楚 河
+      - generic: 汉 界
+  - generic [ref=e8]:
+    - heading "Chinese Chess" [level=2] [ref=e9]
+    - generic [ref=e10]:
+      - generic [ref=e11]: Red's turn
+      - generic [ref=e161]: "Moves: 2"
+    - generic [ref=e12]:
+      - heading "New Game" [level=3] [ref=e13]
+      - generic [ref=e14]:
+        - generic [ref=e15]: "Mode:"
+        - combobox "Mode:" [ref=e16] [cursor=pointer]:
+          - option "Human vs Human"
+          - option "Human vs AI"
+          - option "AI vs AI (Battle)" [selected]
+      - generic [ref=e162]:
+        - heading "AI Battle Configuration" [level=4] [ref=e163]
+        - generic [ref=e164]:
+          - heading "Red AI" [level=5] [ref=e165]
+          - generic [ref=e166]:
+            - generic [ref=e167]: "Strategy:"
+            - combobox "Strategy:" [ref=e168] [cursor=pointer]:
+              - option "Random"
+              - option "Greedy"
+              - option "Defensive"
+              - option "Aggressive"
+              - option "Minimax (Deep Search)" [selected]
+          - generic [ref=e169]:
+            - generic [ref=e170]: "Search Depth (1-8):"
+            - spinbutton "Search Depth (1-8):" [ref=e171] [cursor=pointer]: "3"
+        - generic [ref=e172]:
+          - heading "Black AI" [level=5] [ref=e173]
+          - generic [ref=e174]:
+            - generic [ref=e175]: "Strategy:"
+            - combobox "Strategy:" [ref=e176] [cursor=pointer]:
+              - option "Random"
+              - option "Greedy"
+              - option "Defensive" [selected]
+              - option "Aggressive"
+              - option "Minimax (Deep Search)"
+      - button "Start New Game" [ref=e25] [cursor=pointer]
+    - button "Next AI Move" [ref=e177] [cursor=pointer]
+    - button "Start Auto Play" [ref=e178] [cursor=pointer]

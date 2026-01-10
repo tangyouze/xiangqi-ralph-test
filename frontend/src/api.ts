@@ -1,22 +1,14 @@
 // API 调用封装
 
-import type { AILevel, GameMode, GameState, Move, MoveResponse } from './types';
+import type { CreateGameOptions, GameState, Move, MoveResponse } from './types';
 
 const API_BASE = 'http://localhost:8000';
 
-export async function createGame(
-  mode: GameMode,
-  aiLevel: AILevel = 'easy',
-  aiColor: string = 'black'
-): Promise<GameState> {
+export async function createGame(options: CreateGameOptions): Promise<GameState> {
   const response = await fetch(`${API_BASE}/games`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      mode,
-      ai_level: aiLevel,
-      ai_color: aiColor,
-    }),
+    body: JSON.stringify(options),
   });
   if (!response.ok) {
     throw new Error('Failed to create game');

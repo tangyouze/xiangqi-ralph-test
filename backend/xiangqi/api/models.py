@@ -16,13 +16,24 @@ class GameMode(str, Enum):
     AI_VS_AI = "ai_vs_ai"
 
 
+class AIStrategy(str, Enum):
+    """AI 策略类型"""
+
+    RANDOM = "random"
+    GREEDY = "greedy"
+    DEFENSIVE = "defensive"
+    AGGRESSIVE = "aggressive"
+    MINIMAX = "minimax"
+
+
 class AILevel(str, Enum):
-    """AI 难度等级"""
+    """AI 难度等级（用于快速选择，会映射到策略和深度）"""
 
     RANDOM = "random"
     EASY = "easy"
     MEDIUM = "medium"
     HARD = "hard"
+    EXPERT = "expert"
 
 
 class PositionModel(BaseModel):
@@ -46,9 +57,20 @@ class CreateGameRequest(BaseModel):
     """创建游戏请求"""
 
     mode: GameMode = GameMode.HUMAN_VS_AI
+    # AI 难度等级（简化模式）
     ai_level: AILevel = AILevel.EASY
     # AI 执红还是执黑（仅 human_vs_ai 模式）
     ai_color: str = "black"
+    # 高级设置：直接指定 AI 策略
+    ai_strategy: AIStrategy | None = None
+    # 高级设置：搜索深度（仅对 minimax 策略有效）
+    search_depth: int | None = Field(default=None, ge=1, le=8)
+    # AI vs AI 模式：红方 AI 策略
+    red_ai_strategy: AIStrategy | None = None
+    red_search_depth: int | None = Field(default=None, ge=1, le=8)
+    # AI vs AI 模式：黑方 AI 策略
+    black_ai_strategy: AIStrategy | None = None
+    black_search_depth: int | None = Field(default=None, ge=1, le=8)
 
 
 class PieceModel(BaseModel):
@@ -96,3 +118,4 @@ class AIInfoResponse(BaseModel):
 
     available_strategies: list[str]
     levels: list[str]
+    strategy_descriptions: dict[str, str] | None = None

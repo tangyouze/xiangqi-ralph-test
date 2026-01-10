@@ -4,7 +4,7 @@ import { useState, useCallback } from 'react';
 import { Board } from './components/Board';
 import { GameControls } from './components/GameControls';
 import { createGame, makeMove, requestAIMove } from './api';
-import type { AILevel, GameMode, GameState, Move, Position } from './types';
+import type { CreateGameOptions, GameState, Move, Position } from './types';
 import './App.css';
 
 function App() {
@@ -13,13 +13,13 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleNewGame = useCallback(async (mode: GameMode, aiLevel: AILevel, aiColor: string) => {
+  const handleNewGame = useCallback(async (options: CreateGameOptions) => {
     setIsLoading(true);
     setError(null);
     setSelectedPosition(null);
 
     try {
-      const state = await createGame(mode, aiLevel, aiColor);
+      const state = await createGame(options);
       setGameState(state);
     } catch (err) {
       setError('Failed to create game. Is the server running?');
