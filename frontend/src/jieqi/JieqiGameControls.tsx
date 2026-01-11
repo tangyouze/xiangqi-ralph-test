@@ -243,16 +243,6 @@ export function JieqiGameControls({
         </>
       )}
 
-      <div className="rules-panel">
-        <h4>Jieqi Rules</h4>
-        <ul>
-          <li>Only Kings start revealed; all other pieces are hidden</li>
-          <li>Hidden pieces move based on their position's piece type</li>
-          <li>When a hidden piece moves, it gets revealed</li>
-          <li>Revealed Elephants and Advisors can cross the river</li>
-          <li>Capture the opponent's King to win</li>
-        </ul>
-      </div>
     </div>
   );
 }

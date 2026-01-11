@@ -4,7 +4,7 @@ import { useState, useCallback } from 'react';
 import { JieqiBoard } from './JieqiBoard';
 import { JieqiGameControls } from './JieqiGameControls';
 import { JieqiEvaluation } from './JieqiEvaluation';
-import { createJieqiGame, makeJieqiMove, requestJieqiAIMove, getAvailableTypes } from './api';
+import { createJieqiGame, makeJieqiMove, requestJieqiAIMove, getAvailableTypes, executeAIMove } from './api';
 import type { CreateJieqiGameOptions, JieqiGameState, JieqiMove, JieqiMoveRequest, PieceType, Position } from './types';
 import { PIECE_NAMES } from './types';
 import './JieqiApp.css';
@@ -16,6 +16,7 @@ interface RevealModalState {
   availableTypes: string[];
   uniqueTypes: string[];
   pieceColor: 'red' | 'black' | null;
+  isAIMove: boolean;  // 是否为 AI 走棋（需要调用不同的 API）
 }
 
 export function JieqiApp() {
@@ -31,6 +32,7 @@ export function JieqiApp() {
     availableTypes: [],
     uniqueTypes: [],
     pieceColor: null,
+    isAIMove: false,
   });
 
   const handleNewGame = useCallback(async (options: CreateJieqiGameOptions) => {
@@ -60,6 +62,22 @@ export function JieqiApp() {
       const response = await makeJieqiMove(gameState.game_id, move);
       if (response.success && response.game_state) {
         setGameState(response.game_state);
+        // 检查是否有 AI 翻棋需要用户选择类型
+        if (response.pending_ai_reveal && response.pending_ai_reveal_types) {
+          // 找出 AI 翻的棋子颜色
+          const aiPiece = response.game_state.pieces.find(
+            p => p.position.row === response.pending_ai_reveal!.from_pos.row
+              && p.position.col === response.pending_ai_reveal!.from_pos.col
+          );
+          setRevealModal({
+            isOpen: true,
+            pendingMove: response.pending_ai_reveal,
+            availableTypes: response.pending_ai_reveal_types,
+            uniqueTypes: [...new Set(response.pending_ai_reveal_types)],
+            pieceColor: aiPiece?.color || null,
+            isAIMove: true,
+          });
+        }
       } else if (response.error) {
         setError(response.error);
       }
@@ -90,6 +108,7 @@ export function JieqiApp() {
           availableTypes: typesResponse.available_types,
           uniqueTypes: typesResponse.unique_types,
           pieceColor: piece?.color || null,
+          isAIMove: false,
         });
       } catch (err) {
         setError('Failed to get available piece types');
@@ -104,26 +123,57 @@ export function JieqiApp() {
     executeMove(move);
   }, [gameState, executeMove]);
 
+  // 执行 AI 翻棋走法（延迟分配模式）
+  const executeAIMoveWithReveal = useCallback(async (move: JieqiMoveRequest) => {
+    if (!gameState) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await executeAIMove(gameState.game_id, move);
+      if (response.success && response.game_state) {
+        setGameState(response.game_state);
+      } else if (response.error) {
+        setError(response.error);
+      }
+    } catch (err) {
+      setError('Failed to execute AI move');
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [gameState]);
+
   // 处理选择随机揭棋
   const handleRevealRandom = useCallback(() => {
     if (!revealModal.pendingMove) return;
     // 不传 reveal_type，后端会随机选择
-    executeMove(revealModal.pendingMove);
-    setRevealModal({ isOpen: false, pendingMove: null, availableTypes: [], uniqueTypes: [], pieceColor: null });
+    if (revealModal.isAIMove) {
+      executeAIMoveWithReveal(revealModal.pendingMove);
+    } else {
+      executeMove(revealModal.pendingMove);
+    }
+    setRevealModal({ isOpen: false, pendingMove: null, availableTypes: [], uniqueTypes: [], pieceColor: null, isAIMove: false });
     setSelectedPosition(null);
-  }, [revealModal.pendingMove, executeMove]);
+  }, [revealModal.pendingMove, revealModal.isAIMove, executeMove, executeAIMoveWithReveal]);
 
   // 处理选择指定类型揭棋
   const handleRevealType = useCallback((pieceType: PieceType) => {
     if (!revealModal.pendingMove) return;
-    executeMove({ ...revealModal.pendingMove, reveal_type: pieceType });
-    setRevealModal({ isOpen: false, pendingMove: null, availableTypes: [], uniqueTypes: [], pieceColor: null });
+    const moveWithType = { ...revealModal.pendingMove, reveal_type: pieceType };
+    if (revealModal.isAIMove) {
+      executeAIMoveWithReveal(moveWithType);
+    } else {
+      executeMove(moveWithType);
+    }
+    setRevealModal({ isOpen: false, pendingMove: null, availableTypes: [], uniqueTypes: [], pieceColor: null, isAIMove: false });
     setSelectedPosition(null);
-  }, [revealModal.pendingMove, executeMove]);
+  }, [revealModal.pendingMove, revealModal.isAIMove, executeMove, executeAIMoveWithReveal]);
 
   // 取消揭棋选择
   const handleRevealCancel = useCallback(() => {
-    setRevealModal({ isOpen: false, pendingMove: null, availableTypes: [], uniqueTypes: [], pieceColor: null });
+    setRevealModal({ isOpen: false, pendingMove: null, availableTypes: [], uniqueTypes: [], pieceColor: null, isAIMove: false });
   }, []);
 
   const handleRequestAIMove = useCallback(async () => {
@@ -152,12 +202,16 @@ export function JieqiApp() {
     if (!revealModal.isOpen) return null;
 
     const color = revealModal.pieceColor || 'red';
+    const title = revealModal.isAIMove ? 'AI Reveal - Choose Type' : 'Choose Piece Type';
+    const description = revealModal.isAIMove
+      ? 'AI wants to reveal a piece. Select which type to reveal, or let the system choose randomly.'
+      : 'Select which piece to reveal, or let the system choose randomly.';
 
     return (
       <div className="reveal-modal-overlay" onClick={handleRevealCancel}>
         <div className="reveal-modal" onClick={e => e.stopPropagation()}>
-          <h3>Choose Piece Type</h3>
-          <p>Select which piece to reveal, or let the system choose randomly.</p>
+          <h3>{title}</h3>
+          <p>{description}</p>
 
           <div className="reveal-options">
             <button className="reveal-option random" onClick={handleRevealRandom}>

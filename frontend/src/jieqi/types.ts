@@ -48,6 +48,9 @@ export interface JieqiMoveResponse {
   game_state: JieqiGameState | null;
   error: string | null;
   ai_move: JieqiMove | null;
+  // 延迟分配模式：AI 翻棋需要用户选择类型
+  pending_ai_reveal: JieqiMove | null;
+  pending_ai_reveal_types: string[] | null;
 }
 
 // 创建游戏请求

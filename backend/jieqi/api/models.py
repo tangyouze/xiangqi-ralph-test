@@ -83,6 +83,9 @@ class MoveResponse(BaseModel):
     game_state: "GameStateResponse | None" = None
     error: str | None = None
     ai_move: MoveModel | None = None
+    # 延迟分配模式：AI 的翻棋走法需要用户选择类型
+    pending_ai_reveal: MoveModel | None = None
+    pending_ai_reveal_types: list[str] | None = None  # 可选择的类型列表
 
 
 class GameStateResponse(BaseModel):
@@ -199,6 +202,19 @@ class PendingRevealRequest(BaseModel):
 
     from_row: int
     from_col: int
+
+
+class ExecuteAIMoveRequest(BaseModel):
+    """执行 AI 走法请求（延迟分配模式）"""
+
+    # AI 走法信息
+    from_row: int
+    from_col: int
+    to_row: int
+    to_col: int
+    action_type: str
+    # 用户选择的棋子类型
+    reveal_type: str | None = None
 
 
 # 更新前向引用

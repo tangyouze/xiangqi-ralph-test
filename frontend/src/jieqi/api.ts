@@ -7,7 +7,6 @@ import type {
   JieqiGameState,
   JieqiMoveRequest,
   JieqiMoveResponse,
-  PieceType,
   Position,
 } from './types';
 
@@ -98,6 +97,32 @@ export async function requestJieqiAIMove(gameId: string): Promise<JieqiMoveRespo
   });
   if (!response.ok) {
     throw new Error('Failed to request AI move');
+  }
+  return response.json();
+}
+
+// 执行 AI 走法（延迟分配模式下，用户选择翻棋类型后调用）
+export async function executeAIMove(
+  gameId: string,
+  move: JieqiMoveRequest
+): Promise<JieqiMoveResponse> {
+  const body: Record<string, unknown> = {
+    action_type: move.action_type,
+    from_row: move.from_pos.row,
+    from_col: move.from_pos.col,
+    to_row: move.to_pos.row,
+    to_col: move.to_pos.col,
+  };
+  if (move.reveal_type) {
+    body.reveal_type = move.reveal_type;
+  }
+  const response = await fetch(`${API_BASE}/games/${gameId}/execute-ai-move`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    throw new Error('Failed to execute AI move');
   }
   return response.json();
 }

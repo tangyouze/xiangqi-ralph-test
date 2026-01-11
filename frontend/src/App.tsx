@@ -31,7 +31,7 @@ function GameTypeSwitcher({ current, onChange }: { current: GameType; onChange: 
 }
 
 function App() {
-  const [gameType, setGameType] = useState<GameType>('xiangqi');
+  const [gameType, setGameType] = useState<GameType>('jieqi');
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [selectedPosition, setSelectedPosition] = useState<Position | null>(null);
   const [isLoading, setIsLoading] = useState(false);

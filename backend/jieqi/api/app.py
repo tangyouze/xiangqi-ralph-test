@@ -15,6 +15,7 @@ from jieqi.api.models import (
     AvailableTypesResponse,
     CreateGameRequest,
     EvaluationResponse,
+    ExecuteAIMoveRequest,
     GameMode,
     GameStateResponse,
     HistoryResponse,
@@ -143,21 +144,41 @@ def create_app() -> FastAPI:
 
         # 如果是人机模式且轮到 AI，自动走棋
         ai_move_response = None
+        pending_ai_reveal = None
+        pending_ai_reveal_types = None
+
         if mode == GameMode.HUMAN_VS_AI and game.result == GameResult.ONGOING:
             ai_move = game_manager.get_ai_move(game_id)
             if ai_move:
-                # AI 走棋时使用随机分配（不指定 reveal_type）
-                game.make_move(ai_move)
-                ai_move_response = MoveModel(
-                    action_type=ai_move.action_type.value,
-                    from_pos=PositionModel(row=ai_move.from_pos.row, col=ai_move.from_pos.col),
-                    to_pos=PositionModel(row=ai_move.to_pos.row, col=ai_move.to_pos.col),
-                )
+                # 延迟分配模式下，如果 AI 要翻棋，需要用户选择类型
+                if delay_reveal and ai_move.action_type == ActionType.REVEAL_AND_MOVE:
+                    # 获取可选类型
+                    piece = game.board.get_piece(ai_move.from_pos)
+                    if piece:
+                        available = game.board.get_available_types_unique(piece.color)
+                        pending_ai_reveal = MoveModel(
+                            action_type=ai_move.action_type.value,
+                            from_pos=PositionModel(
+                                row=ai_move.from_pos.row, col=ai_move.from_pos.col
+                            ),
+                            to_pos=PositionModel(row=ai_move.to_pos.row, col=ai_move.to_pos.col),
+                        )
+                        pending_ai_reveal_types = [t.value for t in available]
+                else:
+                    # 非翻棋走法，直接执行
+                    game.make_move(ai_move)
+                    ai_move_response = MoveModel(
+                        action_type=ai_move.action_type.value,
+                        from_pos=PositionModel(row=ai_move.from_pos.row, col=ai_move.from_pos.col),
+                        to_pos=PositionModel(row=ai_move.to_pos.row, col=ai_move.to_pos.col),
+                    )
 
         return MoveResponse(
             success=True,
             game_state=_game_to_response(game, mode, delay_reveal),
             ai_move=ai_move_response,
+            pending_ai_reveal=pending_ai_reveal,
+            pending_ai_reveal_types=pending_ai_reveal_types,
         )
 
     @app.post("/games/{game_id}/ai-move", response_model=MoveResponse)
@@ -189,6 +210,52 @@ def create_app() -> FastAPI:
             )
 
         mode = game_manager.get_mode(game_id) or GameMode.AI_VS_AI
+        delay_reveal = game_manager.is_delay_reveal(game_id)
+
+        return MoveResponse(
+            success=True,
+            game_state=_game_to_response(game, mode, delay_reveal),
+            ai_move=MoveModel(
+                action_type=ai_move.action_type.value,
+                from_pos=PositionModel(row=ai_move.from_pos.row, col=ai_move.from_pos.col),
+                to_pos=PositionModel(row=ai_move.to_pos.row, col=ai_move.to_pos.col),
+            ),
+        )
+
+    @app.post("/games/{game_id}/execute-ai-move", response_model=MoveResponse)
+    def execute_ai_move(game_id: str, request: ExecuteAIMoveRequest):
+        """执行 AI 走法（延迟分配模式下，用户选择翻棋类型后调用）"""
+        game = game_manager.get_game(game_id)
+        if not game:
+            raise HTTPException(status_code=404, detail="Game not found")
+
+        if game.result != GameResult.ONGOING:
+            return MoveResponse(
+                success=False,
+                error="Game has already ended",
+            )
+
+        # 构造 AI 走法
+        action_type = (
+            ActionType.REVEAL_AND_MOVE
+            if request.action_type == "reveal_and_move"
+            else ActionType.MOVE
+        )
+        ai_move = JieqiMove(
+            action_type=action_type,
+            from_pos=Position(request.from_row, request.from_col),
+            to_pos=Position(request.to_row, request.to_col),
+        )
+
+        # 执行走棋（传递用户选择的 reveal_type）
+        success = game.make_move(ai_move, reveal_type=request.reveal_type)
+        if not success:
+            return MoveResponse(
+                success=False,
+                error="Failed to execute AI move",
+            )
+
+        mode = game_manager.get_mode(game_id) or GameMode.HUMAN_VS_AI
         delay_reveal = game_manager.is_delay_reveal(game_id)
 
         return MoveResponse(
