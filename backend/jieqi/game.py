@@ -41,6 +41,8 @@ class GameConfig:
     time_limit_seconds: int | None = None  # 每步时间限制
     total_time_seconds: int | None = None  # 总时间限制
     seed: int | None = None  # 随机种子（用于复现棋局）
+    max_repetitions: int = 3  # 同一局面最大重复次数（超过判和）
+    track_repetitions: bool = True  # 是否追踪重复局面
 
 
 class JieqiGame:
@@ -53,6 +55,10 @@ class JieqiGame:
         self.current_turn = Color.RED
         self.move_history: list[MoveRecord] = []
         self.result = GameResult.ONGOING
+        # 重复局面追踪：position_key -> count
+        self._position_counts: dict[str, int] = {}
+        if self.config.track_repetitions:
+            self._record_position()
 
     def make_move(self, move: JieqiMove) -> bool:
         """执行走棋
@@ -81,22 +87,60 @@ class JieqiGame:
             revealed_type = piece.actual_type.value
 
         notation = self._generate_notation(move, captured, revealed_type)
-        self.move_history.append(
-            MoveRecord(move, captured, was_hidden, revealed_type, notation)
-        )
+        self.move_history.append(MoveRecord(move, captured, was_hidden, revealed_type, notation))
 
         # 切换回合
         self.current_turn = self.current_turn.opposite
 
-        # 检查游戏结果
-        self.result = self.board.get_game_result(self.current_turn)
+        # 记录新局面
+        if self.config.track_repetitions:
+            self._record_position()
+
+        # 检查游戏结果（包括重复局面判和）
+        self.result = self._check_game_result()
 
         return True
+
+    def _record_position(self) -> None:
+        """记录当前局面"""
+        key = self.board.get_position_key()
+        self._position_counts[key] = self._position_counts.get(key, 0) + 1
+
+    def _unrecord_position(self) -> None:
+        """撤销当前局面的记录"""
+        key = self.board.get_position_key()
+        if key in self._position_counts:
+            self._position_counts[key] -= 1
+            if self._position_counts[key] <= 0:
+                del self._position_counts[key]
+
+    def get_position_count(self) -> int:
+        """获取当前局面出现的次数"""
+        key = self.board.get_position_key()
+        return self._position_counts.get(key, 0)
+
+    def _check_game_result(self) -> GameResult:
+        """检查游戏结果，包括重复局面判和"""
+        # 先检查基本结果
+        result = self.board.get_game_result(self.current_turn)
+        if result != GameResult.ONGOING:
+            return result
+
+        # 检查重复局面
+        if self.config.track_repetitions:
+            if self.get_position_count() >= self.config.max_repetitions:
+                return GameResult.DRAW
+
+        return GameResult.ONGOING
 
     def undo_move(self) -> bool:
         """撤销上一步"""
         if not self.move_history:
             return False
+
+        # 撤销当前局面的记录
+        if self.config.track_repetitions:
+            self._unrecord_position()
 
         record = self.move_history.pop()
         self.board.undo_move(record.move, record.captured, record.was_hidden)

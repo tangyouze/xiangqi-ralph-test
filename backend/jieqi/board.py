@@ -359,6 +359,46 @@ class JieqiBoard:
         """序列化为完整字典（包含暗子身份，用于调试）"""
         return {"pieces": [piece.to_full_dict() for piece in self._pieces.values()]}
 
+    def get_position_hash(self) -> int:
+        """获取当前局面的哈希值
+
+        用于检测重复局面。哈希包含：
+        - 每个棋子的位置
+        - 棋子颜色
+        - 棋子是否为暗子
+        - 暗子的真实身份（因为揭棋中暗子身份影响走法）
+
+        注意：这是一个简化的哈希，可能有冲突。
+        对于需要精确匹配的场景，使用 get_position_key()。
+        """
+        # 使用 Python 内置的 hash 函数
+        # 将所有棋子信息编码为一个可哈希的元组
+        pieces_tuple = tuple(
+            sorted(
+                (
+                    pos.row * 9 + pos.col,
+                    piece.color.value,
+                    piece.actual_type.value,
+                    piece.is_hidden,
+                )
+                for pos, piece in self._pieces.items()
+            )
+        )
+        return hash(pieces_tuple)
+
+    def get_position_key(self) -> str:
+        """获取当前局面的唯一键
+
+        比 get_position_hash() 更精确，但更慢。
+        用于需要精确匹配的场景。
+        """
+        # 生成一个确定性的字符串表示
+        pieces_list = sorted(
+            f"{pos.row}{pos.col}{piece.color.value}{piece.actual_type.value}{int(piece.is_hidden)}"
+            for pos, piece in self._pieces.items()
+        )
+        return "|".join(pieces_list)
+
     def __iter__(self) -> Iterator[JieqiPiece]:
         return iter(self._pieces.values())
 
