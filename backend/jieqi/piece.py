@@ -18,6 +18,16 @@ from jieqi.types import (
     get_position_piece_type,
 )
 
+# 导入预计算的攻击表
+from jieqi.attack_tables import (
+    get_king_attacks,
+    get_advisor_attacks,
+    get_elephant_attacks,
+    get_horse_attacks,
+    get_pawn_attacks,
+    get_line_attacks,
+)
+
 if TYPE_CHECKING:
     from jieqi.board import JieqiBoard
 
@@ -67,9 +77,7 @@ class JieqiPiece:
             pos_type = get_position_piece_type(self.position)
             if pos_type is None:
                 # 不在标准位置上，无法走动（不应该发生）
-                raise ValueError(
-                    f"Hidden piece at {self.position} is not on a standard position"
-                )
+                raise ValueError(f"Hidden piece at {self.position} is not on a standard position")
             return pos_type
         else:
             # 明子按真实身份走
@@ -85,9 +93,7 @@ class JieqiPiece:
         movement_type = self.get_movement_type()
         return self._get_moves_for_type(board, movement_type)
 
-    def _get_moves_for_type(
-        self, board: JieqiBoard, piece_type: PieceType
-    ) -> list[Position]:
+    def _get_moves_for_type(self, board: JieqiBoard, piece_type: PieceType) -> list[Position]:
         """根据指定的棋子类型获取走法"""
         if piece_type == PieceType.KING:
             return self._get_king_moves(board)
@@ -107,13 +113,11 @@ class JieqiPiece:
             return []
 
     def _get_king_moves(self, board: JieqiBoard) -> list[Position]:
-        """将/帅走法：九宫格内四向移动一格"""
+        """将/帅走法：九宫格内四向移动一格（使用预计算表）"""
         moves = []
-        for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-            new_pos = self.position + (dr, dc)
-            if new_pos.is_valid() and new_pos.is_in_palace(self.color):
-                if self._can_move_to(board, new_pos):
-                    moves.append(new_pos)
+        for new_pos in get_king_attacks(self.position):
+            if new_pos.is_in_palace(self.color) and self._can_move_to(board, new_pos):
+                moves.append(new_pos)
 
         # 飞将检查
         enemy_king_pos = board.find_king(self.color.opposite)
@@ -131,17 +135,13 @@ class JieqiPiece:
         return moves
 
     def _get_advisor_moves(self, board: JieqiBoard) -> list[Position]:
-        """士/仕走法：
+        """士/仕走法（使用预计算表）：
 
         - 暗子：九宫格内斜走一格
         - 明子：可以过河，斜走一格（无九宫格限制）
         """
         moves = []
-        for dr, dc in [(-1, -1), (-1, 1), (1, -1), (1, 1)]:
-            new_pos = self.position + (dr, dc)
-            if not new_pos.is_valid():
-                continue
-
+        for new_pos in get_advisor_attacks(self.position):
             # 揭棋规则：明子的士可以过河
             if self.is_hidden:
                 # 暗子仍限制在九宫格内
@@ -153,17 +153,13 @@ class JieqiPiece:
         return moves
 
     def _get_elephant_moves(self, board: JieqiBoard) -> list[Position]:
-        """象/相走法：
+        """象/相走法（使用预计算表）：
 
         - 暗子：己方半场走田字，需检查象眼
         - 明子：可以过河，走田字，需检查象眼
         """
         moves = []
-        for dr, dc in [(-2, -2), (-2, 2), (2, -2), (2, 2)]:
-            new_pos = self.position + (dr, dc)
-            if not new_pos.is_valid():
-                continue
-
+        for new_pos, eye_pos in get_elephant_attacks(self.position):
             # 揭棋规则：明子的象可以过河
             if self.is_hidden:
                 # 暗子仍限制在己方半场
@@ -171,7 +167,6 @@ class JieqiPiece:
                     continue
 
             # 检查象眼
-            eye_pos = self.position + (dr // 2, dc // 2)
             if board.get_piece(eye_pos) is not None:
                 continue
 
@@ -180,32 +175,21 @@ class JieqiPiece:
         return moves
 
     def _get_horse_moves(self, board: JieqiBoard) -> list[Position]:
-        """马走法：日字走法，需检查蹩马腿"""
+        """马走法（使用预计算表）：日字走法，需检查蹩马腿"""
         moves = []
-        leg_and_moves = [
-            ((-1, 0), [(-2, -1), (-2, 1)]),
-            ((1, 0), [(2, -1), (2, 1)]),
-            ((0, -1), [(-1, -2), (1, -2)]),
-            ((0, 1), [(-1, 2), (1, 2)]),
-        ]
-
-        for leg_offset, move_offsets in leg_and_moves:
-            leg_pos = self.position + leg_offset
-            if leg_pos.is_valid() and board.get_piece(leg_pos) is None:
-                for move_offset in move_offsets:
-                    new_pos = self.position + move_offset
-                    if new_pos.is_valid() and self._can_move_to(board, new_pos):
-                        moves.append(new_pos)
+        for new_pos, leg_pos in get_horse_attacks(self.position):
+            # 检查马腿是否被蹩
+            if board.get_piece(leg_pos) is not None:
+                continue
+            if self._can_move_to(board, new_pos):
+                moves.append(new_pos)
         return moves
 
     def _get_rook_moves(self, board: JieqiBoard) -> list[Position]:
-        """车走法：横竖直走，遇子停止"""
+        """车走法（使用预计算表）：横竖直走，遇子停止"""
         moves = []
-        for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-            for step in range(1, 10):
-                new_pos = self.position + (dr * step, dc * step)
-                if not new_pos.is_valid():
-                    break
+        for direction in range(4):
+            for new_pos in get_line_attacks(self.position, direction):
                 target = board.get_piece(new_pos)
                 if target is None:
                     moves.append(new_pos)
@@ -217,14 +201,11 @@ class JieqiPiece:
         return moves
 
     def _get_cannon_moves(self, board: JieqiBoard) -> list[Position]:
-        """炮走法：横竖直走，吃子需隔一个棋子（炮架）"""
+        """炮走法（使用预计算表）：横竖直走，吃子需隔一个棋子（炮架）"""
         moves = []
-        for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+        for direction in range(4):
             found_platform = False
-            for step in range(1, 10):
-                new_pos = self.position + (dr * step, dc * step)
-                if not new_pos.is_valid():
-                    break
+            for new_pos in get_line_attacks(self.position, direction):
                 target = board.get_piece(new_pos)
                 if not found_platform:
                     if target is None:
@@ -239,25 +220,17 @@ class JieqiPiece:
         return moves
 
     def _get_pawn_moves(self, board: JieqiBoard) -> list[Position]:
-        """卒/兵走法：
+        """卒/兵走法（使用预计算表）：
 
         - 未过河：只能向前一格
         - 过河后：可以向前、左、右各一格
         """
         moves = []
-        forward = 1 if self.color == Color.RED else -1
+        is_red = self.color == Color.RED
 
-        # 向前走
-        forward_pos = self.position + (forward, 0)
-        if forward_pos.is_valid() and self._can_move_to(board, forward_pos):
-            moves.append(forward_pos)
-
-        # 过河后可以左右走
-        if not self.position.is_on_own_side(self.color):
-            for dc in [-1, 1]:
-                side_pos = self.position + (0, dc)
-                if side_pos.is_valid() and self._can_move_to(board, side_pos):
-                    moves.append(side_pos)
+        for new_pos in get_pawn_attacks(self.position, is_red):
+            if self._can_move_to(board, new_pos):
+                moves.append(new_pos)
 
         return moves
 
@@ -302,9 +275,7 @@ class JieqiPiece:
             "actual_type": self.actual_type.value,
             "position": {"row": self.position.row, "col": self.position.col},
             "state": self.state.value,
-            "movement_type": (
-                self.get_movement_type().value if self.is_hidden else None
-            ),
+            "movement_type": (self.get_movement_type().value if self.is_hidden else None),
         }
 
     def __repr__(self) -> str:
