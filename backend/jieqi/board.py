@@ -22,6 +22,9 @@ from jieqi.types import (
     INITIAL_POSITIONS,
 )
 
+# 使用快速将军检测（懒加载以避免循环导入）
+_fast_move_generator = None
+
 
 class JieqiBoard:
     """揭棋棋盘
@@ -165,7 +168,14 @@ class JieqiBoard:
         return None
 
     def is_in_check(self, color: Color) -> bool:
-        """检查指定颜色的将/帅是否被将军"""
+        """检查指定颜色的将/帅是否被将军（使用优化算法）"""
+        from jieqi.bitboard import FastMoveGenerator
+
+        fast_gen = FastMoveGenerator(self)
+        return fast_gen.is_in_check_fast(color)
+
+    def is_in_check_slow(self, color: Color) -> bool:
+        """检查指定颜色的将/帅是否被将军（原始算法，用于验证）"""
         king_pos = self.find_king(color)
         if king_pos is None:
             return True  # 没有将，认为被将军

@@ -17,3 +17,4 @@ from jieqi.ai.strategies.v006_balanced import strategy as v006  # noqa: F401
 from jieqi.ai.strategies.v007_reveal import strategy as v007  # noqa: F401
 from jieqi.ai.strategies.v008_lookahead import strategy as v008  # noqa: F401
 from jieqi.ai.strategies.v009_coordination import strategy as v009  # noqa: F401
+from jieqi.ai.strategies.v010_fast import strategy as v010  # noqa: F401
