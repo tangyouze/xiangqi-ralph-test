@@ -23,6 +23,7 @@ export function JieqiGameControls({
   const [aiStrategy, setAIStrategy] = useState<string>('greedy');
   const [redAIStrategy, setRedAIStrategy] = useState<string>('greedy');
   const [blackAIStrategy, setBlackAIStrategy] = useState<string>('random');
+  const [delayReveal, setDelayReveal] = useState<boolean>(true);  // 默认开启延迟分配模式
 
   // AI 策略列表（从后端获取）
   const [aiStrategies, setAiStrategies] = useState<AIStrategyInfo[]>([]);
@@ -80,6 +81,7 @@ export function JieqiGameControls({
     const options: CreateJieqiGameOptions = {
       mode,
       ai_color: aiColor,
+      delay_reveal: delayReveal,
     };
 
     if (mode === 'human_vs_ai') {
@@ -90,7 +92,7 @@ export function JieqiGameControls({
     }
 
     onNewGame(options);
-  }, [mode, aiColor, aiStrategy, redAIStrategy, blackAIStrategy, onNewGame]);
+  }, [mode, aiColor, aiStrategy, redAIStrategy, blackAIStrategy, delayReveal, onNewGame]);
 
   const getStatusText = () => {
     if (!gameState) return 'No game in progress';
@@ -143,6 +145,17 @@ export function JieqiGameControls({
             <option value="human_vs_ai">Human vs AI</option>
             <option value="ai_vs_ai">AI vs AI</option>
           </select>
+        </div>
+
+        <div className="control-group checkbox-group">
+          <label>
+            <input
+              type="checkbox"
+              checked={delayReveal}
+              onChange={e => setDelayReveal(e.target.checked)}
+            />
+            Manual Reveal (choose piece type when revealing)
+          </label>
         </div>
 
         {mode === 'human_vs_ai' && (
@@ -230,16 +243,6 @@ export function JieqiGameControls({
         </>
       )}
 
-      <div className="rules-panel">
-        <h4>Jieqi Rules</h4>
-        <ul>
-          <li>Only Kings start revealed; all other pieces are hidden</li>
-          <li>Hidden pieces move based on their position's piece type</li>
-          <li>When a hidden piece moves, it gets revealed</li>
-          <li>Revealed Elephants and Advisors can cross the river</li>
-          <li>Capture the opponent's King to win</li>
-        </ul>
-      </div>
     </div>
   );
 }

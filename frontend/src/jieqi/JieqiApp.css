@@ -2,22 +2,46 @@
 
 .jieqi-app {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
   background: linear-gradient(135deg, #5a7a6a 0%, #4a6a5a 100%);
   padding: 20px;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .game-area {
-  flex: 1;
+  flex: 0 0 auto;
   display: flex;
   justify-content: center;
   align-items: center;
 }
 
 .controls-area {
-  width: 320px;
+  flex: 1;
   margin-left: 20px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto 1fr;
+  gap: 15px;
+  min-width: 500px;
+  max-height: calc(100vh - 40px);
+  overflow: hidden;
+}
+
+.controls-area > .jieqi-game-controls {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.controls-area > .jieqi-evaluation {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.controls-area > .jieqi-history {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  overflow: hidden;
 }
 
 .no-game {
@@ -45,6 +69,137 @@
   border: 1px solid #f5c6cb;
   border-radius: 6px;
   text-align: center;
+}
+
+/* 揭棋类型选择模态框 */
+.reveal-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.reveal-modal {
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  min-width: 320px;
+  max-width: 480px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.reveal-modal h3 {
+  margin: 0 0 8px 0;
+  font-size: 20px;
+  color: #333;
+}
+
+.reveal-modal p {
+  margin: 0 0 20px 0;
+  color: #666;
+  font-size: 14px;
+}
+
+.reveal-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.reveal-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 16px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  background: #f8f8f8;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 70px;
+}
+
+.reveal-option:hover {
+  border-color: #4a90d9;
+  background: #e8f0f8;
+}
+
+.reveal-option.random {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-color: transparent;
+  font-size: 16px;
+}
+
+.reveal-option.random:hover {
+  opacity: 0.9;
+  transform: scale(1.02);
+}
+
+.reveal-option.piece-type {
+  border-width: 3px;
+}
+
+.reveal-option.piece-type.red {
+  border-color: #c41e3a;
+  background: #fff5f5;
+}
+
+.reveal-option.piece-type.red:hover {
+  background: #ffe8e8;
+}
+
+.reveal-option.piece-type.black {
+  border-color: #333;
+  background: #f5f5f5;
+}
+
+.reveal-option.piece-type.black:hover {
+  background: #e8e8e8;
+}
+
+.reveal-option .piece-char {
+  font-size: 28px;
+  font-weight: bold;
+  line-height: 1.2;
+}
+
+.reveal-option.piece-type.red .piece-char {
+  color: #c41e3a;
+}
+
+.reveal-option.piece-type.black .piece-char {
+  color: #333;
+}
+
+.reveal-option .piece-count {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.reveal-cancel {
+  width: 100%;
+  padding: 10px;
+  border: none;
+  border-radius: 6px;
+  background: #ddd;
+  color: #666;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.reveal-cancel:hover {
+  background: #ccc;
 }
 
 /* 响应式布局 */

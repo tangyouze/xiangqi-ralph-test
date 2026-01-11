@@ -4,6 +4,20 @@
 overmind-start:
     overmind start
 
+# Restart overmind in daemon mode and connect
+overmind-restart:
+    -overmind quit 2>/dev/null
+    -pkill -f "uvicorn main:app" 2>/dev/null
+    -pkill -f "uvicorn jieqi_main:app" 2>/dev/null
+    -pkill -f "npm run dev -- --port 6701" 2>/dev/null
+    -lsof -ti:6701 | xargs kill -9 2>/dev/null
+    -lsof -ti:6702 | xargs kill -9 2>/dev/null
+    -lsof -ti:6703 | xargs kill -9 2>/dev/null
+    -rm -f .overmind.sock
+    sleep 1
+    overmind start -D
+    overmind connect
+
 # Start backend only
 backend:
     cd backend && source .venv/bin/activate && uvicorn main:app --host 0.0.0.0 --port 6702 --reload
