@@ -103,5 +103,84 @@ class AIInfoResponse(BaseModel):
     strategy_descriptions: dict[str, str]
 
 
+class MaterialScore(BaseModel):
+    """子力分数"""
+
+    red: int
+    black: int
+    diff: int
+
+
+class PositionScore(BaseModel):
+    """位置分数"""
+
+    red: int
+    black: int
+    diff: int
+
+
+class HiddenCount(BaseModel):
+    """暗子数量"""
+
+    red: int
+    black: int
+
+
+class PieceCount(BaseModel):
+    """棋子数量"""
+
+    red: int
+    black: int
+
+
+class EvaluationResponse(BaseModel):
+    """局面评估响应"""
+
+    total: int  # 总分（厘兵单位）
+    material: MaterialScore  # 子力分数
+    position: PositionScore  # 位置分数
+    check: int  # 将军分数
+    hidden: HiddenCount  # 暗子数量
+    piece_count: PieceCount  # 棋子数量
+    win_probability: float  # 胜率估计 (0-1)
+    move_count: int  # 当前步数
+    current_turn: str  # 当前走棋方
+
+
+class MoveHistoryItem(BaseModel):
+    """走棋历史项"""
+
+    move_number: int
+    move: MoveModel
+    notation: str
+    captured: PieceModel | None = None
+    revealed_type: str | None = None
+
+
+class HistoryResponse(BaseModel):
+    """历史记录响应"""
+
+    game_id: str
+    moves: list[MoveHistoryItem]
+    total_moves: int
+
+
+class ReplayRequest(BaseModel):
+    """复盘请求"""
+
+    move_number: int  # 要跳转到的步数 (0 = 开局)
+
+
+class ReplayResponse(BaseModel):
+    """复盘响应"""
+
+    success: bool
+    game_state: GameStateResponse | None = None
+    current_move_number: int
+    total_moves: int
+    error: str | None = None
+
+
 # 更新前向引用
 MoveResponse.model_rebuild()
+ReplayResponse.model_rebuild()

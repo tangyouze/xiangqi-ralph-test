@@ -78,3 +78,37 @@ export async function deleteJieqiGame(gameId: string): Promise<void> {
     throw new Error('Failed to delete game');
   }
 }
+
+// 评估和复盘相关类型
+import type { EvaluationResult, HistoryResponse, ReplayResponse } from './types';
+
+export async function evaluatePosition(gameId: string): Promise<EvaluationResult> {
+  const response = await fetch(`${API_BASE}/games/${gameId}/evaluate`);
+  if (!response.ok) {
+    throw new Error('Failed to evaluate position');
+  }
+  return response.json();
+}
+
+export async function getHistory(gameId: string): Promise<HistoryResponse> {
+  const response = await fetch(`${API_BASE}/games/${gameId}/history`);
+  if (!response.ok) {
+    throw new Error('Failed to get history');
+  }
+  return response.json();
+}
+
+export async function replayToMove(
+  gameId: string,
+  moveNumber: number
+): Promise<ReplayResponse> {
+  const response = await fetch(`${API_BASE}/games/${gameId}/replay`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ move_number: moveNumber }),
+  });
+  if (!response.ok) {
+    throw new Error('Failed to replay to move');
+  }
+  return response.json();
+}

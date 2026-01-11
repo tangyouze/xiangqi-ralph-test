@@ -13,14 +13,24 @@ from jieqi.api.models import (
     AIInfoResponse,
     AILevel,
     CreateGameRequest,
+    EvaluationResponse,
     GameMode,
     GameStateResponse,
+    HistoryResponse,
+    HiddenCount,
+    MaterialScore,
+    MoveHistoryItem,
     MoveModel,
     MoveRequest,
     MoveResponse,
+    PieceCount,
     PieceModel,
     PositionModel,
+    PositionScore,
+    ReplayRequest,
+    ReplayResponse,
 )
+from jieqi.evaluator import evaluate_game
 from jieqi.types import ActionType, GameResult, JieqiMove, Position
 
 
@@ -134,12 +144,8 @@ def create_app() -> FastAPI:
                 game.make_move(ai_move)
                 ai_move_response = MoveModel(
                     action_type=ai_move.action_type.value,
-                    from_pos=PositionModel(
-                        row=ai_move.from_pos.row, col=ai_move.from_pos.col
-                    ),
-                    to_pos=PositionModel(
-                        row=ai_move.to_pos.row, col=ai_move.to_pos.col
-                    ),
+                    from_pos=PositionModel(row=ai_move.from_pos.row, col=ai_move.from_pos.col),
+                    to_pos=PositionModel(row=ai_move.to_pos.row, col=ai_move.to_pos.col),
                 )
 
         return MoveResponse(
@@ -182,12 +188,8 @@ def create_app() -> FastAPI:
             game_state=_game_to_response(game, mode),
             ai_move=MoveModel(
                 action_type=ai_move.action_type.value,
-                from_pos=PositionModel(
-                    row=ai_move.from_pos.row, col=ai_move.from_pos.col
-                ),
-                to_pos=PositionModel(
-                    row=ai_move.to_pos.row, col=ai_move.to_pos.col
-                ),
+                from_pos=PositionModel(row=ai_move.from_pos.row, col=ai_move.from_pos.col),
+                to_pos=PositionModel(row=ai_move.to_pos.row, col=ai_move.to_pos.col),
             ),
         )
 
@@ -202,6 +204,123 @@ def create_app() -> FastAPI:
     def list_games():
         """列出所有游戏"""
         return {"games": game_manager.list_games()}
+
+    @app.get("/games/{game_id}/evaluate", response_model=EvaluationResponse)
+    def evaluate_position(game_id: str):
+        """评估当前局面"""
+        game = game_manager.get_game(game_id)
+        if not game:
+            raise HTTPException(status_code=404, detail="Game not found")
+
+        result = evaluate_game(game)
+        return EvaluationResponse(
+            total=result["total"],
+            material=MaterialScore(
+                red=result["material"]["red"],
+                black=result["material"]["black"],
+                diff=result["material"]["diff"],
+            ),
+            position=PositionScore(
+                red=result["position"]["red"],
+                black=result["position"]["black"],
+                diff=result["position"]["diff"],
+            ),
+            check=result["check"],
+            hidden=HiddenCount(
+                red=result["hidden"]["red"],
+                black=result["hidden"]["black"],
+            ),
+            piece_count=PieceCount(
+                red=result["piece_count"]["red"],
+                black=result["piece_count"]["black"],
+            ),
+            win_probability=result["win_probability"],
+            move_count=result["move_count"],
+            current_turn=result["current_turn"],
+        )
+
+    @app.get("/games/{game_id}/history", response_model=HistoryResponse)
+    def get_history(game_id: str):
+        """获取走棋历史"""
+        game = game_manager.get_game(game_id)
+        if not game:
+            raise HTTPException(status_code=404, detail="Game not found")
+
+        history = game.get_move_history()
+        moves = []
+        for i, h in enumerate(history):
+            captured = None
+            if h["captured"]:
+                c = h["captured"]
+                captured = PieceModel(
+                    color=c["color"],
+                    position=PositionModel(row=c["position"]["row"], col=c["position"]["col"]),
+                    state=c["state"],
+                    type=c.get("type"),
+                )
+            moves.append(
+                MoveHistoryItem(
+                    move_number=i + 1,
+                    move=MoveModel(
+                        action_type=h["move"]["action_type"],
+                        from_pos=PositionModel(
+                            row=h["move"]["from"]["row"], col=h["move"]["from"]["col"]
+                        ),
+                        to_pos=PositionModel(
+                            row=h["move"]["to"]["row"], col=h["move"]["to"]["col"]
+                        ),
+                    ),
+                    notation=h["notation"],
+                    captured=captured,
+                    revealed_type=h["revealed_type"],
+                )
+            )
+
+        return HistoryResponse(
+            game_id=game_id,
+            moves=moves,
+            total_moves=len(moves),
+        )
+
+    @app.post("/games/{game_id}/replay", response_model=ReplayResponse)
+    def replay_to_move(game_id: str, request: ReplayRequest):
+        """复盘到指定步数"""
+        game = game_manager.get_game(game_id)
+        if not game:
+            raise HTTPException(status_code=404, detail="Game not found")
+
+        current_move = len(game.move_history)
+        target_move = request.move_number
+
+        if target_move < 0:
+            return ReplayResponse(
+                success=False,
+                current_move_number=current_move,
+                total_moves=current_move,
+                error="Move number cannot be negative",
+            )
+
+        # 如果目标步数大于当前步数，无法前进（除非实现 redo）
+        if target_move > current_move:
+            return ReplayResponse(
+                success=False,
+                current_move_number=current_move,
+                total_moves=current_move,
+                error=f"Cannot go forward beyond current move ({current_move})",
+            )
+
+        # 后退到目标步数
+        while len(game.move_history) > target_move:
+            if not game.undo_move():
+                break
+
+        mode = game_manager.get_mode(game_id) or GameMode.HUMAN_VS_HUMAN
+        return ReplayResponse(
+            success=True,
+            game_state=_game_to_response(game, mode),
+            current_move_number=len(game.move_history),
+            total_moves=target_move,  # 原始总步数
+        )
 
     return app
 

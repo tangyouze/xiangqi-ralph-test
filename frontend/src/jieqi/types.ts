@@ -83,3 +83,41 @@ export const HIDDEN_PIECE_CHAR: Record<Color, string> = {
   red: '暗',
   black: '闇',
 };
+
+// 评估结果
+export interface EvaluationResult {
+  total: number;
+  material: { red: number; black: number; diff: number };
+  position: { red: number; black: number; diff: number };
+  check: number;
+  hidden: { red: number; black: number };
+  piece_count: { red: number; black: number };
+  win_probability: number;
+  move_count: number;
+  current_turn: Color;
+}
+
+// 走棋历史项
+export interface MoveHistoryItem {
+  move_number: number;
+  move: JieqiMove;
+  notation: string;
+  captured?: JieqiPiece;
+  revealed_type?: PieceType;
+}
+
+// 历史响应
+export interface HistoryResponse {
+  game_id: string;
+  moves: MoveHistoryItem[];
+  total_moves: number;
+}
+
+// 复盘响应
+export interface ReplayResponse {
+  success: boolean;
+  game_state?: JieqiGameState;
+  current_move_number: number;
+  total_moves: number;
+  error?: string;
+}

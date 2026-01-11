@@ -36,7 +36,7 @@ export function JieqiGameControls({
         if (info.available_strategies.length > 0) {
           const defaultStrategy = info.available_strategies.find(s => s.name === 'greedy')?.name
             || info.available_strategies[0].name;
-          setAiStrategy(defaultStrategy);
+          setAIStrategy(defaultStrategy);
           setRedAIStrategy(defaultStrategy);
           // 黑方用 random 作为默认（用于对比测试）
           const randomStrategy = info.available_strategies.find(s => s.name === 'random')?.name
