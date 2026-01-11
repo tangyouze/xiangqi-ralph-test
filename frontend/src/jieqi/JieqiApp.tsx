@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react';
 import { JieqiBoard } from './JieqiBoard';
 import { JieqiGameControls } from './JieqiGameControls';
+import { JieqiEvaluation } from './JieqiEvaluation';
 import { createJieqiGame, makeJieqiMove, requestJieqiAIMove } from './api';
 import type { CreateJieqiGameOptions, JieqiGameState, JieqiMove, Position } from './types';
 import './JieqiApp.css';
@@ -94,6 +95,11 @@ export function JieqiApp() {
           onNewGame={handleNewGame}
           onRequestAIMove={handleRequestAIMove}
           isLoading={isLoading}
+        />
+
+        <JieqiEvaluation
+          gameState={gameState}
+          onGameStateChange={setGameState}
         />
 
         {error && (
