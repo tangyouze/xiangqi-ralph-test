@@ -4,10 +4,34 @@ import { useState, useCallback } from 'react';
 import { Board } from './components/Board';
 import { GameControls } from './components/GameControls';
 import { createGame, makeMove, requestAIMove } from './api';
+import { JieqiApp } from './jieqi';
 import type { CreateGameOptions, GameState, Move, Position } from './types';
 import './App.css';
 
+type GameType = 'xiangqi' | 'jieqi';
+
+// 游戏类型切换器组件
+function GameTypeSwitcher({ current, onChange }: { current: GameType; onChange: (t: GameType) => void }) {
+  return (
+    <div className="game-type-switcher">
+      <button
+        className={current === 'xiangqi' ? 'active' : ''}
+        onClick={() => onChange('xiangqi')}
+      >
+        Chinese Chess
+      </button>
+      <button
+        className={current === 'jieqi' ? 'active' : ''}
+        onClick={() => onChange('jieqi')}
+      >
+        Jieqi (Reveal)
+      </button>
+    </div>
+  );
+}
+
 function App() {
+  const [gameType, setGameType] = useState<GameType>('xiangqi');
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [selectedPosition, setSelectedPosition] = useState<Position | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -71,36 +95,49 @@ function App() {
     }
   }, [gameState]);
 
-  return (
-    <div className="app">
-      <div className="game-area">
-        {gameState ? (
-          <Board
-            gameState={gameState}
-            selectedPosition={selectedPosition}
-            onSelectPosition={setSelectedPosition}
-            onMove={handleMove}
-          />
-        ) : (
-          <div className="no-game">
-            <p>Start a new game to begin playing</p>
-          </div>
-        )}
+  // 如果选择揭棋，渲染揭棋应用
+  if (gameType === 'jieqi') {
+    return (
+      <div className="app-wrapper">
+        <GameTypeSwitcher current={gameType} onChange={setGameType} />
+        <JieqiApp />
       </div>
+    );
+  }
 
-      <div className="controls-area">
-        <GameControls
-          gameState={gameState}
-          onNewGame={handleNewGame}
-          onRequestAIMove={handleRequestAIMove}
-          isLoading={isLoading}
-        />
+  return (
+    <div className="app-wrapper">
+      <GameTypeSwitcher current={gameType} onChange={setGameType} />
+      <div className="app">
+        <div className="game-area">
+          {gameState ? (
+            <Board
+              gameState={gameState}
+              selectedPosition={selectedPosition}
+              onSelectPosition={setSelectedPosition}
+              onMove={handleMove}
+            />
+          ) : (
+            <div className="no-game">
+              <p>Start a new game to begin playing</p>
+            </div>
+          )}
+        </div>
 
-        {error && (
-          <div className="error-message">
-            {error}
-          </div>
-        )}
+        <div className="controls-area">
+          <GameControls
+            gameState={gameState}
+            onNewGame={handleNewGame}
+            onRequestAIMove={handleRequestAIMove}
+            isLoading={isLoading}
+          />
+
+          {error && (
+            <div className="error-message">
+              {error}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
