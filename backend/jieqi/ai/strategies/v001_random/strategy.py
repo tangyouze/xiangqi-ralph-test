@@ -1,7 +1,14 @@
 """
-随机 AI 策略
+v001_random - 随机 AI 策略
 
-从所有合法走法中随机选择一个
+ID: v001
+名称: Random AI
+描述: 从所有合法走法中随机选择一个，无任何策略考量
+
+特点:
+- 完全随机，无策略
+- 适合作为基础对照
+- 用于测试游戏逻辑正确性
 """
 
 from __future__ import annotations
@@ -16,7 +23,11 @@ if TYPE_CHECKING:
     from jieqi.types import JieqiMove
 
 
-@AIEngine.register("random")
+AI_ID = "v001"
+AI_NAME = "random"
+
+
+@AIEngine.register(AI_NAME)
 class RandomAI(AIStrategy):
     """随机 AI
 
@@ -24,22 +35,16 @@ class RandomAI(AIStrategy):
     适合作为基础测试对手。
     """
 
-    description = "随机选择合法走法"
+    name = AI_NAME
+    ai_id = AI_ID
+    description = "随机选择合法走法 (v001)"
 
     def __init__(self, config: AIConfig | None = None):
         super().__init__(config)
-        # 使用独立的 Random 实例以避免全局状态问题
         self._rng = random.Random(self.config.seed)
 
     def select_move(self, game: JieqiGame) -> JieqiMove | None:
-        """从合法走法中随机选择一个
-
-        Args:
-            game: 当前游戏状态
-
-        Returns:
-            随机选择的走法，如果没有合法走法则返回 None
-        """
+        """从合法走法中随机选择一个"""
         legal_moves = game.get_legal_moves()
         if not legal_moves:
             return None

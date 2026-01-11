@@ -22,7 +22,7 @@ export function JieqiApp() {
       const state = await createJieqiGame(options);
       setGameState(state);
     } catch (err) {
-      setError('Failed to create game. Is the Jieqi server running on port 8001?');
+      setError('Failed to create game. Is the Jieqi server running on port 6703?');
       console.error(err);
     } finally {
       setIsLoading(false);

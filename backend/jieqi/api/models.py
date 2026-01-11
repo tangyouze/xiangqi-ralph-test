@@ -22,10 +22,7 @@ class AILevel(str, Enum):
     RANDOM = "random"
 
 
-class AIStrategy(str, Enum):
-    """AI 策略类型"""
-
-    RANDOM = "random"
+# AI 策略类型现在从 AIEngine 动态获取，不再使用枚举
 
 
 class PositionModel(BaseModel):
@@ -58,8 +55,11 @@ class CreateGameRequest(BaseModel):
     mode: GameMode = GameMode.HUMAN_VS_AI
     ai_level: AILevel | None = AILevel.RANDOM
     ai_color: str | None = "black"  # AI 执黑
-    ai_strategy: AIStrategy | None = None
+    ai_strategy: str | None = None  # AI 策略名称（从 /ai/info 获取可用列表）
     seed: int | None = None  # 随机种子，用于复现
+    # AI vs AI 模式下指定双方 AI 策略
+    red_ai_strategy: str | None = None
+    black_ai_strategy: str | None = None
 
 
 class MoveRequest(BaseModel):

@@ -1,8 +1,23 @@
 // 揭棋 API 调用封装
 
-import type { CreateJieqiGameOptions, JieqiGameState, JieqiMove, JieqiMoveResponse } from './types';
+import type { AIStrategyInfo, CreateJieqiGameOptions, JieqiGameState, JieqiMove, JieqiMoveResponse } from './types';
 
-const API_BASE = 'http://localhost:8001';
+const API_BASE = 'http://localhost:6703';
+
+// AI 信息响应
+interface AIInfoResponse {
+  available_strategies: AIStrategyInfo[];
+  levels: string[];
+  strategy_descriptions: Record<string, string>;
+}
+
+export async function getAIInfo(): Promise<AIInfoResponse> {
+  const response = await fetch(`${API_BASE}/ai/info`);
+  if (!response.ok) {
+    throw new Error('Failed to get AI info');
+  }
+  return response.json();
+}
 
 export async function createJieqiGame(options: CreateJieqiGameOptions): Promise<JieqiGameState> {
   const response = await fetch(`${API_BASE}/games`, {

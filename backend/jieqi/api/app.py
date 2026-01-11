@@ -76,6 +76,8 @@ def create_app() -> FastAPI:
             ai_color=request.ai_color,
             ai_strategy=request.ai_strategy,
             seed=request.seed,
+            red_ai_strategy=request.red_ai_strategy,
+            black_ai_strategy=request.black_ai_strategy,
         )
         return _game_to_response(game, request.mode)
 

@@ -22,6 +22,9 @@ from jieqi.types import (
     INITIAL_POSITIONS,
 )
 
+# 使用快速将军检测（懒加载以避免循环导入）
+_fast_move_generator = None
+
 
 class JieqiBoard:
     """揭棋棋盘
@@ -73,9 +76,7 @@ class JieqiBoard:
 
         # 将/帅明摆
         king_pos = Position(base_row, 4)
-        self._pieces[king_pos] = create_jieqi_piece(
-            color, PieceType.KING, king_pos, revealed=True
-        )
+        self._pieces[king_pos] = create_jieqi_piece(color, PieceType.KING, king_pos, revealed=True)
 
         # 收集所有非将位置和对应的棋子类型
         non_king_positions: list[Position] = []
@@ -115,9 +116,7 @@ class JieqiBoard:
 
         # 放置暗子
         for pos, actual_type in zip(non_king_positions, piece_types_to_place):
-            self._pieces[pos] = create_jieqi_piece(
-                color, actual_type, pos, revealed=False
-            )
+            self._pieces[pos] = create_jieqi_piece(color, actual_type, pos, revealed=False)
 
     def get_piece(self, pos: Position) -> JieqiPiece | None:
         """获取指定位置的棋子"""
@@ -144,17 +143,13 @@ class JieqiBoard:
     def get_hidden_pieces(self, color: Color) -> list[JieqiPiece]:
         """获取某方所有暗子"""
         return [
-            p
-            for p in self._pieces.values()
-            if p.color == color and p.state == PieceState.HIDDEN
+            p for p in self._pieces.values() if p.color == color and p.state == PieceState.HIDDEN
         ]
 
     def get_revealed_pieces(self, color: Color) -> list[JieqiPiece]:
         """获取某方所有明子"""
         return [
-            p
-            for p in self._pieces.values()
-            if p.color == color and p.state == PieceState.REVEALED
+            p for p in self._pieces.values() if p.color == color and p.state == PieceState.REVEALED
         ]
 
     def find_king(self, color: Color) -> Position | None:
@@ -165,7 +160,14 @@ class JieqiBoard:
         return None
 
     def is_in_check(self, color: Color) -> bool:
-        """检查指定颜色的将/帅是否被将军"""
+        """检查指定颜色的将/帅是否被将军（使用优化算法）"""
+        from jieqi.bitboard import FastMoveGenerator
+
+        fast_gen = FastMoveGenerator(self)
+        return fast_gen.is_in_check_fast(color)
+
+    def is_in_check_slow(self, color: Color) -> bool:
+        """检查指定颜色的将/帅是否被将军（原始算法，用于验证）"""
         king_pos = self.find_king(color)
         if king_pos is None:
             return True  # 没有将，认为被将军
@@ -285,19 +287,27 @@ class JieqiBoard:
         - 暗子只能用 REVEAL_AND_MOVE 走法，按位置类型走法计算目标
         - 明子只能用 MOVE 走法，按真实身份走法计算目标
         """
+        from jieqi.bitboard import FastMoveGenerator
+
         moves = []
+        # 复用 FastMoveGenerator 避免重复创建
+        fast_gen = FastMoveGenerator(self)
+
         for piece in self.get_all_pieces(color):
-            action_type = (
-                ActionType.REVEAL_AND_MOVE
-                if piece.is_hidden
-                else ActionType.MOVE
-            )
+            action_type = ActionType.REVEAL_AND_MOVE if piece.is_hidden else ActionType.MOVE
+            was_hidden = piece.is_hidden
 
             # 暗子按位置类型走法计算目标（不揭开）
             # 明子按真实身份走法计算目标
             for to_pos in piece.get_potential_moves(self):
                 move = JieqiMove(action_type, piece.position, to_pos)
-                if self.is_valid_move(move, color):
+                # 直接检查走完后是否会导致自己被将军
+                captured = self.make_move(move)
+                # 使缓存失效并检查将军
+                fast_gen.invalidate_cache()
+                in_check = fast_gen.is_in_check_fast(color)
+                self.undo_move(move, captured, was_hidden)
+                if not in_check:
                     moves.append(move)
 
         return moves
@@ -325,11 +335,7 @@ class JieqiBoard:
         if not legal_moves:
             if self.is_in_check(current_turn):
                 # 被将死
-                return (
-                    GameResult.RED_WIN
-                    if current_turn == Color.BLACK
-                    else GameResult.BLACK_WIN
-                )
+                return GameResult.RED_WIN if current_turn == Color.BLACK else GameResult.BLACK_WIN
             else:
                 # 逼和
                 return GameResult.DRAW
@@ -352,6 +358,46 @@ class JieqiBoard:
     def to_full_dict(self) -> dict:
         """序列化为完整字典（包含暗子身份，用于调试）"""
         return {"pieces": [piece.to_full_dict() for piece in self._pieces.values()]}
+
+    def get_position_hash(self) -> int:
+        """获取当前局面的哈希值
+
+        用于检测重复局面。哈希包含：
+        - 每个棋子的位置
+        - 棋子颜色
+        - 棋子是否为暗子
+        - 暗子的真实身份（因为揭棋中暗子身份影响走法）
+
+        注意：这是一个简化的哈希，可能有冲突。
+        对于需要精确匹配的场景，使用 get_position_key()。
+        """
+        # 使用 Python 内置的 hash 函数
+        # 将所有棋子信息编码为一个可哈希的元组
+        pieces_tuple = tuple(
+            sorted(
+                (
+                    pos.row * 9 + pos.col,
+                    piece.color.value,
+                    piece.actual_type.value,
+                    piece.is_hidden,
+                )
+                for pos, piece in self._pieces.items()
+            )
+        )
+        return hash(pieces_tuple)
+
+    def get_position_key(self) -> str:
+        """获取当前局面的唯一键
+
+        比 get_position_hash() 更精确，但更慢。
+        用于需要精确匹配的场景。
+        """
+        # 生成一个确定性的字符串表示
+        pieces_list = sorted(
+            f"{pos.row}{pos.col}{piece.color.value}{piece.actual_type.value}{int(piece.is_hidden)}"
+            for pos, piece in self._pieces.items()
+        )
+        return "|".join(pieces_list)
 
     def __iter__(self) -> Iterator[JieqiPiece]:
         return iter(self._pieces.values())
