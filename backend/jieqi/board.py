@@ -76,9 +76,7 @@ class JieqiBoard:
 
         # 将/帅明摆
         king_pos = Position(base_row, 4)
-        self._pieces[king_pos] = create_jieqi_piece(
-            color, PieceType.KING, king_pos, revealed=True
-        )
+        self._pieces[king_pos] = create_jieqi_piece(color, PieceType.KING, king_pos, revealed=True)
 
         # 收集所有非将位置和对应的棋子类型
         non_king_positions: list[Position] = []
@@ -118,9 +116,7 @@ class JieqiBoard:
 
         # 放置暗子
         for pos, actual_type in zip(non_king_positions, piece_types_to_place):
-            self._pieces[pos] = create_jieqi_piece(
-                color, actual_type, pos, revealed=False
-            )
+            self._pieces[pos] = create_jieqi_piece(color, actual_type, pos, revealed=False)
 
     def get_piece(self, pos: Position) -> JieqiPiece | None:
         """获取指定位置的棋子"""
@@ -147,17 +143,13 @@ class JieqiBoard:
     def get_hidden_pieces(self, color: Color) -> list[JieqiPiece]:
         """获取某方所有暗子"""
         return [
-            p
-            for p in self._pieces.values()
-            if p.color == color and p.state == PieceState.HIDDEN
+            p for p in self._pieces.values() if p.color == color and p.state == PieceState.HIDDEN
         ]
 
     def get_revealed_pieces(self, color: Color) -> list[JieqiPiece]:
         """获取某方所有明子"""
         return [
-            p
-            for p in self._pieces.values()
-            if p.color == color and p.state == PieceState.REVEALED
+            p for p in self._pieces.values() if p.color == color and p.state == PieceState.REVEALED
         ]
 
     def find_king(self, color: Color) -> Position | None:
@@ -295,19 +287,27 @@ class JieqiBoard:
         - 暗子只能用 REVEAL_AND_MOVE 走法，按位置类型走法计算目标
         - 明子只能用 MOVE 走法，按真实身份走法计算目标
         """
+        from jieqi.bitboard import FastMoveGenerator
+
         moves = []
+        # 复用 FastMoveGenerator 避免重复创建
+        fast_gen = FastMoveGenerator(self)
+
         for piece in self.get_all_pieces(color):
-            action_type = (
-                ActionType.REVEAL_AND_MOVE
-                if piece.is_hidden
-                else ActionType.MOVE
-            )
+            action_type = ActionType.REVEAL_AND_MOVE if piece.is_hidden else ActionType.MOVE
+            was_hidden = piece.is_hidden
 
             # 暗子按位置类型走法计算目标（不揭开）
             # 明子按真实身份走法计算目标
             for to_pos in piece.get_potential_moves(self):
                 move = JieqiMove(action_type, piece.position, to_pos)
-                if self.is_valid_move(move, color):
+                # 直接检查走完后是否会导致自己被将军
+                captured = self.make_move(move)
+                # 使缓存失效并检查将军
+                fast_gen.invalidate_cache()
+                in_check = fast_gen.is_in_check_fast(color)
+                self.undo_move(move, captured, was_hidden)
+                if not in_check:
                     moves.append(move)
 
         return moves
@@ -335,11 +335,7 @@ class JieqiBoard:
         if not legal_moves:
             if self.is_in_check(current_turn):
                 # 被将死
-                return (
-                    GameResult.RED_WIN
-                    if current_turn == Color.BLACK
-                    else GameResult.BLACK_WIN
-                )
+                return GameResult.RED_WIN if current_turn == Color.BLACK else GameResult.BLACK_WIN
             else:
                 # 逼和
                 return GameResult.DRAW
