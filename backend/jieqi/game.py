@@ -16,6 +16,7 @@ from jieqi.types import (
     GameResult,
     JieqiMove,
     PieceState,
+    PieceType,
     get_position_piece_type,
 )
 from jieqi.view import CapturedPiece, PlayerView, ViewPiece
@@ -302,18 +303,92 @@ class JieqiGame:
     def _generate_notation(
         self, move: JieqiMove, captured: JieqiPiece | None, revealed_type: str | None
     ) -> str:
-        """生成走棋记谱"""
-        # 格式: [R/M] 类型 起点-终点 (x被吃)
+        """生成走棋记谱（中国象棋标准记谱法，融入揭棋特色）
+
+        格式：[翻]棋子名+列号+方向+距离/目标列
+        例如：翻車3进2（翻开后是车，从第3列向前走2格）
+             馬8进7（马从第8列进到第7列）
+             炮二平五（炮从第二列平移到第五列）
+        """
         piece = self.board.get_piece(move.to_pos)
         if piece is None:
             return move.to_notation()
 
-        action_prefix = "R:" if move.action_type == ActionType.REVEAL_AND_MOVE else ""
-        notation = f"{action_prefix}{piece.actual_type.value}"
-        if captured:
-            notation += "x"
-        notation += f" {move.from_pos.col}{move.from_pos.row}-{move.to_pos.col}{move.to_pos.row}"
-        return notation
+        color = piece.color
+        piece_type = piece.actual_type
+        if piece_type is None:
+            return move.to_notation()
+
+        # 棋子中文名
+        piece_names = {
+            PieceType.KING: ("帥", "將"),
+            PieceType.ADVISOR: ("仕", "士"),
+            PieceType.ELEPHANT: ("相", "象"),
+            PieceType.HORSE: ("傌", "馬"),
+            PieceType.ROOK: ("俥", "車"),
+            PieceType.CANNON: ("炮", "砲"),
+            PieceType.PAWN: ("兵", "卒"),
+        }
+        piece_name = piece_names[piece_type][0 if color == Color.RED else 1]
+
+        # 列号转换（从各方右侧数起）
+        # Red: col 0 = 九, col 8 = 一
+        # Black: col 0 = 9, col 8 = 1
+        def col_to_notation(col: int, is_red: bool) -> str:
+            red_nums = "九八七六五四三二一"
+            black_nums = "987654321"
+            return red_nums[col] if is_red else black_nums[col]
+
+        from_col_str = col_to_notation(move.from_pos.col, color == Color.RED)
+
+        # 判断移动方向
+        row_diff = move.to_pos.row - move.from_pos.row
+        col_diff = move.to_pos.col - move.from_pos.col
+
+        # 对于红方：row 增加是"进"，row 减少是"退"
+        # 对于黑方：row 减少是"进"，row 增加是"退"
+        if color == Color.RED:
+            if row_diff > 0:
+                direction = "进"
+            elif row_diff < 0:
+                direction = "退"
+            else:
+                direction = "平"
+        else:
+            if row_diff < 0:
+                direction = "进"
+            elif row_diff > 0:
+                direction = "退"
+            else:
+                direction = "平"
+
+        # 目标值
+        # 直线走子（车、炮、兵、将）：使用步数
+        # 斜线走子（马、象、士）：使用目标列号
+        is_straight = piece_type in (
+            PieceType.ROOK,
+            PieceType.CANNON,
+            PieceType.PAWN,
+            PieceType.KING,
+        )
+
+        if direction == "平":
+            # 平移使用目标列号
+            target_str = col_to_notation(move.to_pos.col, color == Color.RED)
+        elif is_straight:
+            # 直线走子使用步数
+            target_str = str(abs(row_diff))
+        else:
+            # 斜线走子使用目标列号
+            target_str = col_to_notation(move.to_pos.col, color == Color.RED)
+
+        # 揭棋标记
+        reveal_prefix = "翻" if move.action_type == ActionType.REVEAL_AND_MOVE else ""
+
+        # 吃子标记
+        capture_suffix = "吃" if captured else ""
+
+        return f"{reveal_prefix}{piece_name}{from_col_str}{direction}{target_str}{capture_suffix}"
 
     def to_dict(self) -> dict:
         """序列化为字典（不暴露暗子身份）"""

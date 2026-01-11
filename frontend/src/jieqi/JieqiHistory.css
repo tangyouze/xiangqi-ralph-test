@@ -1,0 +1,112 @@
+/* 揭棋走棋历史样式 */
+
+.jieqi-history {
+  background: linear-gradient(135deg, #f8f4e8 0%, #f0ebe0 100%);
+  border-radius: 12px;
+  padding: 15px;
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  border: 2px solid #d4c4a8;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.jieqi-history h3 {
+  margin: 0 0 10px 0;
+  color: #5a4a3a;
+  font-size: 16px;
+  font-family: "KaiTi", "STKaiti", serif;
+  flex-shrink: 0;
+}
+
+.history-empty,
+.history-loading {
+  color: #888;
+  font-size: 14px;
+  text-align: center;
+  padding: 20px;
+}
+
+.history-table-container {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.history-table thead {
+  position: sticky;
+  top: 0;
+  background: #f0ebe0;
+  z-index: 1;
+}
+
+.history-table th {
+  padding: 8px 10px;
+  text-align: left;
+  font-weight: 600;
+  color: #5a4a3a;
+  border-bottom: 2px solid #d4c4a8;
+}
+
+.history-table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid #e0d8c8;
+}
+
+.history-table tbody tr:hover {
+  background: rgba(139, 115, 85, 0.1);
+}
+
+.round-col {
+  width: 40px;
+  text-align: center;
+  color: #888;
+}
+
+.move-col {
+  min-width: 100px;
+}
+
+.move-col.red .notation {
+  color: #c41e3a;
+  font-weight: 500;
+}
+
+.move-col.black .notation {
+  color: #333;
+  font-weight: 500;
+}
+
+.notation {
+  font-family: "KaiTi", "STKaiti", "SimSun", serif;
+  font-size: 15px;
+  cursor: default;
+}
+
+/* 滚动条样式 */
+.history-table-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.history-table-container::-webkit-scrollbar-track {
+  background: #e0d8c8;
+  border-radius: 4px;
+}
+
+.history-table-container::-webkit-scrollbar-thumb {
+  background: #b0a090;
+  border-radius: 4px;
+}
+
+.history-table-container::-webkit-scrollbar-thumb:hover {
+  background: #9a8a7a;
+}

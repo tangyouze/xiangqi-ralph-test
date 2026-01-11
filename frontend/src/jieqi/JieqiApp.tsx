@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react';
 import { JieqiBoard } from './JieqiBoard';
 import { JieqiGameControls } from './JieqiGameControls';
 import { JieqiEvaluation } from './JieqiEvaluation';
+import { JieqiHistory } from './JieqiHistory';
 import { createJieqiGame, makeJieqiMove, requestJieqiAIMove, getAvailableTypes, executeAIMove } from './api';
 import type { CreateJieqiGameOptions, JieqiGameState, JieqiMove, JieqiMoveRequest, PieceType, Position } from './types';
 import { PIECE_NAMES } from './types';
@@ -272,6 +273,8 @@ export function JieqiApp() {
           gameState={gameState}
           onGameStateChange={setGameState}
         />
+
+        <JieqiHistory gameState={gameState} />
 
         {error && (
           <div className="error-message">
