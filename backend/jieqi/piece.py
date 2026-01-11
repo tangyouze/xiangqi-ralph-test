@@ -38,20 +38,30 @@ class JieqiPiece:
     揭棋棋子有两种状态：
     - HIDDEN: 暗子，真实身份隐藏，按位置规则走子
     - REVEALED: 明子，真实身份已知，按明棋规则走子
+
+    揭棋特性：
+    - 暗子的 actual_type 可能为 None（延迟分配模式）
+    - 翻棋时由用户或系统决定真实身份
     """
 
     def __init__(
         self,
         color: Color,
-        actual_type: PieceType,
+        actual_type: PieceType | None,  # 允许 None（延迟分配）
         position: Position,
         state: PieceState = PieceState.HIDDEN,
     ):
         self.color = color
-        # 真实身份（将/帅开局就是明子）
+        # 真实身份（将/帅开局就是明子，暗子可能为 None）
         self.actual_type = actual_type
         self.position = position
         self.state = state
+
+    def assign_type(self, piece_type: PieceType) -> None:
+        """分配真实身份（用于延迟分配模式）"""
+        if self.actual_type is not None:
+            raise ValueError("Piece already has a type assigned")
+        self.actual_type = piece_type
 
     @property
     def is_hidden(self) -> bool:
@@ -285,10 +295,17 @@ class JieqiPiece:
 
 def create_jieqi_piece(
     color: Color,
-    actual_type: PieceType,
+    actual_type: PieceType | None,
     position: Position,
     revealed: bool = False,
 ) -> JieqiPiece:
-    """工厂函数：创建揭棋棋子"""
+    """工厂函数：创建揭棋棋子
+
+    Args:
+        color: 棋子颜色
+        actual_type: 真实身份（暗子可以为 None，延迟分配）
+        position: 位置
+        revealed: 是否明子
+    """
     state = PieceState.REVEALED if revealed else PieceState.HIDDEN
     return JieqiPiece(color, actual_type, position, state)

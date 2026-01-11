@@ -30,6 +30,7 @@ class GameManager:
         seed: int | None = None,
         red_ai_strategy: str | None = None,
         black_ai_strategy: str | None = None,
+        delay_reveal: bool = False,
     ) -> JieqiGame:
         """创建新游戏
 
@@ -41,11 +42,12 @@ class GameManager:
             seed: 随机种子
             red_ai_strategy: 红方 AI 策略（AI vs AI 模式）
             black_ai_strategy: 黑方 AI 策略（AI vs AI 模式）
+            delay_reveal: 延迟分配模式（翻棋时决定身份）
 
         Returns:
             新创建的游戏
         """
-        config = GameConfig(seed=seed)
+        config = GameConfig(seed=seed, delay_reveal=delay_reveal)
         game = JieqiGame(config=config)
 
         self._games[game.game_id] = game
@@ -77,14 +79,12 @@ class GameManager:
         strategy: str | None,
     ) -> str:
         """获取 AI 策略名称"""
+        # 优先使用指定的策略
         if strategy:
             return strategy
 
-        if level:
-            # 目前只有 random
-            return "random"
-
-        return "random"
+        # 默认使用 aggressive 策略
+        return "aggressive"
 
     def get_game(self, game_id: str) -> JieqiGame | None:
         """获取游戏实例"""
@@ -93,6 +93,13 @@ class GameManager:
     def get_mode(self, game_id: str) -> GameMode | None:
         """获取游戏模式"""
         return self._modes.get(game_id)
+
+    def is_delay_reveal(self, game_id: str) -> bool:
+        """检查是否为延迟分配模式"""
+        game = self._games.get(game_id)
+        if game:
+            return game.config.delay_reveal
+        return False
 
     def delete_game(self, game_id: str) -> bool:
         """删除游戏"""
@@ -129,14 +136,18 @@ class GameManager:
                 return None
             ai: AIStrategy = config.get("ai")
             if ai:
-                return ai.select_move(game)
+                # 传递 PlayerView 而不是 JieqiGame，确保 AI 看不到暗子身份
+                view = game.get_view(game.current_turn)
+                return ai.select_move(view)
         elif mode == GameMode.AI_VS_AI:
             if game.current_turn == Color.RED:
                 ai = config.get("red_ai")
             else:
                 ai = config.get("black_ai")
             if ai:
-                return ai.select_move(game)
+                # 传递 PlayerView 而不是 JieqiGame，确保 AI 看不到暗子身份
+                view = game.get_view(game.current_turn)
+                return ai.select_move(view)
 
         return None
 

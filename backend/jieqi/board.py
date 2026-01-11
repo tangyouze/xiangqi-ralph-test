@@ -37,16 +37,28 @@ class JieqiBoard:
     - 开局时将/帅明摆，其余15个棋子背面朝上随机放在对应位置
     - 暗子按位置对应的棋子类型走法走子
     - 揭开后按真实身份走子（象、士可过河）
+
+    两种模式：
+    - 预分配模式（delay_reveal=False）：初始化时随机分配暗子身份
+    - 延迟分配模式（delay_reveal=True）：翻棋时才决定身份（可随机或手动选择）
     """
 
-    def __init__(self, seed: int | None = None):
+    def __init__(self, seed: int | None = None, delay_reveal: bool = False):
         """初始化揭棋棋盘
 
         Args:
             seed: 随机种子，用于确定暗子的真实身份分配（可选）
+            delay_reveal: 是否延迟分配暗子身份（True=翻棋时决定）
         """
         self._pieces: dict[Position, JieqiPiece] = {}
         self._seed = seed
+        self._delay_reveal = delay_reveal
+        self._rng = random.Random(seed)
+        # 每方未分配的棋子类型池（延迟分配模式使用）
+        self._pending_types: dict[Color, list[PieceType]] = {
+            Color.RED: [],
+            Color.BLACK: [],
+        }
         self._setup_initial_position()
 
     def _setup_initial_position(self) -> None:
@@ -55,9 +67,6 @@ class JieqiBoard:
         - 将/帅明摆在原位
         - 其余棋子随机分配真实身份，背面朝上放在对应位置
         """
-        if self._seed is not None:
-            random.seed(self._seed)
-
         # 分别处理红方和黑方
         for color in [Color.RED, Color.BLACK]:
             self._place_pieces_for_color(color)
@@ -111,12 +120,78 @@ class JieqiBoard:
             non_king_positions.append(pos)
             piece_types_to_place.append(PieceType.PAWN)
 
-        # 随机打乱真实身份
-        random.shuffle(piece_types_to_place)
+        if self._delay_reveal:
+            # 延迟分配模式：暗子不分配真实身份
+            self._pending_types[color] = list(piece_types_to_place)
+            for pos in non_king_positions:
+                self._pieces[pos] = create_jieqi_piece(color, None, pos, revealed=False)
+        else:
+            # 预分配模式：随机分配真实身份
+            self._rng.shuffle(piece_types_to_place)
+            for pos, actual_type in zip(non_king_positions, piece_types_to_place):
+                self._pieces[pos] = create_jieqi_piece(color, actual_type, pos, revealed=False)
 
-        # 放置暗子
-        for pos, actual_type in zip(non_king_positions, piece_types_to_place):
-            self._pieces[pos] = create_jieqi_piece(color, actual_type, pos, revealed=False)
+    @property
+    def delay_reveal(self) -> bool:
+        """是否为延迟分配模式"""
+        return self._delay_reveal
+
+    def get_available_types(self, color: Color) -> list[PieceType]:
+        """获取某方还可选的棋子类型（延迟分配模式）
+
+        Returns:
+            可选的棋子类型列表（可能有重复，表示还剩多个该类型）
+        """
+        return list(self._pending_types[color])
+
+    def get_available_types_unique(self, color: Color) -> list[PieceType]:
+        """获取某方还可选的棋子类型（去重）"""
+        return list(set(self._pending_types[color]))
+
+    def assign_piece_type(
+        self,
+        pos: Position,
+        piece_type: PieceType | None = None,
+    ) -> PieceType:
+        """为暗子分配真实身份
+
+        Args:
+            pos: 暗子位置
+            piece_type: 指定的类型，None 表示随机选择
+
+        Returns:
+            分配的棋子类型
+
+        Raises:
+            ValueError: 位置无暗子或类型不可用
+        """
+        piece = self._pieces.get(pos)
+        if piece is None:
+            raise ValueError(f"No piece at {pos}")
+        if not piece.is_hidden:
+            raise ValueError(f"Piece at {pos} is already revealed")
+        if piece.actual_type is not None:
+            # 已经分配过了
+            return piece.actual_type
+
+        color = piece.color
+        available = self._pending_types[color]
+
+        if not available:
+            raise ValueError(f"No available types for {color}")
+
+        if piece_type is None:
+            # 随机选择
+            idx = self._rng.randint(0, len(available) - 1)
+            piece_type = available.pop(idx)
+        else:
+            # 指定类型
+            if piece_type not in available:
+                raise ValueError(f"Type {piece_type} not available for {color}")
+            available.remove(piece_type)
+
+        piece.assign_type(piece_type)
+        return piece_type
 
     def get_piece(self, pos: Position) -> JieqiPiece | None:
         """获取指定位置的棋子"""
@@ -190,12 +265,22 @@ class JieqiBoard:
         piece.reveal()
         return True
 
-    def make_move(self, move: JieqiMove) -> JieqiPiece | None:
+    def make_move(
+        self,
+        move: JieqiMove,
+        reveal_type: PieceType | None = None,
+    ) -> JieqiPiece | None:
         """执行走棋，返回被吃的棋子（如果有）
 
         揭棋规则：
         - REVEAL_AND_MOVE: 先揭开暗子，再走棋
         - MOVE: 明子直接走棋
+
+        Args:
+            move: 走法
+            reveal_type: 揭子时指定的棋子类型（仅延迟分配模式有效）
+                - None：随机选择（默认）
+                - PieceType：指定类型（必须在可用列表中）
         """
         piece = self._pieces.get(move.from_pos)
         if piece is None:
@@ -205,6 +290,11 @@ class JieqiBoard:
         if move.action_type == ActionType.REVEAL_AND_MOVE:
             if piece.is_revealed:
                 raise ValueError(f"Piece at {move.from_pos} is already revealed")
+
+            # 延迟分配模式：分配真实身份
+            if self._delay_reveal and piece.actual_type is None:
+                self.assign_piece_type(move.from_pos, reveal_type)
+
             piece.reveal()
 
         # 执行走棋
@@ -238,6 +328,10 @@ class JieqiBoard:
         # 如果原来是暗子，恢复为暗子状态
         if was_hidden:
             piece.state = PieceState.HIDDEN
+            # 延迟分配模式：恢复 actual_type 并将类型放回池中
+            if self._delay_reveal and piece.actual_type is not None:
+                self._pending_types[piece.color].append(piece.actual_type)
+                piece.actual_type = None
 
         if captured is not None:
             captured.position = move.to_pos
@@ -378,7 +472,7 @@ class JieqiBoard:
                 (
                     pos.row * 9 + pos.col,
                     piece.color.value,
-                    piece.actual_type.value,
+                    piece.actual_type.value if piece.actual_type else "?",
                     piece.is_hidden,
                 )
                 for pos, piece in self._pieces.items()
@@ -394,7 +488,7 @@ class JieqiBoard:
         """
         # 生成一个确定性的字符串表示
         pieces_list = sorted(
-            f"{pos.row}{pos.col}{piece.color.value}{piece.actual_type.value}{int(piece.is_hidden)}"
+            f"{pos.row}{pos.col}{piece.color.value}{piece.actual_type.value if piece.actual_type else '?'}{int(piece.is_hidden)}"
             for pos, piece in self._pieces.items()
         )
         return "|".join(pieces_list)

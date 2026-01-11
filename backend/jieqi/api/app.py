@@ -12,6 +12,7 @@ from jieqi.api.game_manager import game_manager
 from jieqi.api.models import (
     AIInfoResponse,
     AILevel,
+    AvailableTypesResponse,
     CreateGameRequest,
     EvaluationResponse,
     GameMode,
@@ -23,6 +24,7 @@ from jieqi.api.models import (
     MoveModel,
     MoveRequest,
     MoveResponse,
+    PendingRevealRequest,
     PieceCount,
     PieceModel,
     PositionModel,
@@ -88,8 +90,9 @@ def create_app() -> FastAPI:
             seed=request.seed,
             red_ai_strategy=request.red_ai_strategy,
             black_ai_strategy=request.black_ai_strategy,
+            delay_reveal=request.delay_reveal,
         )
-        return _game_to_response(game, request.mode)
+        return _game_to_response(game, request.mode, request.delay_reveal)
 
     @app.get("/games/{game_id}", response_model=GameStateResponse)
     def get_game(game_id: str):
@@ -99,7 +102,8 @@ def create_app() -> FastAPI:
             raise HTTPException(status_code=404, detail="Game not found")
 
         mode = game_manager.get_mode(game_id) or GameMode.HUMAN_VS_HUMAN
-        return _game_to_response(game, mode)
+        delay_reveal = game_manager.is_delay_reveal(game_id)
+        return _game_to_response(game, mode, delay_reveal)
 
     @app.post("/games/{game_id}/move", response_model=MoveResponse)
     def make_move(game_id: str, request: MoveRequest):
@@ -126,8 +130,8 @@ def create_app() -> FastAPI:
             to_pos=Position(request.to_row, request.to_col),
         )
 
-        # 执行走棋
-        success = game.make_move(move)
+        # 执行走棋（传递 reveal_type 用于延迟分配模式）
+        success = game.make_move(move, reveal_type=request.reveal_type)
         if not success:
             return MoveResponse(
                 success=False,
@@ -135,12 +139,14 @@ def create_app() -> FastAPI:
             )
 
         mode = game_manager.get_mode(game_id) or GameMode.HUMAN_VS_HUMAN
+        delay_reveal = game_manager.is_delay_reveal(game_id)
 
         # 如果是人机模式且轮到 AI，自动走棋
         ai_move_response = None
         if mode == GameMode.HUMAN_VS_AI and game.result == GameResult.ONGOING:
             ai_move = game_manager.get_ai_move(game_id)
             if ai_move:
+                # AI 走棋时使用随机分配（不指定 reveal_type）
                 game.make_move(ai_move)
                 ai_move_response = MoveModel(
                     action_type=ai_move.action_type.value,
@@ -150,7 +156,7 @@ def create_app() -> FastAPI:
 
         return MoveResponse(
             success=True,
-            game_state=_game_to_response(game, mode),
+            game_state=_game_to_response(game, mode, delay_reveal),
             ai_move=ai_move_response,
         )
 
@@ -174,6 +180,7 @@ def create_app() -> FastAPI:
                 error="No AI available for current turn",
             )
 
+        # AI 走棋时使用随机分配
         success = game.make_move(ai_move)
         if not success:
             return MoveResponse(
@@ -182,10 +189,11 @@ def create_app() -> FastAPI:
             )
 
         mode = game_manager.get_mode(game_id) or GameMode.AI_VS_AI
+        delay_reveal = game_manager.is_delay_reveal(game_id)
 
         return MoveResponse(
             success=True,
-            game_state=_game_to_response(game, mode),
+            game_state=_game_to_response(game, mode, delay_reveal),
             ai_move=MoveModel(
                 action_type=ai_move.action_type.value,
                 from_pos=PositionModel(row=ai_move.from_pos.row, col=ai_move.from_pos.col),
@@ -315,17 +323,46 @@ def create_app() -> FastAPI:
                 break
 
         mode = game_manager.get_mode(game_id) or GameMode.HUMAN_VS_HUMAN
+        delay_reveal = game_manager.is_delay_reveal(game_id)
         return ReplayResponse(
             success=True,
-            game_state=_game_to_response(game, mode),
+            game_state=_game_to_response(game, mode, delay_reveal),
             current_move_number=len(game.move_history),
             total_moves=target_move,  # 原始总步数
+        )
+
+    @app.post("/games/{game_id}/available-types", response_model=AvailableTypesResponse)
+    def get_available_types(game_id: str, request: PendingRevealRequest):
+        """获取翻棋时可选择的棋子类型（延迟分配模式）"""
+        game = game_manager.get_game(game_id)
+        if not game:
+            raise HTTPException(status_code=404, detail="Game not found")
+
+        if not game.config.delay_reveal:
+            raise HTTPException(status_code=400, detail="This game is not in delay reveal mode")
+
+        pos = Position(request.from_row, request.from_col)
+        piece = game.board.get_piece(pos)
+        if not piece:
+            raise HTTPException(status_code=400, detail="No piece at this position")
+
+        if not piece.is_hidden:
+            raise HTTPException(status_code=400, detail="This piece is already revealed")
+
+        # 获取可用类型
+        available = game.board.get_available_types(piece.color)
+        unique = game.board.get_available_types_unique(piece.color)
+
+        return AvailableTypesResponse(
+            position=PositionModel(row=pos.row, col=pos.col),
+            available_types=[t.value for t in available],
+            unique_types=[t.value for t in unique],
         )
 
     return app
 
 
-def _game_to_response(game, mode: GameMode) -> GameStateResponse:
+def _game_to_response(game, mode: GameMode, delay_reveal: bool = False) -> GameStateResponse:
     """将游戏状态转换为 API 响应"""
     game_dict = game.to_dict()
 
@@ -358,6 +395,7 @@ def _game_to_response(game, mode: GameMode) -> GameStateResponse:
         legal_moves=legal_moves,
         hidden_count=game_dict["hidden_count"],
         mode=mode.value,
+        delay_reveal=delay_reveal,
     )
 
 

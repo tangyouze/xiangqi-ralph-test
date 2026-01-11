@@ -19,8 +19,8 @@ from typing import TYPE_CHECKING
 from jieqi.ai.base import AIConfig, AIEngine, AIStrategy
 
 if TYPE_CHECKING:
-    from jieqi.game import JieqiGame
     from jieqi.types import JieqiMove
+    from jieqi.view import PlayerView
 
 
 AI_ID = "v001"
@@ -43,9 +43,8 @@ class RandomAI(AIStrategy):
         super().__init__(config)
         self._rng = random.Random(self.config.seed)
 
-    def select_move(self, game: JieqiGame) -> JieqiMove | None:
+    def select_move(self, view: PlayerView) -> JieqiMove | None:
         """从合法走法中随机选择一个"""
-        legal_moves = game.get_legal_moves()
-        if not legal_moves:
+        if not view.legal_moves:
             return None
-        return self._rng.choice(legal_moves)
+        return self._rng.choice(view.legal_moves)

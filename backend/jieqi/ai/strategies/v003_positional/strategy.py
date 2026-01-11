@@ -9,6 +9,8 @@ ID: v003
 - 中心位置更有价值
 - 过河棋子加分
 - 靠近对方将的位置加分
+
+注意：AI 使用 PlayerView，无法看到暗子的真实身份！
 """
 
 from __future__ import annotations
@@ -17,12 +19,12 @@ import random
 from typing import TYPE_CHECKING
 
 from jieqi.ai.base import AIConfig, AIEngine, AIStrategy
+from jieqi.simulation import SimulationBoard, SimPiece
 from jieqi.types import Color, PieceType, GameResult, Position
 
 if TYPE_CHECKING:
-    from jieqi.game import JieqiGame
     from jieqi.types import JieqiMove
-    from jieqi.piece import JieqiPiece
+    from jieqi.view import PlayerView
 
 
 AI_ID = "v003"
@@ -43,14 +45,14 @@ PIECE_VALUES = {
 HIDDEN_PIECE_VALUE = 320
 
 
-def get_piece_value(piece: JieqiPiece) -> int:
+def get_piece_value(piece: SimPiece) -> int:
     """获取棋子基础价值"""
-    if piece.is_hidden:
+    if piece.is_hidden or piece.actual_type is None:
         return HIDDEN_PIECE_VALUE
     return PIECE_VALUES.get(piece.actual_type, 0)
 
 
-def get_position_bonus(piece: JieqiPiece, pos: Position) -> float:
+def get_position_bonus(piece: SimPiece, pos: Position) -> float:
     """获取位置加成
 
     评估因素：
@@ -83,8 +85,8 @@ def get_position_bonus(piece: JieqiPiece, pos: Position) -> float:
     else:
         advance_bonus = (9 - pos.row) * 2  # 越靠近红方越好
 
-    # 特殊棋子的位置修正
-    if piece.is_revealed:
+    # 特殊棋子的位置修正（只有明子才知道类型）
+    if not piece.is_hidden and piece.actual_type is not None:
         if piece.actual_type == PieceType.PAWN:
             # 兵过河后更有价值
             cross_bonus = 30 if crossed_river else 0
@@ -117,18 +119,20 @@ class PositionalAI(AIStrategy):
         super().__init__(config)
         self._rng = random.Random(self.config.seed)
 
-    def select_move(self, game: JieqiGame) -> JieqiMove | None:
+    def select_move(self, view: PlayerView) -> JieqiMove | None:
         """选择得分最高的走法"""
-        legal_moves = game.get_legal_moves()
-        if not legal_moves:
+        if not view.legal_moves:
             return None
 
-        my_color = game.current_turn
+        my_color = view.viewer
         best_moves: list[JieqiMove] = []
         best_score = float('-inf')
 
-        for move in legal_moves:
-            score = self._evaluate_move(game, move, my_color)
+        # 创建模拟棋盘
+        sim_board = SimulationBoard(view)
+
+        for move in view.legal_moves:
+            score = self._evaluate_move(sim_board, move, my_color)
 
             if score > best_score:
                 best_score = score
@@ -138,11 +142,11 @@ class PositionalAI(AIStrategy):
 
         return self._rng.choice(best_moves)
 
-    def _evaluate_move(self, game: JieqiGame, move: JieqiMove, my_color: Color) -> float:
+    def _evaluate_move(self, board: SimulationBoard, move: JieqiMove, my_color: Color) -> float:
         """评估走法得分"""
         score = 0.0
 
-        target = game.board.get_piece(move.to_pos)
+        target = board.get_piece(move.to_pos)
 
         # 1. 吃子得分
         if target is not None and target.color != my_color:
@@ -152,28 +156,28 @@ class PositionalAI(AIStrategy):
             if target.actual_type == PieceType.KING:
                 return 100000
 
-        piece = game.board.get_piece(move.from_pos)
+        piece = board.get_piece(move.from_pos)
         if piece is None:
             return score
 
         was_hidden = piece.is_hidden
-        captured = game.board.make_move(move)
+        captured = board.make_move(move)
 
         # 2. 检查获胜
-        result = game.board.get_game_result(my_color.opposite)
+        result = board.get_game_result(my_color.opposite)
         if result == GameResult.RED_WIN and my_color == Color.RED:
-            game.board.undo_move(move, captured, was_hidden)
+            board.undo_move(move, captured, was_hidden)
             return 100000
         elif result == GameResult.BLACK_WIN and my_color == Color.BLACK:
-            game.board.undo_move(move, captured, was_hidden)
+            board.undo_move(move, captured, was_hidden)
             return 100000
 
         # 3. 将军加分
-        if game.board.is_in_check(my_color.opposite):
+        if board.is_in_check(my_color.opposite):
             score += 50
 
         # 4. 位置评估变化
-        moved_piece = game.board.get_piece(move.to_pos)
+        moved_piece = board.get_piece(move.to_pos)
         if moved_piece:
             old_pos_bonus = get_position_bonus(piece, move.from_pos)
             new_pos_bonus = get_position_bonus(moved_piece, move.to_pos)
@@ -181,8 +185,8 @@ class PositionalAI(AIStrategy):
 
         # 5. 被吃风险
         if moved_piece:
-            for enemy_piece in game.board.get_all_pieces(my_color.opposite):
-                if move.to_pos in enemy_piece.get_potential_moves(game.board):
+            for enemy_piece in board.get_all_pieces(my_color.opposite):
+                if move.to_pos in board.get_potential_moves(enemy_piece):
                     my_piece_value = get_piece_value(moved_piece)
                     score -= my_piece_value * 0.3
                     break
@@ -191,6 +195,6 @@ class PositionalAI(AIStrategy):
         if was_hidden:
             score += 10
 
-        game.board.undo_move(move, captured, was_hidden)
+        board.undo_move(move, captured, was_hidden)
 
         return score

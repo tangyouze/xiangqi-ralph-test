@@ -60,6 +60,8 @@ class CreateGameRequest(BaseModel):
     # AI vs AI 模式下指定双方 AI 策略
     red_ai_strategy: str | None = None
     black_ai_strategy: str | None = None
+    # 延迟分配模式：翻棋时决定身份
+    delay_reveal: bool = False
 
 
 class MoveRequest(BaseModel):
@@ -70,6 +72,8 @@ class MoveRequest(BaseModel):
     from_col: int
     to_row: int
     to_col: int
+    # 延迟分配模式下，指定翻出的棋子类型
+    reveal_type: str | None = None  # "rook", "horse", "cannon", etc.
 
 
 class MoveResponse(BaseModel):
@@ -93,6 +97,7 @@ class GameStateResponse(BaseModel):
     legal_moves: list[MoveModel]
     hidden_count: dict[str, int]
     mode: str
+    delay_reveal: bool = False  # 是否为延迟分配模式
 
 
 class AIInfoResponse(BaseModel):
@@ -179,6 +184,21 @@ class ReplayResponse(BaseModel):
     current_move_number: int
     total_moves: int
     error: str | None = None
+
+
+class AvailableTypesResponse(BaseModel):
+    """可用棋子类型响应（延迟分配模式）"""
+
+    position: PositionModel
+    available_types: list[str]  # 可选择的棋子类型列表
+    unique_types: list[str]  # 去重后的类型列表（用于 UI 显示）
+
+
+class PendingRevealRequest(BaseModel):
+    """待揭子位置请求"""
+
+    from_row: int
+    from_col: int
 
 
 # 更新前向引用

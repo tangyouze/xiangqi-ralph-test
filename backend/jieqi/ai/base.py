@@ -2,6 +2,9 @@
 揭棋 AI 引擎基础类
 
 提供 AI 策略的抽象基类和注册机制
+
+重要：AI 只能通过 PlayerView 获取信息，不能直接访问 JieqiGame！
+这确保 AI 无法看到暗子的真实身份。
 """
 
 from __future__ import annotations
@@ -11,8 +14,8 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Callable
 
 if TYPE_CHECKING:
-    from jieqi.game import JieqiGame
     from jieqi.types import JieqiMove
+    from jieqi.view import PlayerView
 
 
 @dataclass
@@ -30,7 +33,11 @@ class AIConfig:
 
 
 class AIStrategy(ABC):
-    """AI 策略基类"""
+    """AI 策略基类
+
+    所有 AI 策略必须继承此类并实现 select_move 方法。
+    AI 只能通过 PlayerView 获取游戏信息，这确保了 AI 无法看到暗子的真实身份。
+    """
 
     name: str = "base"
     description: str = "Base AI strategy"
@@ -39,11 +46,13 @@ class AIStrategy(ABC):
         self.config = config or AIConfig()
 
     @abstractmethod
-    def select_move(self, game: JieqiGame) -> JieqiMove | None:
+    def select_move(self, view: PlayerView) -> JieqiMove | None:
         """选择下一步走法
 
         Args:
-            game: 当前游戏状态
+            view: 玩家视角（只包含该玩家能看到的信息）
+                  - 暗子的 actual_type = None
+                  - 被对方吃掉的己方暗子的 actual_type = None
 
         Returns:
             选择的走法，如果没有合法走法则返回 None

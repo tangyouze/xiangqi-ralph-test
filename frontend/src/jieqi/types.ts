@@ -40,6 +40,7 @@ export interface JieqiGameState {
     red: number;
     black: number;
   };
+  delay_reveal: boolean;  // 是否为延迟分配模式
 }
 
 export interface JieqiMoveResponse {
@@ -59,6 +60,23 @@ export interface CreateJieqiGameOptions {
   // AI vs AI 模式下指定双方 AI 策略
   red_ai_strategy?: AIStrategy;
   black_ai_strategy?: AIStrategy;
+  // 延迟分配模式：翻棋时决定身份
+  delay_reveal?: boolean;
+}
+
+// 可用棋子类型响应（延迟分配模式）
+export interface AvailableTypesResponse {
+  position: Position;
+  available_types: string[];  // 可选择的棋子类型列表（可能重复）
+  unique_types: string[];     // 去重后的类型列表
+}
+
+// 带 reveal_type 的移动请求
+export interface JieqiMoveRequest {
+  action_type: ActionType;
+  from_pos: Position;
+  to_pos: Position;
+  reveal_type?: PieceType;  // 延迟分配模式下指定翻出的类型
 }
 
 // AI 策略信息（从后端获取）
