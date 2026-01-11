@@ -8,7 +8,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL: 'http://localhost:6701',
     trace: 'on-first-retry',
   },
   projects: [
@@ -19,20 +19,20 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: 'cd ../backend && source .venv/bin/activate && uvicorn main:app --host 0.0.0.0 --port 8000',
-      url: 'http://localhost:8000/health',
+      command: 'cd ../backend && source .venv/bin/activate && uvicorn main:app --host 0.0.0.0 --port 6702',
+      url: 'http://localhost:6702/health',
       reuseExistingServer: !process.env.CI,
       timeout: 30000,
     },
     {
-      command: 'cd ../backend && source .venv/bin/activate && uvicorn jieqi.api.app:app --host 0.0.0.0 --port 8001',
-      url: 'http://localhost:8001/health',
+      command: 'cd ../backend && source .venv/bin/activate && uvicorn jieqi.api.app:app --host 0.0.0.0 --port 6703',
+      url: 'http://localhost:6703/health',
       reuseExistingServer: !process.env.CI,
       timeout: 30000,
     },
     {
-      command: 'npm run dev',
-      url: 'http://localhost:5173',
+      command: 'npm run dev -- --port 6701',
+      url: 'http://localhost:6701',
       reuseExistingServer: !process.env.CI,
       timeout: 30000,
     },

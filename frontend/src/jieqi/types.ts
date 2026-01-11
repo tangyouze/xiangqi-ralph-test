@@ -6,7 +6,8 @@ export type PieceState = 'hidden' | 'revealed';
 export type ActionType = 'reveal_and_move' | 'move';
 export type GameResult = 'ongoing' | 'red_win' | 'black_win' | 'draw';
 export type GameMode = 'human_vs_human' | 'human_vs_ai' | 'ai_vs_ai';
-export type AILevel = 'random';
+export type AILevel = string;
+export type AIStrategy = string;
 
 export interface Position {
   row: number;
@@ -53,7 +54,17 @@ export interface CreateJieqiGameOptions {
   mode: GameMode;
   ai_level?: AILevel;
   ai_color?: string;
+  ai_strategy?: AIStrategy;
   seed?: number;
+  // AI vs AI 模式下指定双方 AI 策略
+  red_ai_strategy?: AIStrategy;
+  black_ai_strategy?: AIStrategy;
+}
+
+// AI 策略信息（从后端获取）
+export interface AIStrategyInfo {
+  name: string;
+  description: string;
 }
 
 // 棋子显示名称

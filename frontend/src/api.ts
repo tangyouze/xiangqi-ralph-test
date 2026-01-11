@@ -2,7 +2,7 @@
 
 import type { CreateGameOptions, GameState, Move, MoveResponse } from './types';
 
-const API_BASE = 'http://localhost:8000';
+const API_BASE = 'http://localhost:6702';
 
 export async function createGame(options: CreateGameOptions): Promise<GameState> {
   const response = await fetch(`${API_BASE}/games`, {

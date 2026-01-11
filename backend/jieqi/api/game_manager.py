@@ -5,7 +5,7 @@
 """
 
 from jieqi.ai import AIConfig, AIEngine, AIStrategy
-from jieqi.api.models import AILevel, AIStrategy as AIStrategyEnum, GameMode
+from jieqi.api.models import AILevel, GameMode
 from jieqi.game import GameConfig, JieqiGame
 from jieqi.types import Color, JieqiMove
 
@@ -26,10 +26,10 @@ class GameManager:
         mode: GameMode = GameMode.HUMAN_VS_AI,
         ai_level: AILevel | None = None,
         ai_color: str | None = "black",
-        ai_strategy: AIStrategyEnum | None = None,
+        ai_strategy: str | None = None,
         seed: int | None = None,
-        red_ai_strategy: AIStrategyEnum | None = None,
-        black_ai_strategy: AIStrategyEnum | None = None,
+        red_ai_strategy: str | None = None,
+        black_ai_strategy: str | None = None,
     ) -> JieqiGame:
         """创建新游戏
 
@@ -74,11 +74,11 @@ class GameManager:
     def _get_strategy_name(
         self,
         level: AILevel | None,
-        strategy: AIStrategyEnum | None,
+        strategy: str | None,
     ) -> str:
         """获取 AI 策略名称"""
         if strategy:
-            return strategy.value
+            return strategy
 
         if level:
             # 目前只有 random

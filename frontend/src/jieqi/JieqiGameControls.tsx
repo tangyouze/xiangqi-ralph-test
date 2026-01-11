@@ -1,7 +1,8 @@
 // 揭棋游戏控制组件
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import type { CreateJieqiGameOptions, GameMode, JieqiGameState } from './types';
+import type { AIStrategyInfo, CreateJieqiGameOptions, GameMode, JieqiGameState } from './types';
+import { getAIInfo } from './api';
 import './JieqiGameControls.css';
 
 interface JieqiGameControlsProps {
@@ -17,8 +18,34 @@ export function JieqiGameControls({
   onRequestAIMove,
   isLoading,
 }: JieqiGameControlsProps) {
-  const [mode, setMode] = useState<GameMode>('human_vs_ai');
+  const [mode, setMode] = useState<GameMode>('ai_vs_ai');
   const [aiColor, setAIColor] = useState<string>('black');
+  const [aiStrategy, setAIStrategy] = useState<string>('greedy');
+  const [redAIStrategy, setRedAIStrategy] = useState<string>('greedy');
+  const [blackAIStrategy, setBlackAIStrategy] = useState<string>('random');
+
+  // AI 策略列表（从后端获取）
+  const [aiStrategies, setAiStrategies] = useState<AIStrategyInfo[]>([]);
+
+  // 获取 AI 信息
+  useEffect(() => {
+    getAIInfo()
+      .then(info => {
+        setAiStrategies(info.available_strategies);
+        // 设置默认策略
+        if (info.available_strategies.length > 0) {
+          const defaultStrategy = info.available_strategies.find(s => s.name === 'greedy')?.name
+            || info.available_strategies[0].name;
+          setAiStrategy(defaultStrategy);
+          setRedAIStrategy(defaultStrategy);
+          // 黑方用 random 作为默认（用于对比测试）
+          const randomStrategy = info.available_strategies.find(s => s.name === 'random')?.name
+            || info.available_strategies[0].name;
+          setBlackAIStrategy(randomStrategy);
+        }
+      })
+      .catch(err => console.error('Failed to load AI strategies:', err));
+  }, []);
 
   // 自动播放
   const [autoPlay, setAutoPlay] = useState(false);
@@ -52,12 +79,18 @@ export function JieqiGameControls({
 
     const options: CreateJieqiGameOptions = {
       mode,
-      ai_level: 'random',
       ai_color: aiColor,
     };
 
+    if (mode === 'human_vs_ai') {
+      options.ai_strategy = aiStrategy;
+    } else if (mode === 'ai_vs_ai') {
+      options.red_ai_strategy = redAIStrategy;
+      options.black_ai_strategy = blackAIStrategy;
+    }
+
     onNewGame(options);
-  }, [mode, aiColor, onNewGame]);
+  }, [mode, aiColor, aiStrategy, redAIStrategy, blackAIStrategy, onNewGame]);
 
   const getStatusText = () => {
     if (!gameState) return 'No game in progress';
@@ -113,13 +146,44 @@ export function JieqiGameControls({
         </div>
 
         {mode === 'human_vs_ai' && (
-          <div className="control-group">
-            <label htmlFor="aiColor">AI plays:</label>
-            <select id="aiColor" value={aiColor} onChange={e => setAIColor(e.target.value)}>
-              <option value="black">Black</option>
-              <option value="red">Red</option>
-            </select>
-          </div>
+          <>
+            <div className="control-group">
+              <label htmlFor="aiColor">AI plays:</label>
+              <select id="aiColor" value={aiColor} onChange={e => setAIColor(e.target.value)}>
+                <option value="black">Black</option>
+                <option value="red">Red</option>
+              </select>
+            </div>
+            <div className="control-group">
+              <label htmlFor="aiStrategy">AI Strategy:</label>
+              <select id="aiStrategy" value={aiStrategy} onChange={e => setAIStrategy(e.target.value)}>
+                {aiStrategies.map(s => (
+                  <option key={s.name} value={s.name} title={s.description}>{s.name} - {s.description}</option>
+                ))}
+              </select>
+            </div>
+          </>
+        )}
+
+        {mode === 'ai_vs_ai' && (
+          <>
+            <div className="control-group">
+              <label htmlFor="redAI">Red AI:</label>
+              <select id="redAI" value={redAIStrategy} onChange={e => setRedAIStrategy(e.target.value)}>
+                {aiStrategies.map(s => (
+                  <option key={s.name} value={s.name} title={s.description}>{s.name} - {s.description}</option>
+                ))}
+              </select>
+            </div>
+            <div className="control-group">
+              <label htmlFor="blackAI">Black AI:</label>
+              <select id="blackAI" value={blackAIStrategy} onChange={e => setBlackAIStrategy(e.target.value)}>
+                {aiStrategies.map(s => (
+                  <option key={s.name} value={s.name} title={s.description}>{s.name} - {s.description}</option>
+                ))}
+              </select>
+            </div>
+          </>
         )}
 
         <button

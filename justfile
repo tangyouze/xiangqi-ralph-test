@@ -6,7 +6,7 @@ overmind-start:
 
 # Start backend only
 backend:
-    cd backend && source .venv/bin/activate && uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    cd backend && source .venv/bin/activate && uvicorn main:app --host 0.0.0.0 --port 6702 --reload
 
 # Start frontend only
 frontend:
