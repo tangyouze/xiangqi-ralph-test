@@ -25,6 +25,12 @@ export default defineConfig({
       timeout: 30000,
     },
     {
+      command: 'cd ../backend && source .venv/bin/activate && uvicorn jieqi.api.app:app --host 0.0.0.0 --port 8001',
+      url: 'http://localhost:8001/health',
+      reuseExistingServer: !process.env.CI,
+      timeout: 30000,
+    },
+    {
       command: 'npm run dev',
       url: 'http://localhost:5173',
       reuseExistingServer: !process.env.CI,

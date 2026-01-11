@@ -63,15 +63,15 @@ test.describe('Xiangqi Game E2E Tests', () => {
 
     // 点击红方左边的车（位置 row=0, col=0）
     // 棋盘从上到下是 row 9 到 0，所以 row=0 是最下面
-    const cells = page.locator('.cell');
+    const intersections = page.locator('.intersection');
     // 红方车在最底部左边，即第 10 行（index 9）的第一个格子
-    await cells.nth(9 * 9).click(); // 第 10 行第 1 列
+    await intersections.nth(9 * 9).click(); // 第 10 行第 1 列
 
     // 检查选中状态
-    await expect(cells.nth(9 * 9)).toHaveClass(/selected/);
+    await expect(intersections.nth(9 * 9)).toHaveClass(/selected/);
 
     // 点击目标位置（车前进两步）
-    await cells.nth(7 * 9).click(); // 第 8 行第 1 列
+    await intersections.nth(7 * 9).click(); // 第 8 行第 1 列
 
     // 检查回合切换
     await expect(page.locator('.status')).toContainText("Black's turn");
@@ -84,11 +84,11 @@ test.describe('Xiangqi Game E2E Tests', () => {
     await expect(page.locator('.board')).toBeVisible();
 
     // 点击一个红方棋子
-    const cells = page.locator('.cell');
-    await cells.nth(9 * 9).click(); // 红方车
+    const intersections = page.locator('.intersection');
+    await intersections.nth(9 * 9).click(); // 红方车
 
     // 应该显示合法移动指示器
-    const legalTargets = page.locator('.cell.legal-target');
+    const legalTargets = page.locator('.intersection.legal-target');
     await expect(legalTargets).not.toHaveCount(0);
   });
 
@@ -101,9 +101,9 @@ test.describe('Xiangqi Game E2E Tests', () => {
     await expect(page.locator('.move-count')).toContainText('Moves: 0');
 
     // 执行一步走棋
-    const cells = page.locator('.cell');
-    await cells.nth(9 * 9).click();
-    await cells.nth(7 * 9).click();
+    const intersections = page.locator('.intersection');
+    await intersections.nth(9 * 9).click();
+    await intersections.nth(7 * 9).click();
 
     // 检查移动计数更新
     await expect(page.locator('.move-count')).toContainText('Moves: 1');
@@ -122,8 +122,8 @@ test.describe('Xiangqi Game E2E Tests', () => {
     // 点击 AI 走棋
     await page.click('button:has-text("Next AI Move")');
 
-    // 检查移动计数增加
-    await expect(page.locator('.move-count')).toContainText('Moves: 1');
+    // 等待 AI 走棋完成后检查移动计数增加
+    await expect(page.locator('.move-count')).toContainText('Moves: 1', { timeout: 10000 });
   });
 });
 
