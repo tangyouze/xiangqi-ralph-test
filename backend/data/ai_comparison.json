@@ -1,0 +1,1344 @@
+{
+  "strategies": [
+    "advanced",
+    "iterative",
+    "defensive",
+    "balanced",
+    "coordination",
+    "reveal",
+    "fast",
+    "alphabeta",
+    "positional",
+    "lookahead",
+    "minimax",
+    "greedy",
+    "aggressive",
+    "random"
+  ],
+  "num_games": 5,
+  "max_moves": 300,
+  "results": {
+    "advanced": {
+      "advanced": {
+        "wins": 0,
+        "losses": 0,
+        "draws": 0,
+        "win_rate": 0.0
+      },
+      "iterative": {
+        "wins": 2,
+        "losses": 0,
+        "draws": 8,
+        "win_rate": 0.4
+      },
+      "defensive": {
+        "wins": 5,
+        "losses": 1,
+        "draws": 4,
+        "win_rate": 1.0
+      },
+      "balanced": {
+        "wins": 4,
+        "losses": 1,
+        "draws": 5,
+        "win_rate": 0.8
+      },
+      "coordination": {
+        "wins": 2,
+        "losses": 1,
+        "draws": 7,
+        "win_rate": 0.4
+      },
+      "reveal": {
+        "wins": 4,
+        "losses": 0,
+        "draws": 6,
+        "win_rate": 0.8
+      },
+      "fast": {
+        "wins": 3,
+        "losses": 1,
+        "draws": 6,
+        "win_rate": 0.6
+      },
+      "alphabeta": {
+        "wins": 7,
+        "losses": 0,
+        "draws": 3,
+        "win_rate": 1.4
+      },
+      "positional": {
+        "wins": 3,
+        "losses": 0,
+        "draws": 7,
+        "win_rate": 0.6
+      },
+      "lookahead": {
+        "wins": 7,
+        "losses": 0,
+        "draws": 3,
+        "win_rate": 1.4
+      },
+      "minimax": {
+        "wins": 6,
+        "losses": 0,
+        "draws": 4,
+        "win_rate": 1.2
+      },
+      "greedy": {
+        "wins": 8,
+        "losses": 0,
+        "draws": 2,
+        "win_rate": 1.6
+      },
+      "aggressive": {
+        "wins": 2,
+        "losses": 0,
+        "draws": 8,
+        "win_rate": 0.4
+      },
+      "random": {
+        "wins": 8,
+        "losses": 0,
+        "draws": 2,
+        "win_rate": 1.6
+      }
+    },
+    "iterative": {
+      "advanced": {
+        "wins": 0,
+        "losses": 2,
+        "draws": 8,
+        "win_rate": 0.0
+      },
+      "iterative": {
+        "wins": 0,
+        "losses": 0,
+        "draws": 0,
+        "win_rate": 0.0
+      },
+      "defensive": {
+        "wins": 4,
+        "losses": 0,
+        "draws": 6,
+        "win_rate": 0.8
+      },
+      "balanced": {
+        "wins": 5,
+        "losses": 1,
+        "draws": 4,
+        "win_rate": 1.0
+      },
+      "coordination": {
+        "wins": 3,
+        "losses": 1,
+        "draws": 6,
+        "win_rate": 0.6
+      },
+      "reveal": {
+        "wins": 5,
+        "losses": 1,
+        "draws": 4,
+        "win_rate": 1.0
+      },
+      "fast": {
+        "wins": 5,
+        "losses": 3,
+        "draws": 2,
+        "win_rate": 1.0
+      },
+      "alphabeta": {
+        "wins": 8,
+        "losses": 0,
+        "draws": 2,
+        "win_rate": 1.6
+      },
+      "positional": {
+        "wins": 5,
+        "losses": 1,
+        "draws": 4,
+        "win_rate": 1.0
+      },
+      "lookahead": {
+        "wins": 6,
+        "losses": 1,
+        "draws": 3,
+        "win_rate": 1.2
+      },
+      "minimax": {
+        "wins": 6,
+        "losses": 0,
+        "draws": 4,
+        "win_rate": 1.2
+      },
+      "greedy": {
+        "wins": 6,
+        "losses": 2,
+        "draws": 2,
+        "win_rate": 1.2
+      },
+      "aggressive": {
+        "wins": 4,
+        "losses": 1,
+        "draws": 5,
+        "win_rate": 0.8
+      },
+      "random": {
+        "wins": 5,
+        "losses": 0,
+        "draws": 5,
+        "win_rate": 1.0
+      }
+    },
+    "defensive": {
+      "advanced": {
+        "wins": 1,
+        "losses": 5,
+        "draws": 4,
+        "win_rate": 0.2
+      },
+      "iterative": {
+        "wins": 0,
+        "losses": 4,
+        "draws": 6,
+        "win_rate": 0.0
+      },
+      "defensive": {
+        "wins": 0,
+        "losses": 0,
+        "draws": 0,
+        "win_rate": 0.0
+      },
+      "balanced": {
+        "wins": 6,
+        "losses": 3,
+        "draws": 1,
+        "win_rate": 1.2
+      },
+      "coordination": {
+        "wins": 5,
+        "losses": 5,
+        "draws": 0,
+        "win_rate": 1.0
+      },
+      "reveal": {
+        "wins": 5,
+        "losses": 5,
+        "draws": 0,
+        "win_rate": 1.0
+      },
+      "fast": {
+        "wins": 7,
+        "losses": 3,
+        "draws": 0,
+        "win_rate": 1.4
+      },
+      "alphabeta": {
+        "wins": 6,
+        "losses": 1,
+        "draws": 3,
+        "win_rate": 1.2
+      },
+      "positional": {
+        "wins": 4,
+        "losses": 4,
+        "draws": 2,
+        "win_rate": 0.8
+      },
+      "lookahead": {
+        "wins": 7,
+        "losses": 1,
+        "draws": 2,
+        "win_rate": 1.4
+      },
+      "minimax": {
+        "wins": 5,
+        "losses": 4,
+        "draws": 1,
+        "win_rate": 1.0
+      },
+      "greedy": {
+        "wins": 8,
+        "losses": 1,
+        "draws": 1,
+        "win_rate": 1.6
+      },
+      "aggressive": {
+        "wins": 9,
+        "losses": 1,
+        "draws": 0,
+        "win_rate": 1.8
+      },
+      "random": {
+        "wins": 9,
+        "losses": 0,
+        "draws": 1,
+        "win_rate": 1.8
+      }
+    },
+    "balanced": {
+      "advanced": {
+        "wins": 1,
+        "losses": 4,
+        "draws": 5,
+        "win_rate": 0.2
+      },
+      "iterative": {
+        "wins": 1,
+        "losses": 5,
+        "draws": 4,
+        "win_rate": 0.2
+      },
+      "defensive": {
+        "wins": 3,
+        "losses": 6,
+        "draws": 1,
+        "win_rate": 0.6
+      },
+      "balanced": {
+        "wins": 0,
+        "losses": 0,
+        "draws": 0,
+        "win_rate": 0.0
+      },
+      "coordination": {
+        "wins": 3,
+        "losses": 4,
+        "draws": 3,
+        "win_rate": 0.6
+      },
+      "reveal": {
+        "wins": 6,
+        "losses": 2,
+        "draws": 2,
+        "win_rate": 1.2
+      },
+      "fast": {
+        "wins": 4,
+        "losses": 6,
+        "draws": 0,
+        "win_rate": 0.8
+      },
+      "alphabeta": {
+        "wins": 5,
+        "losses": 3,
+        "draws": 2,
+        "win_rate": 1.0
+      },
+      "positional": {
+        "wins": 6,
+        "losses": 4,
+        "draws": 0,
+        "win_rate": 1.2
+      },
+      "lookahead": {
+        "wins": 6,
+        "losses": 3,
+        "draws": 1,
+        "win_rate": 1.2
+      },
+      "minimax": {
+        "wins": 3,
+        "losses": 2,
+        "draws": 5,
+        "win_rate": 0.6
+      },
+      "greedy": {
+        "wins": 8,
+        "losses": 0,
+        "draws": 2,
+        "win_rate": 1.6
+      },
+      "aggressive": {
+        "wins": 10,
+        "losses": 0,
+        "draws": 0,
+        "win_rate": 2.0
+      },
+      "random": {
+        "wins": 9,
+        "losses": 0,
+        "draws": 1,
+        "win_rate": 1.8
+      }
+    },
+    "coordination": {
+      "advanced": {
+        "wins": 1,
+        "losses": 2,
+        "draws": 7,
+        "win_rate": 0.2
+      },
+      "iterative": {
+        "wins": 1,
+        "losses": 3,
+        "draws": 6,
+        "win_rate": 0.2
+      },
+      "defensive": {
+        "wins": 5,
+        "losses": 5,
+        "draws": 0,
+        "win_rate": 1.0
+      },
+      "balanced": {
+        "wins": 4,
+        "losses": 3,
+        "draws": 3,
+        "win_rate": 0.8
+      },
+      "coordination": {
+        "wins": 0,
+        "losses": 0,
+        "draws": 0,
+        "win_rate": 0.0
+      },
+      "reveal": {
+        "wins": 2,
+        "losses": 6,
+        "draws": 2,
+        "win_rate": 0.4
+      },
+      "fast": {
+        "wins": 7,
+        "losses": 2,
+        "draws": 1,
+        "win_rate": 1.4
+      },
+      "alphabeta": {
+        "wins": 7,
+        "losses": 2,
+        "draws": 1,
+        "win_rate": 1.4
+      },
+      "positional": {
+        "wins": 3,
+        "losses": 5,
+        "draws": 2,
+        "win_rate": 0.6
+      },
+      "lookahead": {
+        "wins": 6,
+        "losses": 3,
+        "draws": 1,
+        "win_rate": 1.2
+      },
+      "minimax": {
+        "wins": 5,
+        "losses": 4,
+        "draws": 1,
+        "win_rate": 1.0
+      },
+      "greedy": {
+        "wins": 7,
+        "losses": 1,
+        "draws": 2,
+        "win_rate": 1.4
+      },
+      "aggressive": {
+        "wins": 7,
+        "losses": 1,
+        "draws": 2,
+        "win_rate": 1.4
+      },
+      "random": {
+        "wins": 9,
+        "losses": 1,
+        "draws": 0,
+        "win_rate": 1.8
+      }
+    },
+    "reveal": {
+      "advanced": {
+        "wins": 0,
+        "losses": 4,
+        "draws": 6,
+        "win_rate": 0.0
+      },
+      "iterative": {
+        "wins": 1,
+        "losses": 5,
+        "draws": 4,
+        "win_rate": 0.2
+      },
+      "defensive": {
+        "wins": 5,
+        "losses": 5,
+        "draws": 0,
+        "win_rate": 1.0
+      },
+      "balanced": {
+        "wins": 2,
+        "losses": 6,
+        "draws": 2,
+        "win_rate": 0.4
+      },
+      "coordination": {
+        "wins": 6,
+        "losses": 2,
+        "draws": 2,
+        "win_rate": 1.2
+      },
+      "reveal": {
+        "wins": 0,
+        "losses": 0,
+        "draws": 0,
+        "win_rate": 0.0
+      },
+      "fast": {
+        "wins": 4,
+        "losses": 6,
+        "draws": 0,
+        "win_rate": 0.8
+      },
+      "alphabeta": {
+        "wins": 7,
+        "losses": 2,
+        "draws": 1,
+        "win_rate": 1.4
+      },
+      "positional": {
+        "wins": 7,
+        "losses": 3,
+        "draws": 0,
+        "win_rate": 1.4
+      },
+      "lookahead": {
+        "wins": 6,
+        "losses": 4,
+        "draws": 0,
+        "win_rate": 1.2
+      },
+      "minimax": {
+        "wins": 6,
+        "losses": 1,
+        "draws": 3,
+        "win_rate": 1.2
+      },
+      "greedy": {
+        "wins": 6,
+        "losses": 1,
+        "draws": 3,
+        "win_rate": 1.2
+      },
+      "aggressive": {
+        "wins": 6,
+        "losses": 3,
+        "draws": 1,
+        "win_rate": 1.2
+      },
+      "random": {
+        "wins": 6,
+        "losses": 0,
+        "draws": 4,
+        "win_rate": 1.2
+      }
+    },
+    "fast": {
+      "advanced": {
+        "wins": 1,
+        "losses": 3,
+        "draws": 6,
+        "win_rate": 0.2
+      },
+      "iterative": {
+        "wins": 3,
+        "losses": 5,
+        "draws": 2,
+        "win_rate": 0.6
+      },
+      "defensive": {
+        "wins": 3,
+        "losses": 7,
+        "draws": 0,
+        "win_rate": 0.6
+      },
+      "balanced": {
+        "wins": 6,
+        "losses": 4,
+        "draws": 0,
+        "win_rate": 1.2
+      },
+      "coordination": {
+        "wins": 2,
+        "losses": 7,
+        "draws": 1,
+        "win_rate": 0.4
+      },
+      "reveal": {
+        "wins": 6,
+        "losses": 4,
+        "draws": 0,
+        "win_rate": 1.2
+      },
+      "fast": {
+        "wins": 0,
+        "losses": 0,
+        "draws": 0,
+        "win_rate": 0.0
+      },
+      "alphabeta": {
+        "wins": 2,
+        "losses": 4,
+        "draws": 4,
+        "win_rate": 0.4
+      },
+      "positional": {
+        "wins": 7,
+        "losses": 2,
+        "draws": 1,
+        "win_rate": 1.4
+      },
+      "lookahead": {
+        "wins": 7,
+        "losses": 1,
+        "draws": 2,
+        "win_rate": 1.4
+      },
+      "minimax": {
+        "wins": 5,
+        "losses": 1,
+        "draws": 4,
+        "win_rate": 1.0
+      },
+      "greedy": {
+        "wins": 5,
+        "losses": 3,
+        "draws": 2,
+        "win_rate": 1.0
+      },
+      "aggressive": {
+        "wins": 7,
+        "losses": 0,
+        "draws": 3,
+        "win_rate": 1.4
+      },
+      "random": {
+        "wins": 7,
+        "losses": 1,
+        "draws": 2,
+        "win_rate": 1.4
+      }
+    },
+    "alphabeta": {
+      "advanced": {
+        "wins": 0,
+        "losses": 7,
+        "draws": 3,
+        "win_rate": 0.0
+      },
+      "iterative": {
+        "wins": 0,
+        "losses": 8,
+        "draws": 2,
+        "win_rate": 0.0
+      },
+      "defensive": {
+        "wins": 1,
+        "losses": 6,
+        "draws": 3,
+        "win_rate": 0.2
+      },
+      "balanced": {
+        "wins": 3,
+        "losses": 5,
+        "draws": 2,
+        "win_rate": 0.6
+      },
+      "coordination": {
+        "wins": 2,
+        "losses": 7,
+        "draws": 1,
+        "win_rate": 0.4
+      },
+      "reveal": {
+        "wins": 2,
+        "losses": 7,
+        "draws": 1,
+        "win_rate": 0.4
+      },
+      "fast": {
+        "wins": 4,
+        "losses": 2,
+        "draws": 4,
+        "win_rate": 0.8
+      },
+      "alphabeta": {
+        "wins": 0,
+        "losses": 0,
+        "draws": 0,
+        "win_rate": 0.0
+      },
+      "positional": {
+        "wins": 7,
+        "losses": 1,
+        "draws": 2,
+        "win_rate": 1.4
+      },
+      "lookahead": {
+        "wins": 2,
+        "losses": 3,
+        "draws": 5,
+        "win_rate": 0.4
+      },
+      "minimax": {
+        "wins": 7,
+        "losses": 2,
+        "draws": 1,
+        "win_rate": 1.4
+      },
+      "greedy": {
+        "wins": 3,
+        "losses": 4,
+        "draws": 3,
+        "win_rate": 0.6
+      },
+      "aggressive": {
+        "wins": 5,
+        "losses": 2,
+        "draws": 3,
+        "win_rate": 1.0
+      },
+      "random": {
+        "wins": 10,
+        "losses": 0,
+        "draws": 0,
+        "win_rate": 2.0
+      }
+    },
+    "positional": {
+      "advanced": {
+        "wins": 0,
+        "losses": 3,
+        "draws": 7,
+        "win_rate": 0.0
+      },
+      "iterative": {
+        "wins": 1,
+        "losses": 5,
+        "draws": 4,
+        "win_rate": 0.2
+      },
+      "defensive": {
+        "wins": 4,
+        "losses": 4,
+        "draws": 2,
+        "win_rate": 0.8
+      },
+      "balanced": {
+        "wins": 4,
+        "losses": 6,
+        "draws": 0,
+        "win_rate": 0.8
+      },
+      "coordination": {
+        "wins": 5,
+        "losses": 3,
+        "draws": 2,
+        "win_rate": 1.0
+      },
+      "reveal": {
+        "wins": 3,
+        "losses": 7,
+        "draws": 0,
+        "win_rate": 0.6
+      },
+      "fast": {
+        "wins": 2,
+        "losses": 7,
+        "draws": 1,
+        "win_rate": 0.4
+      },
+      "alphabeta": {
+        "wins": 1,
+        "losses": 7,
+        "draws": 2,
+        "win_rate": 0.2
+      },
+      "positional": {
+        "wins": 0,
+        "losses": 0,
+        "draws": 0,
+        "win_rate": 0.0
+      },
+      "lookahead": {
+        "wins": 4,
+        "losses": 6,
+        "draws": 0,
+        "win_rate": 0.8
+      },
+      "minimax": {
+        "wins": 5,
+        "losses": 3,
+        "draws": 2,
+        "win_rate": 1.0
+      },
+      "greedy": {
+        "wins": 4,
+        "losses": 3,
+        "draws": 3,
+        "win_rate": 0.8
+      },
+      "aggressive": {
+        "wins": 4,
+        "losses": 1,
+        "draws": 5,
+        "win_rate": 0.8
+      },
+      "random": {
+        "wins": 5,
+        "losses": 0,
+        "draws": 5,
+        "win_rate": 1.0
+      }
+    },
+    "lookahead": {
+      "advanced": {
+        "wins": 0,
+        "losses": 7,
+        "draws": 3,
+        "win_rate": 0.0
+      },
+      "iterative": {
+        "wins": 1,
+        "losses": 6,
+        "draws": 3,
+        "win_rate": 0.2
+      },
+      "defensive": {
+        "wins": 1,
+        "losses": 7,
+        "draws": 2,
+        "win_rate": 0.2
+      },
+      "balanced": {
+        "wins": 3,
+        "losses": 6,
+        "draws": 1,
+        "win_rate": 0.6
+      },
+      "coordination": {
+        "wins": 3,
+        "losses": 6,
+        "draws": 1,
+        "win_rate": 0.6
+      },
+      "reveal": {
+        "wins": 4,
+        "losses": 6,
+        "draws": 0,
+        "win_rate": 0.8
+      },
+      "fast": {
+        "wins": 1,
+        "losses": 7,
+        "draws": 2,
+        "win_rate": 0.2
+      },
+      "alphabeta": {
+        "wins": 3,
+        "losses": 2,
+        "draws": 5,
+        "win_rate": 0.6
+      },
+      "positional": {
+        "wins": 6,
+        "losses": 4,
+        "draws": 0,
+        "win_rate": 1.2
+      },
+      "lookahead": {
+        "wins": 0,
+        "losses": 0,
+        "draws": 0,
+        "win_rate": 0.0
+      },
+      "minimax": {
+        "wins": 4,
+        "losses": 3,
+        "draws": 3,
+        "win_rate": 0.8
+      },
+      "greedy": {
+        "wins": 6,
+        "losses": 1,
+        "draws": 3,
+        "win_rate": 1.2
+      },
+      "aggressive": {
+        "wins": 3,
+        "losses": 4,
+        "draws": 3,
+        "win_rate": 0.6
+      },
+      "random": {
+        "wins": 7,
+        "losses": 0,
+        "draws": 3,
+        "win_rate": 1.4
+      }
+    },
+    "minimax": {
+      "advanced": {
+        "wins": 0,
+        "losses": 6,
+        "draws": 4,
+        "win_rate": 0.0
+      },
+      "iterative": {
+        "wins": 0,
+        "losses": 6,
+        "draws": 4,
+        "win_rate": 0.0
+      },
+      "defensive": {
+        "wins": 4,
+        "losses": 5,
+        "draws": 1,
+        "win_rate": 0.8
+      },
+      "balanced": {
+        "wins": 2,
+        "losses": 3,
+        "draws": 5,
+        "win_rate": 0.4
+      },
+      "coordination": {
+        "wins": 4,
+        "losses": 5,
+        "draws": 1,
+        "win_rate": 0.8
+      },
+      "reveal": {
+        "wins": 1,
+        "losses": 6,
+        "draws": 3,
+        "win_rate": 0.2
+      },
+      "fast": {
+        "wins": 1,
+        "losses": 5,
+        "draws": 4,
+        "win_rate": 0.2
+      },
+      "alphabeta": {
+        "wins": 2,
+        "losses": 7,
+        "draws": 1,
+        "win_rate": 0.4
+      },
+      "positional": {
+        "wins": 3,
+        "losses": 5,
+        "draws": 2,
+        "win_rate": 0.6
+      },
+      "lookahead": {
+        "wins": 3,
+        "losses": 4,
+        "draws": 3,
+        "win_rate": 0.6
+      },
+      "minimax": {
+        "wins": 0,
+        "losses": 0,
+        "draws": 0,
+        "win_rate": 0.0
+      },
+      "greedy": {
+        "wins": 3,
+        "losses": 5,
+        "draws": 2,
+        "win_rate": 0.6
+      },
+      "aggressive": {
+        "wins": 5,
+        "losses": 0,
+        "draws": 5,
+        "win_rate": 1.0
+      },
+      "random": {
+        "wins": 6,
+        "losses": 0,
+        "draws": 4,
+        "win_rate": 1.2
+      }
+    },
+    "greedy": {
+      "advanced": {
+        "wins": 0,
+        "losses": 8,
+        "draws": 2,
+        "win_rate": 0.0
+      },
+      "iterative": {
+        "wins": 2,
+        "losses": 6,
+        "draws": 2,
+        "win_rate": 0.4
+      },
+      "defensive": {
+        "wins": 1,
+        "losses": 8,
+        "draws": 1,
+        "win_rate": 0.2
+      },
+      "balanced": {
+        "wins": 0,
+        "losses": 8,
+        "draws": 2,
+        "win_rate": 0.0
+      },
+      "coordination": {
+        "wins": 1,
+        "losses": 7,
+        "draws": 2,
+        "win_rate": 0.2
+      },
+      "reveal": {
+        "wins": 1,
+        "losses": 6,
+        "draws": 3,
+        "win_rate": 0.2
+      },
+      "fast": {
+        "wins": 3,
+        "losses": 5,
+        "draws": 2,
+        "win_rate": 0.6
+      },
+      "alphabeta": {
+        "wins": 4,
+        "losses": 3,
+        "draws": 3,
+        "win_rate": 0.8
+      },
+      "positional": {
+        "wins": 3,
+        "losses": 4,
+        "draws": 3,
+        "win_rate": 0.6
+      },
+      "lookahead": {
+        "wins": 1,
+        "losses": 6,
+        "draws": 3,
+        "win_rate": 0.2
+      },
+      "minimax": {
+        "wins": 5,
+        "losses": 3,
+        "draws": 2,
+        "win_rate": 1.0
+      },
+      "greedy": {
+        "wins": 0,
+        "losses": 0,
+        "draws": 0,
+        "win_rate": 0.0
+      },
+      "aggressive": {
+        "wins": 3,
+        "losses": 1,
+        "draws": 6,
+        "win_rate": 0.6
+      },
+      "random": {
+        "wins": 10,
+        "losses": 0,
+        "draws": 0,
+        "win_rate": 2.0
+      }
+    },
+    "aggressive": {
+      "advanced": {
+        "wins": 0,
+        "losses": 2,
+        "draws": 8,
+        "win_rate": 0.0
+      },
+      "iterative": {
+        "wins": 1,
+        "losses": 4,
+        "draws": 5,
+        "win_rate": 0.2
+      },
+      "defensive": {
+        "wins": 1,
+        "losses": 9,
+        "draws": 0,
+        "win_rate": 0.2
+      },
+      "balanced": {
+        "wins": 0,
+        "losses": 10,
+        "draws": 0,
+        "win_rate": 0.0
+      },
+      "coordination": {
+        "wins": 1,
+        "losses": 7,
+        "draws": 2,
+        "win_rate": 0.2
+      },
+      "reveal": {
+        "wins": 3,
+        "losses": 6,
+        "draws": 1,
+        "win_rate": 0.6
+      },
+      "fast": {
+        "wins": 0,
+        "losses": 7,
+        "draws": 3,
+        "win_rate": 0.0
+      },
+      "alphabeta": {
+        "wins": 2,
+        "losses": 5,
+        "draws": 3,
+        "win_rate": 0.4
+      },
+      "positional": {
+        "wins": 1,
+        "losses": 4,
+        "draws": 5,
+        "win_rate": 0.2
+      },
+      "lookahead": {
+        "wins": 4,
+        "losses": 3,
+        "draws": 3,
+        "win_rate": 0.8
+      },
+      "minimax": {
+        "wins": 0,
+        "losses": 5,
+        "draws": 5,
+        "win_rate": 0.0
+      },
+      "greedy": {
+        "wins": 1,
+        "losses": 3,
+        "draws": 6,
+        "win_rate": 0.2
+      },
+      "aggressive": {
+        "wins": 0,
+        "losses": 0,
+        "draws": 0,
+        "win_rate": 0.0
+      },
+      "random": {
+        "wins": 5,
+        "losses": 0,
+        "draws": 5,
+        "win_rate": 1.0
+      }
+    },
+    "random": {
+      "advanced": {
+        "wins": 0,
+        "losses": 8,
+        "draws": 2,
+        "win_rate": 0.0
+      },
+      "iterative": {
+        "wins": 0,
+        "losses": 5,
+        "draws": 5,
+        "win_rate": 0.0
+      },
+      "defensive": {
+        "wins": 0,
+        "losses": 9,
+        "draws": 1,
+        "win_rate": 0.0
+      },
+      "balanced": {
+        "wins": 0,
+        "losses": 9,
+        "draws": 1,
+        "win_rate": 0.0
+      },
+      "coordination": {
+        "wins": 1,
+        "losses": 9,
+        "draws": 0,
+        "win_rate": 0.2
+      },
+      "reveal": {
+        "wins": 0,
+        "losses": 6,
+        "draws": 4,
+        "win_rate": 0.0
+      },
+      "fast": {
+        "wins": 1,
+        "losses": 7,
+        "draws": 2,
+        "win_rate": 0.2
+      },
+      "alphabeta": {
+        "wins": 0,
+        "losses": 10,
+        "draws": 0,
+        "win_rate": 0.0
+      },
+      "positional": {
+        "wins": 0,
+        "losses": 5,
+        "draws": 5,
+        "win_rate": 0.0
+      },
+      "lookahead": {
+        "wins": 0,
+        "losses": 7,
+        "draws": 3,
+        "win_rate": 0.0
+      },
+      "minimax": {
+        "wins": 0,
+        "losses": 6,
+        "draws": 4,
+        "win_rate": 0.0
+      },
+      "greedy": {
+        "wins": 0,
+        "losses": 10,
+        "draws": 0,
+        "win_rate": 0.0
+      },
+      "aggressive": {
+        "wins": 0,
+        "losses": 5,
+        "draws": 5,
+        "win_rate": 0.0
+      },
+      "random": {
+        "wins": 0,
+        "losses": 0,
+        "draws": 0,
+        "win_rate": 0.0
+      }
+    }
+  },
+  "scores": {
+    "advanced": 0.7192307692307692,
+    "iterative": 0.6884615384615385,
+    "defensive": 0.6346153846153846,
+    "balanced": 0.6,
+    "coordination": 0.6,
+    "reveal": 0.5769230769230769,
+    "fast": 0.573076923076923,
+    "alphabeta": 0.46923076923076923,
+    "positional": 0.45,
+    "lookahead": 0.4346153846153846,
+    "minimax": 0.4115384615384615,
+    "greedy": 0.38076923076923075,
+    "aggressive": 0.3230769230769231,
+    "random": 0.13846153846153847
+  },
+  "elo": {
+    "advanced": 1645.0160909682593,
+    "iterative": 1621.9562945098317,
+    "defensive": 1571.5858801773604,
+    "balanced": 1543.9892976237854,
+    "coordination": 1554.1443495146643,
+    "reveal": 1534.937913164203,
+    "fast": 1531.2515342082352,
+    "alphabeta": 1454.3273430917034,
+    "positional": 1443.3601643377426,
+    "lookahead": 1430.3486945274526,
+    "minimax": 1414.1419606383738,
+    "greedy": 1395.4095520521441,
+    "aggressive": 1356.0381318558693,
+    "random": 1183.7511865576766
+  },
+  "rankings": [
+    {
+      "rank": 1,
+      "name": "advanced",
+      "score": 0.7192307692307692,
+      "elo": 1645.0160909682593
+    },
+    {
+      "rank": 2,
+      "name": "iterative",
+      "score": 0.6884615384615385,
+      "elo": 1621.9562945098317
+    },
+    {
+      "rank": 3,
+      "name": "defensive",
+      "score": 0.6346153846153846,
+      "elo": 1571.5858801773604
+    },
+    {
+      "rank": 4,
+      "name": "balanced",
+      "score": 0.6,
+      "elo": 1543.9892976237854
+    },
+    {
+      "rank": 5,
+      "name": "coordination",
+      "score": 0.6,
+      "elo": 1554.1443495146643
+    },
+    {
+      "rank": 6,
+      "name": "reveal",
+      "score": 0.5769230769230769,
+      "elo": 1534.937913164203
+    },
+    {
+      "rank": 7,
+      "name": "fast",
+      "score": 0.573076923076923,
+      "elo": 1531.2515342082352
+    },
+    {
+      "rank": 8,
+      "name": "alphabeta",
+      "score": 0.46923076923076923,
+      "elo": 1454.3273430917034
+    },
+    {
+      "rank": 9,
+      "name": "positional",
+      "score": 0.45,
+      "elo": 1443.3601643377426
+    },
+    {
+      "rank": 10,
+      "name": "lookahead",
+      "score": 0.4346153846153846,
+      "elo": 1430.3486945274526
+    },
+    {
+      "rank": 11,
+      "name": "minimax",
+      "score": 0.4115384615384615,
+      "elo": 1414.1419606383738
+    },
+    {
+      "rank": 12,
+      "name": "greedy",
+      "score": 0.38076923076923075,
+      "elo": 1395.4095520521441
+    },
+    {
+      "rank": 13,
+      "name": "aggressive",
+      "score": 0.3230769230769231,
+      "elo": 1356.0381318558693
+    },
+    {
+      "rank": 14,
+      "name": "random",
+      "score": 0.13846153846153847,
+      "elo": 1183.7511865576766
+    }
+  ]
+}

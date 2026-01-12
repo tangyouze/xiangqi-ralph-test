@@ -9,7 +9,9 @@ ID: v013
 - 迭代加深搜索（更好的时间控制）
 - PV (Principal Variation) 节点优化
 - 更精细的评估函数（位置、机动性、安全性）
-- 空步裁剪 (Null Move Pruning) - 可选
+- 静态搜索 (Quiescence Search)
+
+注意：AI 使用 PlayerView，无法看到暗子的真实身份！
 """
 
 from __future__ import annotations
@@ -21,13 +23,11 @@ from enum import IntEnum
 from typing import TYPE_CHECKING
 
 from jieqi.ai.base import AIConfig, AIEngine, AIStrategy
-from jieqi.bitboard import FastMoveGenerator
-from jieqi.types import Color, PieceType, GameResult, Position, ActionType, JieqiMove
+from jieqi.simulation import SimulationBoard, SimPiece
+from jieqi.types import ActionType, Color, JieqiMove, PieceType, Position
 
 if TYPE_CHECKING:
-    from jieqi.game import JieqiGame
-    from jieqi.piece import JieqiPiece
-    from jieqi.board import JieqiBoard
+    from jieqi.view import PlayerView
 
 
 AI_ID = "v013"
@@ -337,16 +337,16 @@ POSITION_TABLES = {
 }
 
 
-def get_piece_value(piece: JieqiPiece) -> int:
+def get_piece_value(piece: SimPiece) -> int:
     """获取棋子价值"""
-    if piece.is_hidden:
+    if piece.is_hidden or piece.actual_type is None:
         return HIDDEN_PIECE_VALUE
     return PIECE_VALUES.get(piece.actual_type, 0)
 
 
-def get_position_value(piece: JieqiPiece) -> int:
+def get_position_value(piece: SimPiece) -> int:
     """获取位置价值"""
-    if piece.is_hidden:
+    if piece.is_hidden or piece.actual_type is None:
         return 0
     table = POSITION_TABLES.get(piece.actual_type)
     if table is None:
@@ -419,27 +419,28 @@ class IterativeAI(AIStrategy):
 
         self._rng = random.Random(self.config.seed)
         self._tt = TranspositionTable()
-        self._fast_gen = None
         self._nodes_evaluated = 0
         self._history: dict[tuple[Position, Position], int] = {}
         self._killers: list[list[JieqiMove]] = [[] for _ in range(20)]
         self._start_time = 0.0
 
-    def select_move(self, game: JieqiGame) -> JieqiMove | None:
-        legal_moves = game.get_legal_moves()
-        if not legal_moves:
+    def select_move(self, view: PlayerView) -> JieqiMove | None:
+        """选择最佳走法"""
+        if not view.legal_moves:
             return None
 
-        if len(legal_moves) == 1:
-            return legal_moves[0]
+        if len(view.legal_moves) == 1:
+            return view.legal_moves[0]
 
-        my_color = game.current_turn
-        self._fast_gen = FastMoveGenerator(game.board)
+        my_color = view.viewer
+
+        # 创建模拟棋盘
+        sim_board = SimulationBoard(view)
         self._nodes_evaluated = 0
         self._start_time = time.time()
 
         # 迭代加深
-        best_move = legal_moves[0]
+        best_move = view.legal_moves[0]
         best_score = float("-inf")
 
         for depth in range(1, self.max_depth + 1):
@@ -448,7 +449,7 @@ class IterativeAI(AIStrategy):
                 break
 
             try:
-                move, score = self._search_root(game, depth, my_color)
+                move, score = self._search_root(sim_board, view.legal_moves, depth, my_color)
                 if move is not None:
                     best_move = move
                     best_score = score
@@ -459,17 +460,17 @@ class IterativeAI(AIStrategy):
 
     def _search_root(
         self,
-        game: JieqiGame,
+        board: SimulationBoard,
+        legal_moves: list[JieqiMove],
         depth: int,
         color: Color,
     ) -> tuple[JieqiMove | None, float]:
         """根节点搜索"""
-        legal_moves = game.get_legal_moves()
-        position_hash = game.board.get_position_hash()
+        position_hash = board.get_position_hash()
 
         # TT lookup for move ordering
         tt_entry = self._tt.get(position_hash)
-        sorted_moves = self._order_moves(game, legal_moves, color, 0, tt_entry)
+        sorted_moves = self._order_moves(board, legal_moves, color, 0, tt_entry)
 
         best_score = float("-inf")
         best_move = None
@@ -480,20 +481,19 @@ class IterativeAI(AIStrategy):
             if time.time() - self._start_time > self.time_limit:
                 raise TimeoutError()
 
-            piece = game.board.get_piece(move.from_pos)
+            piece = board.get_piece(move.from_pos)
             if piece is None:
                 continue
             was_hidden = piece.is_hidden
-            captured = game.board.make_move(move)
-            self._fast_gen.invalidate_cache()
+            captured = board.make_move(move)
 
             if captured and captured.actual_type == PieceType.KING:
-                game.board.undo_move(move, captured, was_hidden)
+                board.undo_move(move, captured, was_hidden)
                 return move, 100000
 
-            score = -self._alpha_beta(game, depth - 1, -beta, -alpha, color.opposite, 1)
+            score = -self._alpha_beta(board, depth - 1, -beta, -alpha, color.opposite, 1)
 
-            game.board.undo_move(move, captured, was_hidden)
+            board.undo_move(move, captured, was_hidden)
 
             if score > best_score:
                 best_score = score
@@ -507,7 +507,7 @@ class IterativeAI(AIStrategy):
 
     def _alpha_beta(
         self,
-        game: JieqiGame,
+        board: SimulationBoard,
         depth: int,
         alpha: float,
         beta: float,
@@ -522,7 +522,7 @@ class IterativeAI(AIStrategy):
                 raise TimeoutError()
 
         alpha_orig = alpha
-        position_hash = game.board.get_position_hash()
+        position_hash = board.get_position_hash()
 
         # TT 查找
         tt_entry = self._tt.get(position_hash)
@@ -538,44 +538,42 @@ class IterativeAI(AIStrategy):
                 return tt_entry.score
 
         # 检查是否无将
-        if game.board.find_king(color) is None:
+        if board.find_king(color) is None:
             return -100000 + ply
-        if game.board.find_king(color.opposite) is None:
+        if board.find_king(color.opposite) is None:
             return 100000 - ply
 
         # 叶子节点
         if depth <= 0:
-            return self._quiesce(game, alpha, beta, color, ply)
+            return self._quiesce(board, alpha, beta, color, ply)
 
         # 获取走法
-        legal_moves = self._get_moves_fast(game, color)
+        legal_moves = board.get_legal_moves(color)
         if not legal_moves:
-            if self._fast_gen.is_in_check_fast(color):
+            if board.is_in_check(color):
                 return -100000 + ply
             return 0
 
         # 排序走法
-        sorted_moves = self._order_moves(game, legal_moves, color, ply, tt_entry)
+        sorted_moves = self._order_moves(board, legal_moves, color, ply, tt_entry)
 
         best_score = float("-inf")
         best_move = None
 
         for move in sorted_moves:
-            piece = game.board.get_piece(move.from_pos)
+            piece = board.get_piece(move.from_pos)
             if piece is None:
                 continue
             was_hidden = piece.is_hidden
-            captured = game.board.make_move(move)
-            self._fast_gen.invalidate_cache()
+            captured = board.make_move(move)
 
             if captured and captured.actual_type == PieceType.KING:
-                game.board.undo_move(move, captured, was_hidden)
+                board.undo_move(move, captured, was_hidden)
                 return 100000 - ply
 
-            score = -self._alpha_beta(game, depth - 1, -beta, -alpha, color.opposite, ply + 1)
+            score = -self._alpha_beta(board, depth - 1, -beta, -alpha, color.opposite, ply + 1)
 
-            game.board.undo_move(move, captured, was_hidden)
-            self._fast_gen.invalidate_cache()
+            board.undo_move(move, captured, was_hidden)
 
             if score > best_score:
                 best_score = score
@@ -603,14 +601,14 @@ class IterativeAI(AIStrategy):
 
     def _quiesce(
         self,
-        game: JieqiGame,
+        board: SimulationBoard,
         alpha: float,
         beta: float,
         color: Color,
         ply: int,
     ) -> float:
         """静态搜索 - 只搜索吃子走法直到局面稳定"""
-        stand_pat = self._evaluate(game, color)
+        stand_pat = self._evaluate(board, color)
 
         if stand_pat >= beta:
             return beta
@@ -619,24 +617,22 @@ class IterativeAI(AIStrategy):
             alpha = stand_pat
 
         # 只搜索吃子走法
-        captures = self._get_captures(game, color)
+        captures = self._get_captures(board, color)
 
         for move in captures:
-            piece = game.board.get_piece(move.from_pos)
+            piece = board.get_piece(move.from_pos)
             if piece is None:
                 continue
             was_hidden = piece.is_hidden
-            captured = game.board.make_move(move)
-            self._fast_gen.invalidate_cache()
+            captured = board.make_move(move)
 
             if captured and captured.actual_type == PieceType.KING:
-                game.board.undo_move(move, captured, was_hidden)
+                board.undo_move(move, captured, was_hidden)
                 return 100000 - ply
 
-            score = -self._quiesce(game, -beta, -alpha, color.opposite, ply + 1)
+            score = -self._quiesce(board, -beta, -alpha, color.opposite, ply + 1)
 
-            game.board.undo_move(move, captured, was_hidden)
-            self._fast_gen.invalidate_cache()
+            board.undo_move(move, captured, was_hidden)
 
             if score >= beta:
                 return beta
@@ -646,49 +642,30 @@ class IterativeAI(AIStrategy):
 
         return alpha
 
-    def _get_captures(self, game: JieqiGame, color: Color) -> list[JieqiMove]:
+    def _get_captures(self, board: SimulationBoard, color: Color) -> list[JieqiMove]:
         """只获取吃子走法"""
         captures = []
-        for piece in game.board.get_all_pieces(color):
+        for piece in board.get_all_pieces(color):
             action_type = ActionType.REVEAL_AND_MOVE if piece.is_hidden else ActionType.MOVE
             was_hidden = piece.is_hidden
 
-            for to_pos in piece.get_potential_moves(game.board):
-                target = game.board.get_piece(to_pos)
+            for to_pos in board.get_potential_moves(piece):
+                target = board.get_piece(to_pos)
                 if target is None or target.color == color:
                     continue  # 不是吃子
 
                 move = JieqiMove(action_type, piece.position, to_pos)
-                captured = game.board.make_move(move)
-                self._fast_gen.invalidate_cache()
-                in_check = self._fast_gen.is_in_check_fast(color)
-                game.board.undo_move(move, captured, was_hidden)
+                captured = board.make_move(move)
+                in_check = board.is_in_check(color)
+                board.undo_move(move, captured, was_hidden)
                 if not in_check:
                     captures.append(move)
 
         return captures
 
-    def _get_moves_fast(self, game: JieqiGame, color: Color) -> list[JieqiMove]:
-        """快速获取走法"""
-        moves = []
-        for piece in game.board.get_all_pieces(color):
-            action_type = ActionType.REVEAL_AND_MOVE if piece.is_hidden else ActionType.MOVE
-            was_hidden = piece.is_hidden
-
-            for to_pos in piece.get_potential_moves(game.board):
-                move = JieqiMove(action_type, piece.position, to_pos)
-                captured = game.board.make_move(move)
-                self._fast_gen.invalidate_cache()
-                in_check = self._fast_gen.is_in_check_fast(color)
-                game.board.undo_move(move, captured, was_hidden)
-                if not in_check:
-                    moves.append(move)
-
-        return moves
-
     def _order_moves(
         self,
-        game: JieqiGame,
+        board: SimulationBoard,
         moves: list[JieqiMove],
         color: Color,
         ply: int,
@@ -704,11 +681,11 @@ class IterativeAI(AIStrategy):
             if tt_best and move == tt_best:
                 score += 10000000
 
-            target = game.board.get_piece(move.to_pos)
+            target = board.get_piece(move.to_pos)
 
             if target is not None and target.color != color:
                 victim_value = get_piece_value(target)
-                piece = game.board.get_piece(move.from_pos)
+                piece = board.get_piece(move.from_pos)
                 attacker_value = get_piece_value(piece) if piece else 0
                 score += 1000000 + victim_value * 10 - attacker_value
 
@@ -740,12 +717,12 @@ class IterativeAI(AIStrategy):
         key = (move.from_pos, move.to_pos)
         self._history[key] = self._history.get(key, 0) + depth * depth
 
-    def _evaluate(self, game: JieqiGame, color: Color) -> float:
+    def _evaluate(self, board: SimulationBoard, color: Color) -> float:
         """评估当前局面"""
         score = 0.0
 
         # 子力价值 + 位置价值
-        for piece in game.board.get_all_pieces():
+        for piece in board.get_all_pieces():
             piece_score = get_piece_value(piece) + get_position_value(piece)
 
             if piece.color == color:
@@ -754,9 +731,9 @@ class IterativeAI(AIStrategy):
                 score -= piece_score
 
         # 将军
-        if self._fast_gen.is_in_check_fast(color.opposite):
+        if board.is_in_check(color.opposite):
             score += 500
-        if self._fast_gen.is_in_check_fast(color):
+        if board.is_in_check(color):
             score -= 500
 
         return score

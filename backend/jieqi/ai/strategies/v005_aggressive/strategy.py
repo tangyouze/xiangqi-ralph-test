@@ -113,7 +113,7 @@ class AggressiveAI(AIStrategy):
 
         my_color = view.viewer
         best_moves: list[JieqiMove] = []
-        best_score = float('-inf')
+        best_score = float("-inf")
 
         # 创建模拟棋盘
         sim_board = SimulationBoard(view)

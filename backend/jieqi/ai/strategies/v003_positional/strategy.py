@@ -126,7 +126,7 @@ class PositionalAI(AIStrategy):
 
         my_color = view.viewer
         best_moves: list[JieqiMove] = []
-        best_score = float('-inf')
+        best_score = float("-inf")
 
         # 创建模拟棋盘
         sim_board = SimulationBoard(view)
@@ -181,7 +181,7 @@ class PositionalAI(AIStrategy):
         if moved_piece:
             old_pos_bonus = get_position_bonus(piece, move.from_pos)
             new_pos_bonus = get_position_bonus(moved_piece, move.to_pos)
-            score += (new_pos_bonus - old_pos_bonus)
+            score += new_pos_bonus - old_pos_bonus
 
         # 5. 被吃风险
         if moved_piece:
