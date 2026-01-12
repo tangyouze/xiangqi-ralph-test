@@ -26,13 +26,75 @@ console = Console()
 app = typer.Typer()
 
 
+def calculate_elo(
+    results: dict[str, dict[str, dict]],
+    strategies_list: list[str],
+    k: float = 32,
+    initial_elo: float = 1500,
+) -> dict[str, float]:
+    """计算 Elo 评分
+
+    Args:
+        results: 对战结果矩阵
+        strategies_list: 策略列表
+        k: K-factor，控制评分变化幅度
+        initial_elo: 初始 Elo 评分
+
+    Returns:
+        各策略的 Elo 评分
+    """
+    elo = {s: initial_elo for s in strategies_list}
+
+    # 多轮迭代以稳定 Elo
+    for _ in range(10):
+        for s1 in strategies_list:
+            for s2 in strategies_list:
+                if s1 == s2:
+                    continue
+
+                wins = results[s1][s2]["wins"]
+                losses = results[s1][s2]["losses"]
+                draws = results[s1][s2]["draws"]
+                total = wins + losses + draws
+
+                if total == 0:
+                    continue
+
+                # 期望得分
+                expected = 1 / (1 + 10 ** ((elo[s2] - elo[s1]) / 400))
+
+                # 实际得分（wins=1, draws=0.5, losses=0）
+                actual = (wins + draws * 0.5) / total
+
+                # 更新 Elo
+                elo[s1] += k * (actual - expected)
+
+    return elo
+
+
+def would_cause_draw(game: JieqiGame, move) -> bool:
+    """预判走这步是否会导致和棋"""
+    game.make_move(move)
+    is_draw = game.result == GameResult.DRAW
+    game.undo_move()
+    return is_draw
+
+
 def run_single_game(
     ai_red: str,
     ai_black: str,
     max_moves: int = 1000,
     seed: int | None = None,
+    avoid_draw: bool = True,
 ) -> tuple[GameResult, int]:
     """运行单场对战
+
+    Args:
+        ai_red: 红方 AI 名称
+        ai_black: 黑方 AI 名称
+        max_moves: 最大步数
+        seed: 随机种子
+        avoid_draw: 是否启用和棋规避（使用 Top-N 候选）
 
     Returns:
         (结果, 步数)
@@ -46,7 +108,23 @@ def run_single_game(
 
     while game.result == GameResult.ONGOING and move_count < max_moves:
         current_ai = red_ai if game.current_turn == Color.RED else black_ai
-        move = current_ai.select_move(game)
+        # AI 使用 PlayerView 而不是直接访问 game
+        view = game.get_view(game.current_turn)
+
+        # 选择走法
+        move = None
+        if avoid_draw:
+            # 使用 Top-N 候选，规避和棋
+            candidates = current_ai.select_moves(view, n=10)
+            for candidate_move, score in candidates:
+                if not would_cause_draw(game, candidate_move):
+                    move = candidate_move
+                    break
+            # 如果所有候选都会和棋，选第一个
+            if move is None and candidates:
+                move = candidates[0][0]
+        else:
+            move = current_ai.select_move(view)
 
         if move is None:
             # 无合法走法，当前方输
@@ -76,8 +154,17 @@ def run_battle(
     num_games: int = 100,
     max_moves: int = 1000,
     seed: int | None = None,
+    avoid_draw: bool = True,
 ) -> dict:
     """运行多场对战
+
+    Args:
+        ai_red: 红方 AI 名称
+        ai_black: 黑方 AI 名称
+        num_games: 对战场数
+        max_moves: 每场最大步数
+        seed: 随机种子
+        avoid_draw: 是否启用和棋规避
 
     Returns:
         统计结果
@@ -101,7 +188,7 @@ def run_battle(
 
         for i in range(num_games):
             game_seed = seed + i * 2 if seed else None
-            result, moves = run_single_game(ai_red, ai_black, max_moves, game_seed)
+            result, moves = run_single_game(ai_red, ai_black, max_moves, game_seed, avoid_draw)
 
             stats["total_moves"] += moves
             stats["games"].append({"result": result, "moves": moves})
@@ -124,8 +211,13 @@ def battle(
     ai_red: str = typer.Option("random", "--red", "-r", help="Red AI strategy"),
     ai_black: str = typer.Option("random", "--black", "-b", help="Black AI strategy"),
     num_games: int = typer.Option(100, "--games", "-n", help="Number of games"),
-    max_moves: int = typer.Option(1000, "--max-moves", "-m", help="Max moves per game (draw if exceeded)"),
+    max_moves: int = typer.Option(
+        1000, "--max-moves", "-m", help="Max moves per game (draw if exceeded)"
+    ),
     seed: int | None = typer.Option(None, "--seed", "-s", help="Random seed for reproducibility"),
+    avoid_draw: bool = typer.Option(
+        True, "--avoid-draw/--no-avoid-draw", help="Avoid draw by choosing alternative moves"
+    ),
 ):
     """Run AI vs AI battle"""
 
@@ -140,18 +232,23 @@ def battle(
 
     console.print(f"\n[bold]Jieqi AI Battle[/bold]")
     console.print(f"Red: [red]{ai_red}[/red] vs Black: [blue]{ai_black}[/blue]")
-    console.print(f"Games: {num_games}, Max moves: {max_moves}\n")
+    console.print(f"Games: {num_games}, Max moves: {max_moves}, Avoid draw: {avoid_draw}\n")
 
-    stats = run_battle(ai_red, ai_black, num_games, max_moves, seed)
+    stats = run_battle(ai_red, ai_black, num_games, max_moves, seed, avoid_draw)
 
     # 显示结果
     table = Table(title="Battle Results")
     table.add_column("Metric", style="cyan")
     table.add_column("Value", justify="right")
 
-    table.add_row("Red Wins", f"[red]{stats['red_wins']}[/red] ({stats['red_wins']/num_games*100:.1f}%)")
-    table.add_row("Black Wins", f"[blue]{stats['black_wins']}[/blue] ({stats['black_wins']/num_games*100:.1f}%)")
-    table.add_row("Draws", f"{stats['draws']} ({stats['draws']/num_games*100:.1f}%)")
+    table.add_row(
+        "Red Wins", f"[red]{stats['red_wins']}[/red] ({stats['red_wins'] / num_games * 100:.1f}%)"
+    )
+    table.add_row(
+        "Black Wins",
+        f"[blue]{stats['black_wins']}[/blue] ({stats['black_wins'] / num_games * 100:.1f}%)",
+    )
+    table.add_row("Draws", f"{stats['draws']} ({stats['draws'] / num_games * 100:.1f}%)")
     table.add_row("Avg Moves", f"{stats['avg_moves']:.1f}")
 
     console.print(table)
@@ -190,6 +287,172 @@ def list_ai():
         table.add_row(s["name"], s["description"])
 
     console.print(table)
+
+
+@app.command()
+def compare(
+    num_games: int = typer.Option(10, "--games", "-n", help="Number of games per matchup"),
+    max_moves: int = typer.Option(500, "--max-moves", "-m", help="Max moves per game"),
+    seed: int | None = typer.Option(42, "--seed", "-s", help="Random seed"),
+    output: str | None = typer.Option(None, "--output", "-o", help="Output JSON file"),
+    strategies_filter: str | None = typer.Option(
+        None, "--filter", "-f", help="Comma-separated list of strategies to include"
+    ),
+):
+    """Run round-robin comparison between all AI strategies"""
+    import json
+    from itertools import combinations
+    from concurrent.futures import ProcessPoolExecutor, as_completed
+
+    # 获取策略列表
+    all_strategies = AIEngine.get_strategy_names()
+
+    if strategies_filter:
+        selected = [s.strip() for s in strategies_filter.split(",")]
+        strategies_list = [s for s in selected if s in all_strategies]
+    else:
+        strategies_list = all_strategies
+
+    console.print(f"\n[bold]AI Round-Robin Comparison[/bold]")
+    console.print(f"Strategies: {len(strategies_list)}")
+    console.print(f"Games per matchup: {num_games}")
+    console.print(f"Matchups: {len(strategies_list) * (len(strategies_list) - 1)}\n")
+
+    # 结果矩阵：results[row_ai][col_ai] = win_rate (row as red vs col as black)
+    results: dict[str, dict[str, dict]] = {
+        s1: {s2: {"wins": 0, "losses": 0, "draws": 0} for s2 in strategies_list}
+        for s1 in strategies_list
+    }
+
+    # 所有对战组合
+    matchups = []
+    for s1 in strategies_list:
+        for s2 in strategies_list:
+            if s1 != s2:
+                matchups.append((s1, s2))
+
+    total_matchups = len(matchups)
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TaskProgressColumn(),
+        console=console,
+    ) as progress:
+        task = progress.add_task("[cyan]Running matchups...", total=total_matchups)
+
+        for idx, (ai_red, ai_black) in enumerate(matchups):
+            # 运行多场对战
+            for game_idx in range(num_games):
+                game_seed = (seed + idx * num_games + game_idx * 2) if seed else None
+                result, _ = run_single_game(ai_red, ai_black, max_moves, game_seed)
+
+                if result == GameResult.RED_WIN:
+                    results[ai_red][ai_black]["wins"] += 1
+                    results[ai_black][ai_red]["losses"] += 1
+                elif result == GameResult.BLACK_WIN:
+                    results[ai_red][ai_black]["losses"] += 1
+                    results[ai_black][ai_red]["wins"] += 1
+                else:
+                    results[ai_red][ai_black]["draws"] += 1
+                    results[ai_black][ai_red]["draws"] += 1
+
+            progress.update(task, advance=1)
+
+    # 计算胜率和综合得分
+    scores: dict[str, float] = {}
+    for s in strategies_list:
+        total_wins = sum(results[s][opp]["wins"] for opp in strategies_list if opp != s)
+        total_losses = sum(results[s][opp]["losses"] for opp in strategies_list if opp != s)
+        total_draws = sum(results[s][opp]["draws"] for opp in strategies_list if opp != s)
+        total_games = total_wins + total_losses + total_draws
+        scores[s] = (total_wins + total_draws * 0.5) / total_games if total_games > 0 else 0
+
+    # 计算 Elo 评分
+    elo = calculate_elo(results, strategies_list)
+
+    # 按得分排序
+    sorted_strategies = sorted(strategies_list, key=lambda s: scores[s], reverse=True)
+
+    # 显示结果表格
+    console.print("\n[bold]Win Matrix (row=Red, col=Black)[/bold]")
+
+    # 构建表格
+    table = Table()
+    table.add_column("AI", style="cyan")
+    for s in sorted_strategies:
+        table.add_column(s[:8], justify="center")
+    table.add_column("Score", style="yellow", justify="right")
+
+    for s1 in sorted_strategies:
+        row = [s1[:10]]
+        for s2 in sorted_strategies:
+            if s1 == s2:
+                row.append("-")
+            else:
+                wins = results[s1][s2]["wins"]
+                total = (
+                    results[s1][s2]["wins"] + results[s1][s2]["losses"] + results[s1][s2]["draws"]
+                )
+                rate = wins / total * 100 if total > 0 else 0
+                # 颜色编码
+                if rate >= 70:
+                    cell = f"[green]{rate:.0f}%[/green]"
+                elif rate >= 50:
+                    cell = f"[yellow]{rate:.0f}%[/yellow]"
+                else:
+                    cell = f"[red]{rate:.0f}%[/red]"
+                row.append(cell)
+        row.append(f"{scores[s1] * 100:.1f}%")
+        table.add_row(*row)
+
+    console.print(table)
+
+    # 排名
+    console.print("\n[bold]Final Rankings (Win Rate | Elo):[/bold]")
+    elo_sorted = sorted(strategies_list, key=lambda s: elo[s], reverse=True)
+    for i, s in enumerate(sorted_strategies, 1):
+        console.print(f"  {i:2}. {s:15} - {scores[s] * 100:.1f}% | Elo: {elo[s]:.0f}")
+
+    # 保存 JSON
+    output_data = {
+        "strategies": sorted_strategies,
+        "num_games": num_games,
+        "max_moves": max_moves,
+        "results": {
+            s1: {
+                s2: {
+                    "wins": results[s1][s2]["wins"],
+                    "losses": results[s1][s2]["losses"],
+                    "draws": results[s1][s2]["draws"],
+                    "win_rate": results[s1][s2]["wins"] / num_games if num_games > 0 else 0,
+                }
+                for s2 in sorted_strategies
+            }
+            for s1 in sorted_strategies
+        },
+        "scores": {s: scores[s] for s in sorted_strategies},
+        "elo": {s: elo[s] for s in sorted_strategies},
+        "rankings": [
+            {"rank": i, "name": s, "score": scores[s], "elo": elo[s]}
+            for i, s in enumerate(sorted_strategies, 1)
+        ],
+    }
+
+    if output:
+        output_path = Path(output)
+        output_path.write_text(json.dumps(output_data, indent=2))
+        console.print(f"\n[green]Results saved to {output}[/green]")
+    else:
+        # 默认保存到 data 目录
+        data_dir = Path(__file__).parent.parent / "data"
+        data_dir.mkdir(exist_ok=True)
+        default_output = data_dir / "ai_comparison.json"
+        default_output.write_text(json.dumps(output_data, indent=2))
+        console.print(f"\n[green]Results saved to {default_output}[/green]")
+
+    return output_data
 
 
 if __name__ == "__main__":

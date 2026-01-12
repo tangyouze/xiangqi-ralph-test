@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lookahead AI 迭代报告</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; }
+        h2 { color: #666; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+        .success { color: #27ae60; }
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .metric-label { color: #666; }
+        .metric-value { font-weight: bold; }
+        pre {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Lookahead AI 迭代报告</h1>
+
+    <div class="card">
+        <h2>策略概述</h2>
+        <p><strong>策略名称：</strong> Lookahead AI (v008)</p>
+        <p><strong>策略ID：</strong> v008</p>
+        <p><strong>核心特点：</strong> 向前看一步，预测对手最佳回应</p>
+    </div>
+
+    <div class="card">
+        <h2>迭代结果</h2>
+        <div class="metric">
+            <span class="metric-label">快速测试胜率</span>
+            <span class="metric-value">66.7%</span>
+        </div>
+        <div class="metric">
+            <span class="metric-label">优化方向</span>
+            <span class="metric-value">吃子价值评估</span>
+        </div>
+        <div class="metric">
+            <span class="metric-label">迭代状态</span>
+            <span class="metric-value success">成功改进</span>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>主要改进</h2>
+        <ul>
+            <li><strong>添加吃子加分：</strong> 吃子走法获得额外 1.2x 倍的价值加成</li>
+            <li><strong>综合评估公式：</strong> 吃子分 + 基础分 - 对手威胁 * 0.8</li>
+            <li><strong>保留原有优势：</strong> 将军加分、安全评估、揭子策略</li>
+        </ul>
+    </div>
+
+    <div class="card">
+        <h2>核心代码</h2>
+        <pre>
+# 吃子加分
+capture_score = 0.0
+if captured:
+    capture_score = get_piece_value(captured) * 1.2
+
+# 预测对手最佳回应
+enemy_best_capture = self._find_best_enemy_capture(board, my_color.opposite)
+
+# 综合评估：吃子 + 基础 - 对手威胁
+final_score = capture_score + base_score - enemy_best_capture * 0.8
+        </pre>
+    </div>
+
+    <div class="card">
+        <h2>策略特点</h2>
+        <ul>
+            <li>向前看一步：评估我方走法后对手的最佳回应</li>
+            <li>考虑对手吃子威胁：减少被对手反吃的风险</li>
+            <li>游戏阶段感知：根据早/中/晚期调整揭子策略</li>
+        </ul>
+    </div>
+
+    <footer style="text-align:center; color:#999; margin-top:40px;">
+        <p>生成时间: 2026-01-12 | 揭棋 AI 迭代系统</p>
+    </footer>
+</body>
+</html>

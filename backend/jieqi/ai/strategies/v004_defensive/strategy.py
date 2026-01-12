@@ -69,6 +69,19 @@ def count_defenders(board: SimulationBoard, pos: Position, color: Color) -> int:
     return count
 
 
+def find_best_enemy_capture(board: SimulationBoard, enemy_color: Color) -> float:
+    """找出对手能吃掉的最高价值棋子"""
+    best_capture = 0.0
+    for enemy in board.get_all_pieces(enemy_color):
+        for target_pos in board.get_potential_moves(enemy):
+            target = board.get_piece(target_pos)
+            if target and target.color != enemy_color:
+                value = get_piece_value(target)
+                if value > best_capture:
+                    best_capture = value
+    return best_capture
+
+
 @AIEngine.register(AI_NAME)
 class DefensiveAI(AIStrategy):
     """防守优先 AI
@@ -91,7 +104,7 @@ class DefensiveAI(AIStrategy):
 
         my_color = view.viewer
         best_moves: list[JieqiMove] = []
-        best_score = float('-inf')
+        best_score = float("-inf")
 
         # 创建模拟棋盘
         sim_board = SimulationBoard(view)
@@ -125,6 +138,14 @@ class DefensiveAI(AIStrategy):
         if piece is None:
             return score
 
+        # 逃离危险加分
+        old_attackers = count_attackers(board, move.from_pos, my_color)
+        if old_attackers > 0:
+            old_defenders = count_defenders(board, move.from_pos, my_color)
+            if old_defenders < old_attackers:
+                my_piece_value = get_piece_value(piece)
+                score += my_piece_value * 0.4  # 防守策略更重视逃跑
+
         was_hidden = piece.is_hidden
         captured = board.make_move(move)
 
@@ -139,7 +160,7 @@ class DefensiveAI(AIStrategy):
 
         # 3. 将军加分
         if board.is_in_check(my_color.opposite):
-            score += 50
+            score += 60
 
         # 4. 防守评估 - 核心改进
         moved_piece = board.get_piece(move.to_pos)
@@ -162,6 +183,13 @@ class DefensiveAI(AIStrategy):
                 if attackers > 0:
                     score -= 200  # 额外惩罚暴露车
 
+            # 位置评估 - 过河和中心控制
+            if not moved_piece.is_hidden:
+                if not move.to_pos.is_on_own_side(my_color):
+                    score += 12  # 过河加分
+                if 3 <= move.to_pos.col <= 5:
+                    score += 6  # 中心控制
+
         # 5. 检查是否有棋子处于危险中
         for ally in board.get_all_pieces(my_color):
             if ally.position == move.to_pos:
@@ -182,6 +210,14 @@ class DefensiveAI(AIStrategy):
                 score += 15
             else:
                 score -= 10  # 揭子到危险位置反而减分
+
+        # 7. 1层前瞻：考虑对手的最佳吃子
+        enemy_threat = find_best_enemy_capture(board, my_color.opposite)
+        score -= enemy_threat * 0.7  # 防守策略更重视威胁
+
+        # 8. 吃子额外加成
+        if captured:
+            score += get_piece_value(captured) * 0.2
 
         board.undo_move(move, captured, was_hidden)
 

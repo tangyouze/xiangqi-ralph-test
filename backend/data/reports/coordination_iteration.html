@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coordination AI 迭代报告</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; }
+        h2 { color: #666; border-bottom: 2px solid #e67e22; padding-bottom: 10px; }
+        .success { color: #27ae60; }
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .metric-label { color: #666; }
+        .metric-value { font-weight: bold; }
+        pre {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Coordination AI 迭代报告</h1>
+
+    <div class="card">
+        <h2>策略概述</h2>
+        <p><strong>策略名称：</strong> Coordination AI (v009)</p>
+        <p><strong>策略ID：</strong> v009</p>
+        <p><strong>核心特点：</strong> 棋子协作评估 + 1层前瞻</p>
+    </div>
+
+    <div class="card">
+        <h2>迭代改进</h2>
+        <div class="metric">
+            <span class="metric-label">优化方向</span>
+            <span class="metric-value">添加1层前瞻搜索</span>
+        </div>
+        <div class="metric">
+            <span class="metric-label">新增功能</span>
+            <span class="metric-value">对手威胁评估 + 吃子加成</span>
+        </div>
+        <div class="metric">
+            <span class="metric-label">迭代状态</span>
+            <span class="metric-value success">成功改进</span>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>棋子协作评估</h2>
+        <pre>
+def evaluate_coordination(board, my_color):
+    bonus = 0.0
+
+    # 双车协作 - 同行或同列
+    if len(rooks) >= 2:
+        r1, r2 = rooks[0], rooks[1]
+        if r1.position.row == r2.position.row or \
+           r1.position.col == r2.position.col:
+            bonus += 30
+
+    # 炮马配合 - 距离近时更强
+    for cannon in cannons:
+        for horse in horses:
+            dist = manhattan_distance(cannon, horse)
+            if dist <= 3:
+                bonus += 15
+
+    # 保护链 - 高价值棋子被保护
+    for piece in high_value_pieces:
+        defenders = count_defenders(board, piece.position)
+        if defenders >= 1:
+            bonus += 10
+        if defenders >= 2:
+            bonus += 5
+
+    return bonus
+        </pre>
+    </div>
+
+    <div class="card">
+        <h2>协作策略细节</h2>
+        <ul>
+            <li><strong>双车协作：</strong> 同行或同列的双车可以相互支援</li>
+            <li><strong>炮马配合：</strong> 炮和马在近距离时能形成有效攻击</li>
+            <li><strong>保护链：</strong> 高价值棋子（车/炮/马）有保护更安全</li>
+            <li><strong>协作权重：</strong> 协作加分只占总评估的 15%，避免过度依赖</li>
+        </ul>
+    </div>
+
+    <div class="card">
+        <h2>新增前瞻搜索</h2>
+        <pre>
+# 1层前瞻：考虑对手的最佳吃子
+enemy_threat = find_best_enemy_capture(board, my_color.opposite)
+score -= enemy_threat * 0.55
+
+# 吃子额外加成
+if captured:
+    score += get_piece_value(captured) * 0.25
+        </pre>
+    </div>
+
+    <footer style="text-align:center; color:#999; margin-top:40px;">
+        <p>生成时间: 2026-01-12 | 揭棋 AI 迭代系统</p>
+    </footer>
+</body>
+</html>

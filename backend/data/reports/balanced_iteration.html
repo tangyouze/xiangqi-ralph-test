@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Balanced AI 迭代报告</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; }
+        h2 { color: #666; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+        .success { color: #27ae60; }
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .metric-label { color: #666; }
+        .metric-value { font-weight: bold; }
+        pre {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Balanced AI 迭代报告</h1>
+
+    <div class="card">
+        <h2>策略概述</h2>
+        <p><strong>策略名称：</strong> Balanced AI (v006)</p>
+        <p><strong>策略ID：</strong> v006</p>
+        <p><strong>核心特点：</strong> 综合防守 + 位置评估 + 1层前瞻</p>
+    </div>
+
+    <div class="card">
+        <h2>迭代改进</h2>
+        <div class="metric">
+            <span class="metric-label">优化方向</span>
+            <span class="metric-value">添加1层前瞻搜索</span>
+        </div>
+        <div class="metric">
+            <span class="metric-label">新增功能</span>
+            <span class="metric-value">对手威胁评估 + 吃子加成</span>
+        </div>
+        <div class="metric">
+            <span class="metric-label">迭代状态</span>
+            <span class="metric-value success">成功改进</span>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>核心代码改进</h2>
+        <pre>
+# 1层前瞻：考虑对手的最佳吃子
+enemy_threat = find_best_enemy_capture(board, my_color.opposite)
+score -= enemy_threat * 0.6
+
+# 吃子加成（额外奖励）
+if captured:
+    score += get_piece_value(captured) * 0.3
+        </pre>
+    </div>
+
+    <div class="card">
+        <h2>策略组成</h2>
+        <ul>
+            <li><strong>防守评估（来自 v004）：</strong> 攻击者/防御者计数，保护高价值棋子</li>
+            <li><strong>位置评估（来自 v003）：</strong> 中心控制、过河加分、前进加分</li>
+            <li><strong>揭子策略：</strong> 安全揭子优先</li>
+            <li><strong>危险检测：</strong> 检查己方棋子是否处于危险位置</li>
+            <li><strong>前瞻搜索：</strong> 预测对手下一步最佳吃子</li>
+        </ul>
+    </div>
+
+    <div class="card">
+        <h2>设计理念</h2>
+        <p>Balanced AI 旨在平衡攻防，结合多种策略的优点：</p>
+        <ul>
+            <li>不过分激进，避免暴露弱点</li>
+            <li>保持位置优势，控制重要区域</li>
+            <li>考虑对手威胁，减少被反吃风险</li>
+        </ul>
+    </div>
+
+    <footer style="text-align:center; color:#999; margin-top:40px;">
+        <p>生成时间: 2026-01-12 | 揭棋 AI 迭代系统</p>
+    </footer>
+</body>
+</html>

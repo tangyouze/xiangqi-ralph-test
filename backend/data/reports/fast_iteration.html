@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fast AI 迭代报告</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; }
+        h2 { color: #666; border-bottom: 2px solid #1abc9c; padding-bottom: 10px; }
+        .success { color: #27ae60; }
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .metric-label { color: #666; }
+        .metric-value { font-weight: bold; }
+        pre {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Fast AI 迭代报告</h1>
+
+    <div class="card">
+        <h2>策略概述</h2>
+        <p><strong>策略名称：</strong> Fast AI (v010)</p>
+        <p><strong>策略ID：</strong> v010</p>
+        <p><strong>核心特点：</strong> 高性能评估 + 简单前瞻</p>
+    </div>
+
+    <div class="card">
+        <h2>迭代改进</h2>
+        <div class="metric">
+            <span class="metric-label">优化方向</span>
+            <span class="metric-value">添加简单前瞻搜索</span>
+        </div>
+        <div class="metric">
+            <span class="metric-label">新增功能</span>
+            <span class="metric-value">最大威胁评估 + 吃子加成</span>
+        </div>
+        <div class="metric">
+            <span class="metric-label">迭代状态</span>
+            <span class="metric-value success">成功改进</span>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>性能优化设计</h2>
+        <pre>
+# 使用布尔函数代替计数函数，更快
+def is_attacked_by(board, pos, attacker_color) -> bool:
+    for piece in board.get_all_pieces(attacker_color):
+        if pos in board.get_potential_moves(piece):
+            return True  # 找到一个就返回
+    return False
+
+def has_defender(board, pos, defender_color) -> bool:
+    for ally in board.get_all_pieces(defender_color):
+        if ally.position != pos:
+            if pos in board.get_potential_moves(ally):
+                return True  # 找到一个就返回
+    return False
+        </pre>
+    </div>
+
+    <div class="card">
+        <h2>简单前瞻实现</h2>
+        <pre>
+def find_max_threat(board, enemy_color) -> float:
+    """快速找出对手最大威胁（简化版）"""
+    max_threat = 0.0
+    for enemy in board.get_all_pieces(enemy_color):
+        for target_pos in board.get_potential_moves(enemy):
+            target = board.get_piece(target_pos)
+            if target and target.color != enemy_color:
+                value = get_piece_value(target)
+                if value > max_threat:
+                    max_threat = value
+    return max_threat
+
+# 应用前瞻
+max_threat = find_max_threat(board, my_color.opposite)
+score -= max_threat * 0.5
+        </pre>
+    </div>
+
+    <div class="card">
+        <h2>设计理念</h2>
+        <ul>
+            <li><strong>速度优先：</strong> 使用布尔检查代替计数，减少不必要的迭代</li>
+            <li><strong>简化评估：</strong> 保留核心评估，去除复杂计算</li>
+            <li><strong>揭子策略：</strong> 集成 v007 的揭子逻辑</li>
+            <li><strong>适度前瞻：</strong> 简单的威胁评估，不影响性能</li>
+        </ul>
+    </div>
+
+    <footer style="text-align:center; color:#999; margin-top:40px;">
+        <p>生成时间: 2026-01-12 | 揭棋 AI 迭代系统</p>
+    </footer>
+</body>
+</html>

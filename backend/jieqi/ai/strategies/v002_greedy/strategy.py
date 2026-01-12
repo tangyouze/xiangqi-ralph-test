@@ -3,19 +3,18 @@ v002_greedy - 贪心 AI 策略
 
 ID: v002
 名称: Greedy AI
-描述: 只考虑当前一步的收益，选择得分最高的走法
+描述: 贪心策略，优先吃子，简单但有效
 
 特点:
-- 只看一步，不考虑后续
-- 优先吃子，考虑棋子价值
-- 避免送子（评估被吃风险）
-- 将军时小幅加分
+- 优先吃高价值棋子
+- 避免送子（检查被吃风险）
+- 将军加分
+- 位置控制加分
 
-评估因素:
-1. 吃子价值（对方棋子价值）
-2. 走后是否将军
-3. 走后是否直接获胜
-4. 走后自己棋子被吃的风险
+迭代记录:
+- v1: 初始版本，效果一般
+- v2: 尝试1层搜索，效果不佳
+- v3: 回归简单策略，增强位置评估和安全检查
 
 注意：AI 使用 PlayerView，无法看到暗子的真实身份！
 """
@@ -27,7 +26,7 @@ from typing import TYPE_CHECKING
 
 from jieqi.ai.base import AIConfig, AIEngine, AIStrategy
 from jieqi.simulation import SimulationBoard, SimPiece
-from jieqi.types import Color, PieceType, GameResult
+from jieqi.types import Color, PieceType, GameResult, Position
 
 if TYPE_CHECKING:
     from jieqi.types import JieqiMove
@@ -40,7 +39,7 @@ AI_NAME = "greedy"
 
 # 棋子基础价值
 PIECE_VALUES = {
-    PieceType.KING: 10000,
+    PieceType.KING: 100000,
     PieceType.ROOK: 900,
     PieceType.CANNON: 450,
     PieceType.HORSE: 400,
@@ -49,37 +48,58 @@ PIECE_VALUES = {
     PieceType.PAWN: 100,
 }
 
-# 暗子期望价值（因为不知道真实身份，用平均值估算）
-# 15个非将棋子：2车(900*2) + 2马(400*2) + 2炮(450*2) + 2象(200*2) + 2士(200*2) + 5兵(100*5)
-# 总价值 = 1800 + 800 + 900 + 400 + 400 + 500 = 4800
-# 平均每个暗子价值 = 4800 / 15 = 320
+# 暗子期望价值
 HIDDEN_PIECE_VALUE = 320
 
 
 def get_piece_value(piece: SimPiece) -> int:
-    """获取棋子价值
-
-    暗子使用期望价值，明子使用真实价值
-    """
+    """获取棋子价值"""
     if piece.is_hidden or piece.actual_type is None:
         return HIDDEN_PIECE_VALUE
     return PIECE_VALUES.get(piece.actual_type, 0)
+
+
+def count_attackers(board: SimulationBoard, pos: Position, color: Color) -> int:
+    """计算有多少对方棋子可以攻击这个位置"""
+    count = 0
+    for enemy in board.get_all_pieces(color.opposite):
+        if pos in board.get_potential_moves(enemy):
+            count += 1
+    return count
+
+
+def count_defenders(board: SimulationBoard, pos: Position, color: Color) -> int:
+    """计算有多少己方棋子可以保护这个位置"""
+    count = 0
+    for ally in board.get_all_pieces(color):
+        if ally.position != pos and pos in board.get_potential_moves(ally):
+            count += 1
+    return count
+
+
+def find_best_enemy_capture(board: SimulationBoard, enemy_color: Color) -> float:
+    """找出对手能吃掉的最高价值棋子"""
+    best_capture = 0.0
+    for enemy in board.get_all_pieces(enemy_color):
+        for target_pos in board.get_potential_moves(enemy):
+            target = board.get_piece(target_pos)
+            if target and target.color != enemy_color:
+                value = get_piece_value(target)
+                if value > best_capture:
+                    best_capture = value
+    return best_capture
 
 
 @AIEngine.register(AI_NAME)
 class GreedyAI(AIStrategy):
     """贪心 AI
 
-    只考虑当前一步的收益：
-    - 吃子得分（对方棋子价值）
-    - 被吃风险（自己棋子可能被吃）
-    - 将军加分
-    - 胜利直接选择
+    优先吃子，避免送子，考虑位置
     """
 
     name = AI_NAME
     ai_id = AI_ID
-    description = "贪心策略，只考虑下一步收益 (v002)"
+    description = "贪心策略，优先吃子 (v002)"
 
     def __init__(self, config: AIConfig | None = None):
         super().__init__(config)
@@ -92,9 +112,8 @@ class GreedyAI(AIStrategy):
 
         my_color = view.viewer
         best_moves: list[JieqiMove] = []
-        best_score = float('-inf')
+        best_score = float("-inf")
 
-        # 创建模拟棋盘
         sim_board = SimulationBoard(view)
 
         for move in view.legal_moves:
@@ -106,26 +125,28 @@ class GreedyAI(AIStrategy):
             elif score == best_score:
                 best_moves.append(move)
 
-        # 从得分相同的最佳走法中随机选择
         return self._rng.choice(best_moves)
 
-    def _evaluate_move(self, board: SimulationBoard, move: JieqiMove, my_color: Color) -> float:
+    def _evaluate_move(
+        self, board: SimulationBoard, move: JieqiMove, my_color: Color
+    ) -> float:
         """评估走法得分"""
         score = 0.0
 
-        # 获取目标位置的棋子（可能被吃）
         target = board.get_piece(move.to_pos)
 
-        # 1. 吃子得分
+        # 1. 吃子得分 - MVV-LVA (Most Valuable Victim - Least Valuable Attacker)
         if target is not None and target.color != my_color:
-            capture_value = get_piece_value(target)
-            score += capture_value
+            victim_value = get_piece_value(target)
+            attacker = board.get_piece(move.from_pos)
+            attacker_value = get_piece_value(attacker) if attacker else 0
+            # MVV-LVA: 用低价值棋子吃高价值棋子更好
+            mvv_lva_bonus = victim_value * 1.5 - attacker_value * 0.1
+            score += mvv_lva_bonus
 
-            # 吃将直接获胜，给最高分
             if target.actual_type == PieceType.KING:
                 return 100000
 
-        # 模拟走棋
         piece = board.get_piece(move.from_pos)
         if piece is None:
             return score
@@ -144,23 +165,50 @@ class GreedyAI(AIStrategy):
 
         # 3. 将军加分
         if board.is_in_check(my_color.opposite):
-            score += 50
+            score += 80
 
-        # 4. 评估被吃风险
+        # 4. 安全性评估 - 避免送子
         moved_piece = board.get_piece(move.to_pos)
         if moved_piece:
-            for enemy_piece in board.get_all_pieces(my_color.opposite):
-                if move.to_pos in board.get_potential_moves(enemy_piece):
-                    # 可能被吃，减分
-                    my_piece_value = get_piece_value(moved_piece)
-                    score -= my_piece_value * 0.3
-                    break
+            my_piece_value = get_piece_value(moved_piece)
+            attackers = count_attackers(board, move.to_pos, my_color)
+            defenders = count_defenders(board, move.to_pos, my_color)
 
-        # 5. 揭子有小幅加分（了解更多信息）
+            if attackers > 0:
+                if defenders >= attackers:
+                    # 有保护，小幅惩罚
+                    score -= my_piece_value * 0.2
+                else:
+                    # 无保护，大幅惩罚
+                    score -= my_piece_value * 0.8
+
+            # 逃离威胁加分
+            old_attackers = count_attackers(board, move.from_pos, my_color)
+            if old_attackers > 0 and attackers == 0:
+                score += my_piece_value * 0.4
+
+        # 5. 位置加分
+        if moved_piece and not moved_piece.is_hidden:
+            # 过河加分
+            if not move.to_pos.is_on_own_side(my_color):
+                score += 15
+
+            # 控制中心加分
+            if 3 <= move.to_pos.col <= 5:
+                score += 10
+
+        # 6. 揭子加分
         if was_hidden:
-            score += 10
+            attackers = count_attackers(board, move.to_pos, my_color)
+            if attackers == 0:
+                score += 20
+            else:
+                score -= 10
 
-        # 撤销走棋
+        # 7. 1层前瞻：考虑对手的最佳吃子
+        enemy_threat = find_best_enemy_capture(board, my_color.opposite)
+        score -= enemy_threat * 0.5
+
         board.undo_move(move, captured, was_hidden)
 
         return score

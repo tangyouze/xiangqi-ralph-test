@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>v003 Positional AI Strategy</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; background: #f5f5f5; }
+        .card { background: white; border-radius: 12px; padding: 24px; margin: 20px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        h1 { color: #1a1a2e; border-bottom: 3px solid #4a90d9; padding-bottom: 10px; }
+        h2 { color: #4a90d9; }
+        .metric { display: inline-block; background: #e8f4fd; padding: 8px 16px; border-radius: 20px; margin: 5px; }
+        .metric-value { font-weight: bold; color: #2d5a8a; }
+        .success { background: #d4edda; color: #155724; }
+        .feature { background: #fff3cd; padding: 12px; border-left: 4px solid #ffc107; margin: 10px 0; }
+        code { background: #f8f9fa; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
+        .iteration { background: #e7f3ff; padding: 15px; border-radius: 8px; margin: 15px 0; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>v003 Positional AI</h1>
+        <p><strong>ID:</strong> v003 | <strong>Name:</strong> positional</p>
+        <p>在 Greedy 基础上增加位置评估，棋子在不同位置有不同价值</p>
+    </div>
+
+    <div class="card">
+        <h2>Core Features</h2>
+        <div class="feature">
+            <strong>Position Bonus:</strong> 中心控制、过河加分、前进加分
+        </div>
+        <div class="feature">
+            <strong>Piece-specific Bonuses:</strong> 兵过河+30, 车中心x2, 炮后方更强
+        </div>
+        <div class="feature">
+            <strong>Safety Evaluation:</strong> 攻击者/防御者计数
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Latest Iteration</h2>
+        <div class="iteration">
+            <strong>Optimization Direction:</strong> 添加逃离危险奖励<br>
+            <strong>Change:</strong> 当原位置被攻击，移动到安全位置时获得 <code>piece_value * 0.35</code> 奖励
+        </div>
+        <p><span class="metric success">Result: <span class="metric-value">SUCCESS</span></span></p>
+    </div>
+
+    <div class="card">
+        <h2>Battle Results</h2>
+        <p>
+            <span class="metric">Overall: <span class="metric-value">62.5%</span></span>
+            <span class="metric">vs Advanced: <span class="metric-value">10%</span></span>
+            <span class="metric">vs Random: <span class="metric-value">80%</span></span>
+        </p>
+    </div>
+
+    <div class="card">
+        <h2>Key Code</h2>
+        <pre style="background:#f8f9fa;padding:15px;border-radius:8px;overflow-x:auto;">
+# 5.5 逃离危险加分：原位置被攻击时移动到安全位置
+old_attackers = 0
+for enemy in board.get_all_pieces(my_color.opposite):
+    if move.from_pos in board.get_potential_moves(enemy):
+        old_attackers += 1
+if old_attackers > 0 and attackers == 0:
+    score += my_piece_value * 0.35  # 逃跑奖励
+        </pre>
+    </div>
+</body>
+</html>

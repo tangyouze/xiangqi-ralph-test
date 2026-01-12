@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>v008 Lookahead AI Strategy</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; background: #f5f5f5; }
+        .card { background: white; border-radius: 12px; padding: 24px; margin: 20px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        h1 { color: #1a1a2e; border-bottom: 3px solid #4a90d9; padding-bottom: 10px; }
+        h2 { color: #4a90d9; }
+        .metric { display: inline-block; background: #e8f4fd; padding: 8px 16px; border-radius: 20px; margin: 5px; }
+        .metric-value { font-weight: bold; color: #2d5a8a; }
+        .success { background: #d4edda; color: #155724; }
+        .feature { background: #fff3cd; padding: 12px; border-left: 4px solid #ffc107; margin: 10px 0; }
+        code { background: #f8f9fa; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
+        .iteration { background: #e7f3ff; padding: 15px; border-radius: 8px; margin: 15px 0; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>v008 Lookahead AI</h1>
+        <p><strong>ID:</strong> v008 | <strong>Name:</strong> lookahead</p>
+        <p>向前看一步策略，预测对手最佳回应并调整评估</p>
+    </div>
+
+    <div class="card">
+        <h2>Core Features</h2>
+        <div class="feature">
+            <strong>1-Layer Lookahead:</strong> 预测对手能吃掉的最高价值棋子
+        </div>
+        <div class="feature">
+            <strong>Capture Scoring:</strong> 吃子加分 x1.2
+        </div>
+        <div class="feature">
+            <strong>Game Phase Awareness:</strong> 根据隐藏棋子数量判断阶段
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Latest Iteration</h2>
+        <div class="iteration">
+            <strong>Optimization Direction:</strong> 添加逃离危险奖励 + 位置评估<br>
+            <strong>Changes:</strong>
+            <ul>
+                <li>逃离危险: <code>piece_value * 0.4</code> 奖励</li>
+                <li>过河加分: +15</li>
+                <li>中心控制: +8 (3-5列)</li>
+            </ul>
+        </div>
+        <p><span class="metric success">Result: <span class="metric-value">SUCCESS</span></span></p>
+    </div>
+
+    <div class="card">
+        <h2>Battle Results</h2>
+        <p>
+            <span class="metric">Overall: <span class="metric-value">70.0%</span></span>
+            <span class="metric">vs Advanced: <span class="metric-value">25%</span></span>
+            <span class="metric">vs Random: <span class="metric-value">95%</span></span>
+        </p>
+        <p style="color:#155724;">Almost matching advanced performance!</p>
+    </div>
+
+    <div class="card">
+        <h2>Key Code</h2>
+        <pre style="background:#f8f9fa;padding:15px;border-radius:8px;overflow-x:auto;">
+# 逃离危险加分：原位置被攻击时移动到安全位置
+old_attackers = count_attackers(board, move.from_pos, my_color)
+if old_attackers > 0 and attackers == 0:
+    score += my_piece_value * 0.4  # 逃跑奖励
+
+# 位置评估：过河和中心控制
+if not moved_piece.is_hidden:
+    if not move.to_pos.is_on_own_side(my_color):
+        score += 15  # 过河加分
+    if 3 <= move.to_pos.col <= 5:
+        score += 8  # 中心控制
+        </pre>
+    </div>
+</body>
+</html>

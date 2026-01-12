@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iterative AI 迭代报告</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; }
+        h2 { color: #666; border-bottom: 2px solid #e74c3c; padding-bottom: 10px; }
+        .success { color: #27ae60; }
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .metric-label { color: #666; }
+        .metric-value { font-weight: bold; }
+        pre {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Iterative AI 迭代报告</h1>
+
+    <div class="card">
+        <h2>策略概述</h2>
+        <p><strong>策略名称：</strong> Iterative AI (v013)</p>
+        <p><strong>策略ID：</strong> v013</p>
+        <p><strong>核心特点：</strong> 迭代加深 + Alpha-Beta + 静态搜索 + 机动性评估</p>
+    </div>
+
+    <div class="card">
+        <h2>迭代改进</h2>
+        <div class="metric">
+            <span class="metric-label">优化方向</span>
+            <span class="metric-value">添加机动性评估</span>
+        </div>
+        <div class="metric">
+            <span class="metric-label">新增功能</span>
+            <span class="metric-value">可移动位置数加分</span>
+        </div>
+        <div class="metric">
+            <span class="metric-label">迭代状态</span>
+            <span class="metric-value success">成功改进</span>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>高级搜索技术</h2>
+        <ul>
+            <li><strong>迭代加深：</strong> 从深度1逐步增加，确保时间限制内返回最佳走法</li>
+            <li><strong>Alpha-Beta 剪枝：</strong> 减少搜索节点数</li>
+            <li><strong>Transposition Table：</strong> 缓存已评估局面</li>
+            <li><strong>静态搜索（Quiescence）：</strong> 在叶子节点继续搜索吃子走法直到局面稳定</li>
+            <li><strong>Killer Moves：</strong> 记录产生剪枝的走法</li>
+            <li><strong>历史启发式：</strong> 根据历史表现排序走法</li>
+        </ul>
+    </div>
+
+    <div class="card">
+        <h2>位置权重表</h2>
+        <pre>
+# 马的位置权重 (10x9)
+HORSE_POSITION = [
+    0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 10, 20, 20, 20, 20, 20, 10, 0,
+    0, 20, 30, 30, 30, 30, 30, 20, 0,
+    10, 30, 40, 50, 50, 50, 40, 30, 10,
+    ...  # 中心位置权重更高
+]
+
+# 车和炮也有类似的位置权重表
+        </pre>
+    </div>
+
+    <div class="card">
+        <h2>新增机动性评估</h2>
+        <pre>
+def _evaluate(self, board, color):
+    score = 0.0
+
+    for piece in my_pieces:
+        piece_score = get_piece_value(piece) + get_position_value(piece)
+        score += piece_score
+
+        # 机动性加分（明子可移动位置数）
+        if not piece.is_hidden:
+            mobility = len(board.get_potential_moves(piece))
+            score += mobility * 5
+
+    # 对敌方棋子减去相应分数
+    for piece in enemy_pieces:
+        ...  # 同样的计算，但减分
+
+    return score
+        </pre>
+    </div>
+
+    <div class="card">
+        <h2>时间控制</h2>
+        <ul>
+            <li>默认时间限制：2秒</li>
+            <li>在搜索过程中每1000节点检查一次时间</li>
+            <li>超时时返回当前最佳走法</li>
+            <li>迭代加深确保始终有可用的走法</li>
+        </ul>
+    </div>
+
+    <footer style="text-align:center; color:#999; margin-top:40px;">
+        <p>生成时间: 2026-01-12 | 揭棋 AI 迭代系统</p>
+    </footer>
+</body>
+</html>

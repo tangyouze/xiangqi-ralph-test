@@ -5,10 +5,16 @@ ID: v005
 名称: Aggressive AI
 描述: 在防守基础上增加进攻性，主动威胁对方
 
-改进方向：进攻性
+改进方向：进攻性 + 1层前瞻搜索
 - 威胁对方高价值棋子加分
 - 靠近对方将帅加分
 - 控制关键位置
+- 1层前瞻搜索避免送子
+
+迭代记录：
+- v1: 初始版本，过于激进，无搜索
+- v2: 增加防守权重 - 效果不好
+- v3: 添加1层前瞻搜索，更好地评估局面
 
 注意：AI 使用 PlayerView，无法看到暗子的真实身份！
 """
@@ -20,7 +26,7 @@ from typing import TYPE_CHECKING
 
 from jieqi.ai.base import AIConfig, AIEngine, AIStrategy
 from jieqi.simulation import SimulationBoard, SimPiece
-from jieqi.types import Color, PieceType, GameResult, Position
+from jieqi.types import ActionType, Color, PieceType, GameResult, Position
 
 if TYPE_CHECKING:
     from jieqi.types import JieqiMove
@@ -31,8 +37,9 @@ AI_ID = "v005"
 AI_NAME = "aggressive"
 
 
+# 棋子价值
 PIECE_VALUES = {
-    PieceType.KING: 10000,
+    PieceType.KING: 100000,
     PieceType.ROOK: 900,
     PieceType.CANNON: 450,
     PieceType.HORSE: 400,
@@ -60,47 +67,51 @@ def count_attackers(board: SimulationBoard, pos: Position, color: Color) -> int:
     return count
 
 
-def count_defenders(board: SimulationBoard, pos: Position, color: Color) -> int:
-    """计算有多少己方棋子可以保护这个位置"""
-    count = 0
-    for ally in board.get_all_pieces(color):
-        if ally.position != pos and pos in board.get_potential_moves(ally):
-            count += 1
-    return count
+def evaluate_position(board: SimulationBoard, color: Color) -> float:
+    """评估当前局面对某方的分数"""
+    score = 0.0
 
+    my_pieces = board.get_all_pieces(color)
+    enemy_pieces = board.get_all_pieces(color.opposite)
 
-def distance_to_king(pos: Position, king_pos: Position | None) -> int:
-    """计算到对方将的距离"""
-    if king_pos is None:
-        return 10
-    return abs(pos.row - king_pos.row) + abs(pos.col - king_pos.col)
+    # 1. 子力价值
+    for piece in my_pieces:
+        score += get_piece_value(piece)
+    for piece in enemy_pieces:
+        score -= get_piece_value(piece)
 
+    # 2. 将军加分
+    if board.is_in_check(color.opposite):
+        score += 100
+    if board.is_in_check(color):
+        score -= 100
 
-def count_threats(board: SimulationBoard, pos: Position, color: Color) -> float:
-    """计算这个位置能威胁多少对方棋子"""
-    threats = 0.0
-    moved_piece = board.get_piece(pos)
-    if moved_piece is None:
-        return 0
+    # 3. 进攻性加分 - 威胁对方棋子
+    for piece in my_pieces:
+        if not piece.is_hidden:
+            for target_pos in board.get_potential_moves(piece):
+                target = board.get_piece(target_pos)
+                if target and target.color != color:
+                    # 威胁高价值棋子更好
+                    score += get_piece_value(target) * 0.1
 
-    potential_targets = board.get_potential_moves(moved_piece)
-    for target_pos in potential_targets:
-        target = board.get_piece(target_pos)
-        if target and target.color != color:
-            threats += get_piece_value(target) * 0.1
-    return threats
+    # 4. 位置控制 - 中心位置
+    for piece in my_pieces:
+        if not piece.is_hidden:
+            # 过河加分
+            if not piece.position.is_on_own_side(color):
+                score += 20
+
+    return score
 
 
 @AIEngine.register(AI_NAME)
 class AggressiveAI(AIStrategy):
-    """进攻性 AI
-
-    在防守基础上增加进攻性
-    """
+    """进攻性 AI - 带1层前瞻搜索"""
 
     name = AI_NAME
     ai_id = AI_ID
-    description = "进攻性策略，主动威胁对方 (v005)"
+    description = "进攻性策略，带1层前瞻搜索 (v005)"
 
     def __init__(self, config: AIConfig | None = None):
         super().__init__(config)
@@ -113,13 +124,13 @@ class AggressiveAI(AIStrategy):
 
         my_color = view.viewer
         best_moves: list[JieqiMove] = []
-        best_score = float('-inf')
+        best_score = float("-inf")
 
         # 创建模拟棋盘
         sim_board = SimulationBoard(view)
 
         for move in view.legal_moves:
-            score = self._evaluate_move(sim_board, move, my_color)
+            score = self._evaluate_move_with_lookahead(sim_board, move, my_color)
 
             if score > best_score:
                 best_score = score
@@ -129,74 +140,90 @@ class AggressiveAI(AIStrategy):
 
         return self._rng.choice(best_moves)
 
-    def _evaluate_move(self, board: SimulationBoard, move: JieqiMove, my_color: Color) -> float:
-        """评估走法得分"""
-        score = 0.0
-
-        target = board.get_piece(move.to_pos)
-
-        # 1. 吃子得分
-        if target is not None and target.color != my_color:
-            capture_value = get_piece_value(target)
-            score += capture_value
-
-            if target.actual_type == PieceType.KING:
-                return 100000
-
+    def _evaluate_move_with_lookahead(
+        self, board: SimulationBoard, move: JieqiMove, my_color: Color
+    ) -> float:
+        """评估走法，考虑对方最佳回应"""
         piece = board.get_piece(move.from_pos)
         if piece is None:
-            return score
+            return float("-inf")
+
+        # 逃离危险加分
+        escape_bonus = 0.0
+        old_attackers = count_attackers(board, move.from_pos, my_color)
+        if old_attackers > 0:
+            my_piece_value = get_piece_value(piece)
+            escape_bonus = my_piece_value * 0.3
 
         was_hidden = piece.is_hidden
         captured = board.make_move(move)
 
-        # 2. 检查获胜
-        result = board.get_game_result(my_color.opposite)
-        if result == GameResult.RED_WIN and my_color == Color.RED:
-            board.undo_move(move, captured, was_hidden)
-            return 100000
-        elif result == GameResult.BLACK_WIN and my_color == Color.BLACK:
+        # 检查是否吃到将
+        if captured and captured.actual_type == PieceType.KING:
             board.undo_move(move, captured, was_hidden)
             return 100000
 
-        # 3. 将军加分（进攻重点）
-        if board.is_in_check(my_color.opposite):
-            score += 100  # 提高将军奖励
+        # 检查是否获胜
+        if board.find_king(my_color.opposite) is None:
+            board.undo_move(move, captured, was_hidden)
+            return 100000
 
-        # 4. 防守评估
-        moved_piece = board.get_piece(move.to_pos)
-        if moved_piece:
-            my_piece_value = get_piece_value(moved_piece)
-            attackers = count_attackers(board, move.to_pos, my_color)
-            defenders = count_defenders(board, move.to_pos, my_color)
+        # 1层前瞻：考虑对方最佳回应
+        enemy_moves = board.get_legal_moves(my_color.opposite)
 
-            if attackers > 0:
-                if defenders >= attackers:
-                    score -= my_piece_value * 0.15
-                else:
-                    score -= my_piece_value * 0.7
+        if not enemy_moves:
+            # 对方无路可走
+            if board.is_in_check(my_color.opposite):
+                board.undo_move(move, captured, was_hidden)
+                return 100000  # 将杀
+            else:
+                board.undo_move(move, captured, was_hidden)
+                return 0  # 和棋
 
-        # 5. 进攻评估 - 核心改进
-        if moved_piece:
-            # 威胁对方棋子
-            threats = count_threats(board, move.to_pos, my_color)
-            score += threats
+        # 找对方最佳回应后的局面分数
+        worst_score = float("inf")
+        for enemy_move in enemy_moves:
+            enemy_piece = board.get_piece(enemy_move.from_pos)
+            if enemy_piece is None:
+                continue
 
-            # 靠近对方将
-            enemy_king_pos = board.find_king(my_color.opposite)
-            old_dist = distance_to_king(move.from_pos, enemy_king_pos)
-            new_dist = distance_to_king(move.to_pos, enemy_king_pos)
-            if new_dist < old_dist:
-                score += (old_dist - new_dist) * 5  # 靠近对方将加分
+            enemy_was_hidden = enemy_piece.is_hidden
+            enemy_captured = board.make_move(enemy_move)
 
-        # 6. 揭子策略
-        if was_hidden:
-            attackers = count_attackers(board, move.to_pos, my_color)
-            if attackers == 0:
-                # 安全揭子
-                threats = count_threats(board, move.to_pos, my_color)
-                score += 10 + threats * 0.5  # 揭子到能威胁的位置更好
+            # 如果对方吃掉我的将，这是最坏结果
+            if enemy_captured and enemy_captured.actual_type == PieceType.KING:
+                board.undo_move(enemy_move, enemy_captured, enemy_was_hidden)
+                worst_score = -100000
+                break
+
+            # 评估对方回应后的局面
+            score = evaluate_position(board, my_color)
+
+            board.undo_move(enemy_move, enemy_captured, enemy_was_hidden)
+
+            if score < worst_score:
+                worst_score = score
 
         board.undo_move(move, captured, was_hidden)
 
-        return score
+        # 加入进攻性奖励
+        attack_bonus = 0.0
+
+        # 吃子奖励
+        if captured:
+            attack_bonus += get_piece_value(captured) * 0.5
+
+        # 将军奖励
+        if board.is_in_check(my_color.opposite):
+            attack_bonus += 50
+
+        # 威胁评估和位置评估需要在 undo 前的 board 状态中评估
+        # 使用原始 piece 信息
+        if piece and not was_hidden:
+            # 位置评估：过河和中心控制
+            if not move.to_pos.is_on_own_side(my_color):
+                attack_bonus += 15  # 过河加分
+            if 3 <= move.to_pos.col <= 5:
+                attack_bonus += 8  # 中心控制
+
+        return worst_score + attack_bonus + escape_bonus

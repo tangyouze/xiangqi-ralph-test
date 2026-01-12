@@ -39,6 +39,7 @@ class SimPiece:
 
     暗子的 actual_type = None，只有 movement_type
     """
+
     color: Color
     position: Position
     is_hidden: bool
@@ -140,9 +141,7 @@ class SimulationBoard:
 
         return captured
 
-    def undo_move(
-        self, move: JieqiMove, captured: SimPiece | None, was_hidden: bool
-    ) -> None:
+    def undo_move(self, move: JieqiMove, captured: SimPiece | None, was_hidden: bool) -> None:
         """撤销走棋"""
         piece = self._pieces.pop(move.to_pos, None)
         if piece is None:
@@ -335,3 +334,40 @@ class SimulationBoard:
         new_board._viewer = self._viewer
         new_board._current_turn = self._current_turn
         return new_board
+
+    # 棋子类型到整数的映射（用于哈希）
+    _PIECE_TYPE_INDEX = {
+        PieceType.KING: 0,
+        PieceType.ADVISOR: 1,
+        PieceType.ELEPHANT: 2,
+        PieceType.HORSE: 3,
+        PieceType.ROOK: 4,
+        PieceType.CANNON: 5,
+        PieceType.PAWN: 6,
+    }
+
+    def get_position_hash(self) -> int:
+        """获取局面哈希值
+
+        用于 Transposition Table 缓存
+        """
+        # 使用简单的多项式哈希
+        h = 0
+        for pos, piece in sorted(self._pieces.items(), key=lambda x: (x[0].row, x[0].col)):
+            # 位置编码
+            pos_val = pos.row * 9 + pos.col
+            # 颜色编码
+            color_val = 0 if piece.color == Color.RED else 1
+            # 类型编码（使用 movement_type 作为暗子的类型）
+            movement_type = piece.get_movement_type() if piece.actual_type or piece.movement_type else None
+            type_val = self._PIECE_TYPE_INDEX.get(movement_type, 7) if movement_type else 7
+            # 暗子标记
+            hidden_val = 1 if piece.is_hidden else 0
+
+            # 组合成一个值
+            piece_hash = (pos_val << 8) | (color_val << 7) | (type_val << 3) | (hidden_val << 2)
+            h = (h * 31 + piece_hash) & 0xFFFFFFFFFFFFFFFF
+
+        # 加入当前回合
+        h = (h * 2 + (0 if self._current_turn == Color.RED else 1)) & 0xFFFFFFFFFFFFFFFF
+        return h

@@ -3,12 +3,14 @@ v010_fast - 快速评估 AI
 
 ID: v010
 名称: Fast AI
-描述: 使用 BitBoard 快速评估，结合最佳策略
+描述: 快速评估结合最佳策略
 
 改进方向：性能优化
-- 使用 BitBoard 快速评估
+- 简化评估逻辑
 - 结合 v007 reveal 策略的优点
 - 快速子力计算
+
+注意：AI 使用 PlayerView，无法看到暗子的真实身份！
 """
 
 from __future__ import annotations
@@ -17,13 +19,12 @@ import random
 from typing import TYPE_CHECKING
 
 from jieqi.ai.base import AIConfig, AIEngine, AIStrategy
-from jieqi.bitboard import FastMoveGenerator
-from jieqi.types import Color, PieceType, GameResult, Position
+from jieqi.simulation import SimulationBoard, SimPiece
+from jieqi.types import Color, GameResult, PieceType, Position
 
 if TYPE_CHECKING:
-    from jieqi.game import JieqiGame
     from jieqi.types import JieqiMove
-    from jieqi.piece import JieqiPiece
+    from jieqi.view import PlayerView
 
 
 AI_ID = "v010"
@@ -44,17 +45,59 @@ PIECE_VALUES = {
 HIDDEN_PIECE_VALUE = 320
 
 
-def get_piece_value(piece: JieqiPiece) -> int:
-    if piece.is_hidden:
+def get_piece_value(piece: SimPiece) -> int:
+    """获取棋子价值"""
+    if piece.is_hidden or piece.actual_type is None:
         return HIDDEN_PIECE_VALUE
     return PIECE_VALUES.get(piece.actual_type, 0)
+
+
+def count_hidden(board: SimulationBoard, color: Color) -> int:
+    """统计某方隐藏棋子数量"""
+    count = 0
+    for piece in board.get_all_pieces(color):
+        if piece.is_hidden:
+            count += 1
+    return count
+
+
+def is_attacked_by(board: SimulationBoard, pos: Position, attacker_color: Color) -> bool:
+    """检查某个位置是否被指定颜色的棋子攻击"""
+    for piece in board.get_all_pieces(attacker_color):
+        if pos in board.get_potential_moves(piece):
+            return True
+    return False
+
+
+def has_defender(board: SimulationBoard, pos: Position, defender_color: Color) -> bool:
+    """检查某个位置是否有保护"""
+    for ally in board.get_all_pieces(defender_color):
+        if ally.position != pos:
+            if pos in board.get_potential_moves(ally):
+                return True
+    return False
+
+
+def find_max_threat(board: SimulationBoard, enemy_color: Color) -> float:
+    """快速找出对手最大威胁（简化版）"""
+    max_threat = 0.0
+
+    for enemy in board.get_all_pieces(enemy_color):
+        for target_pos in board.get_potential_moves(enemy):
+            target = board.get_piece(target_pos)
+            if target and target.color != enemy_color:
+                value = get_piece_value(target)
+                if value > max_threat:
+                    max_threat = value
+
+    return max_threat
 
 
 @AIEngine.register(AI_NAME)
 class FastAI(AIStrategy):
     """快速评估 AI
 
-    使用 BitBoard 加速评估
+    简化的评估逻辑，但保留核心策略
     """
 
     name = AI_NAME
@@ -65,20 +108,20 @@ class FastAI(AIStrategy):
         super().__init__(config)
         self._rng = random.Random(self.config.seed)
 
-    def select_move(self, game: JieqiGame) -> JieqiMove | None:
-        legal_moves = game.get_legal_moves()
-        if not legal_moves:
+    def select_move(self, view: PlayerView) -> JieqiMove | None:
+        """选择最佳走法"""
+        if not view.legal_moves:
             return None
 
-        my_color = game.current_turn
+        my_color = view.viewer
         best_moves: list[JieqiMove] = []
         best_score = float("-inf")
 
-        # 创建快速走法生成器
-        fast_gen = FastMoveGenerator(game.board)
+        # 创建模拟棋盘
+        sim_board = SimulationBoard(view)
 
-        for move in legal_moves:
-            score = self._evaluate_move_fast(game, move, my_color, fast_gen)
+        for move in view.legal_moves:
+            score = self._evaluate_move_fast(sim_board, move, my_color)
 
             if score > best_score:
                 best_score = score
@@ -90,14 +133,14 @@ class FastAI(AIStrategy):
 
     def _evaluate_move_fast(
         self,
-        game: JieqiGame,
+        board: SimulationBoard,
         move: JieqiMove,
         my_color: Color,
-        fast_gen: FastMoveGenerator,
     ) -> float:
+        """快速评估走法"""
         score = 0.0
 
-        target = game.board.get_piece(move.to_pos)
+        target = board.get_piece(move.to_pos)
 
         # 1. 吃子得分
         if target is not None and target.color != my_color:
@@ -107,58 +150,54 @@ class FastAI(AIStrategy):
             if target.actual_type == PieceType.KING:
                 return 100000
 
-        piece = game.board.get_piece(move.from_pos)
+        piece = board.get_piece(move.from_pos)
         if piece is None:
             return score
 
+        # 逃离危险加分（快速版本）
+        if is_attacked_by(board, move.from_pos, my_color.opposite):
+            if not has_defender(board, move.from_pos, my_color):
+                my_piece_value = get_piece_value(piece)
+                score += my_piece_value * 0.35
+
         was_hidden = piece.is_hidden
-        captured = game.board.make_move(move)
+        captured = board.make_move(move)
 
         # 2. 检查获胜
-        result = game.board.get_game_result(my_color.opposite)
+        result = board.get_game_result(my_color.opposite)
         if result == GameResult.RED_WIN and my_color == Color.RED:
-            game.board.undo_move(move, captured, was_hidden)
+            board.undo_move(move, captured, was_hidden)
             return 100000
         elif result == GameResult.BLACK_WIN and my_color == Color.BLACK:
-            game.board.undo_move(move, captured, was_hidden)
+            board.undo_move(move, captured, was_hidden)
             return 100000
 
-        # 3. 将军加分（使用快速检测）
-        fast_gen.invalidate_cache()  # 重置缓存
-        if fast_gen.is_in_check_fast(my_color.opposite):
+        # 3. 将军加分
+        if board.is_in_check(my_color.opposite):
             score += 60
 
-        # 4. 安全性评估（快速版）
-        moved_piece = game.board.get_piece(move.to_pos)
+        # 4. 安全性评估
+        moved_piece = board.get_piece(move.to_pos)
         if moved_piece:
             my_piece_value = get_piece_value(moved_piece)
 
             # 检查是否被攻击
-            if fast_gen.is_attacked_by(move.to_pos, my_color.opposite):
-                # 检查是否有保护
-                has_defender = False
-                for ally in game.board.get_all_pieces(my_color):
-                    if ally.position != move.to_pos:
-                        potential = ally.get_potential_moves(game.board)
-                        if move.to_pos in potential:
-                            has_defender = True
-                            break
-
-                if has_defender:
+            if is_attacked_by(board, move.to_pos, my_color.opposite):
+                if has_defender(board, move.to_pos, my_color):
                     score -= my_piece_value * 0.2
                 else:
                     score -= my_piece_value * 0.75
 
             # 保护车
-            if moved_piece.is_revealed and moved_piece.actual_type == PieceType.ROOK:
-                if fast_gen.is_attacked_by(move.to_pos, my_color.opposite):
+            if not moved_piece.is_hidden and moved_piece.actual_type == PieceType.ROOK:
+                if is_attacked_by(board, move.to_pos, my_color.opposite):
                     score -= 150
 
         # 5. 揭子策略（来自 v007）
         if was_hidden:
             # 计算隐藏棋子数量判断阶段
-            my_hidden = len(game.board.get_hidden_pieces(my_color))
-            enemy_hidden = len(game.board.get_hidden_pieces(my_color.opposite))
+            my_hidden = count_hidden(board, my_color)
+            enemy_hidden = count_hidden(board, my_color.opposite)
             total_hidden = my_hidden + enemy_hidden
 
             if total_hidden >= 20:
@@ -169,19 +208,10 @@ class FastAI(AIStrategy):
                 phase_multiplier = 1.5
 
             # 安全性评估
-            if not fast_gen.is_attacked_by(move.to_pos, my_color.opposite):
+            if not is_attacked_by(board, move.to_pos, my_color.opposite):
                 base_reveal_bonus = 25
             else:
-                # 检查保护
-                has_defender = False
-                for ally in game.board.get_all_pieces(my_color):
-                    if ally.position != move.to_pos:
-                        potential = ally.get_potential_moves(game.board)
-                        if move.to_pos in potential:
-                            has_defender = True
-                            break
-
-                if has_defender:
+                if has_defender(board, move.to_pos, my_color):
                     base_reveal_bonus = 10
                 else:
                     base_reveal_bonus = -40
@@ -189,22 +219,31 @@ class FastAI(AIStrategy):
             score += base_reveal_bonus * phase_multiplier
 
         # 6. 检查危险棋子
-        for ally in game.board.get_all_pieces(my_color):
+        for ally in board.get_all_pieces(my_color):
             if ally.position == move.to_pos:
                 continue
             ally_value = get_piece_value(ally)
-            if fast_gen.is_attacked_by(ally.position, my_color.opposite):
-                # 检查是否有保护
-                has_defender = False
-                for other_ally in game.board.get_all_pieces(my_color):
-                    if other_ally.position != ally.position:
-                        potential = other_ally.get_potential_moves(game.board)
-                        if ally.position in potential:
-                            has_defender = True
-                            break
-                if not has_defender:
+            if is_attacked_by(board, ally.position, my_color.opposite):
+                if not has_defender(board, ally.position, my_color):
                     score -= ally_value * 0.1
 
-        game.board.undo_move(move, captured, was_hidden)
+        # 7. 简单前瞻：考虑对手最大威胁
+        max_threat = find_max_threat(board, my_color.opposite)
+        score -= max_threat * 0.5
+
+        # 8. 吃子额外加成
+        if captured:
+            score += get_piece_value(captured) * 0.2
+
+        # 9. 位置评估：过河和中心控制
+        if moved_piece and not moved_piece.is_hidden:
+            if not move.to_pos.is_on_own_side(my_color):
+                score += 12  # 过河加分
+            if 3 <= move.to_pos.col <= 5:
+                score += 6  # 中心控制
+            elif 2 <= move.to_pos.col <= 6:
+                score += 3  # 次中心
+
+        board.undo_move(move, captured, was_hidden)
 
         return score

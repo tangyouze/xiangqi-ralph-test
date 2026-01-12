@@ -10,6 +10,8 @@ ID: v009
 - 炮马配合
 - 保护链评估
 - 相互支援能力
+
+注意：AI 使用 PlayerView，无法看到暗子的真实身份！
 """
 
 from __future__ import annotations
@@ -18,12 +20,12 @@ import random
 from typing import TYPE_CHECKING
 
 from jieqi.ai.base import AIConfig, AIEngine, AIStrategy
-from jieqi.types import Color, PieceType, GameResult, Position
+from jieqi.simulation import SimulationBoard, SimPiece
+from jieqi.types import Color, GameResult, PieceType, Position
 
 if TYPE_CHECKING:
-    from jieqi.game import JieqiGame
     from jieqi.types import JieqiMove
-    from jieqi.piece import JieqiPiece
+    from jieqi.view import PlayerView
 
 
 AI_ID = "v009"
@@ -43,47 +45,44 @@ PIECE_VALUES = {
 HIDDEN_PIECE_VALUE = 320
 
 
-def get_piece_value(piece: JieqiPiece) -> int:
-    if piece.is_hidden:
+def get_piece_value(piece: SimPiece) -> int:
+    """获取棋子价值"""
+    if piece.is_hidden or piece.actual_type is None:
         return HIDDEN_PIECE_VALUE
     return PIECE_VALUES.get(piece.actual_type, 0)
 
 
-def count_attackers(game: JieqiGame, pos, color: Color) -> int:
+def count_attackers(board: SimulationBoard, pos: Position, color: Color) -> int:
+    """计算有多少对方棋子可以攻击这个位置"""
     count = 0
-    for enemy in game.board.get_all_pieces(color.opposite):
-        if pos in enemy.get_potential_moves(game.board):
+    for enemy in board.get_all_pieces(color.opposite):
+        if pos in board.get_potential_moves(enemy):
             count += 1
     return count
 
 
-def count_defenders(game: JieqiGame, pos, color: Color) -> int:
+def count_defenders(board: SimulationBoard, pos: Position, color: Color) -> int:
+    """计算有多少己方棋子可以保护这个位置"""
     count = 0
-    for ally in game.board.get_all_pieces(color):
-        if ally.position != pos and pos in ally.get_potential_moves(game.board):
+    for ally in board.get_all_pieces(color):
+        if ally.position != pos and pos in board.get_potential_moves(ally):
             count += 1
     return count
 
 
-def count_my_hidden(game: JieqiGame, color: Color) -> int:
+def count_hidden(board: SimulationBoard, color: Color) -> int:
+    """统计某方隐藏棋子数量"""
     count = 0
-    for piece in game.board.get_all_pieces(color):
+    for piece in board.get_all_pieces(color):
         if piece.is_hidden:
             count += 1
     return count
 
 
-def count_enemy_hidden(game: JieqiGame, color: Color) -> int:
-    count = 0
-    for piece in game.board.get_all_pieces(color.opposite):
-        if piece.is_hidden:
-            count += 1
-    return count
-
-
-def get_game_phase(game: JieqiGame, my_color: Color) -> str:
-    my_hidden = count_my_hidden(game, my_color)
-    enemy_hidden = count_enemy_hidden(game, my_color)
+def get_game_phase(board: SimulationBoard, my_color: Color) -> str:
+    """判断游戏阶段"""
+    my_hidden = count_hidden(board, my_color)
+    enemy_hidden = count_hidden(board, my_color.opposite)
     total_hidden = my_hidden + enemy_hidden
 
     if total_hidden >= 20:
@@ -94,12 +93,28 @@ def get_game_phase(game: JieqiGame, my_color: Color) -> str:
         return "late"
 
 
-def evaluate_coordination(game: JieqiGame, my_color: Color) -> float:
+def find_best_enemy_capture(board: SimulationBoard, enemy_color: Color) -> float:
+    """找出对手能吃掉的最高价值棋子"""
+    best_capture = 0.0
+
+    for enemy in board.get_all_pieces(enemy_color):
+        potential_moves = board.get_potential_moves(enemy)
+        for target_pos in potential_moves:
+            target = board.get_piece(target_pos)
+            if target and target.color != enemy_color:
+                value = get_piece_value(target)
+                if value > best_capture:
+                    best_capture = value
+
+    return best_capture
+
+
+def evaluate_coordination(board: SimulationBoard, my_color: Color) -> float:
     """评估棋子协作"""
     bonus = 0.0
 
-    my_pieces = game.board.get_all_pieces(my_color)
-    revealed_pieces = [p for p in my_pieces if p.is_revealed]
+    my_pieces = board.get_all_pieces(my_color)
+    revealed_pieces = [p for p in my_pieces if not p.is_hidden]
 
     # 找出高价值棋子
     rooks = [p for p in revealed_pieces if p.actual_type == PieceType.ROOK]
@@ -125,7 +140,7 @@ def evaluate_coordination(game: JieqiGame, my_color: Color) -> float:
     # 保护链 - 高价值棋子被保护
     for piece in revealed_pieces:
         if piece.actual_type in (PieceType.ROOK, PieceType.CANNON, PieceType.HORSE):
-            defenders = count_defenders(game, piece.position, my_color)
+            defenders = count_defenders(board, piece.position, my_color)
             if defenders >= 1:
                 bonus += 10
             if defenders >= 2:
@@ -149,17 +164,20 @@ class CoordinationAI(AIStrategy):
         super().__init__(config)
         self._rng = random.Random(self.config.seed)
 
-    def select_move(self, game: JieqiGame) -> JieqiMove | None:
-        legal_moves = game.get_legal_moves()
-        if not legal_moves:
+    def select_move(self, view: PlayerView) -> JieqiMove | None:
+        """选择最佳走法"""
+        if not view.legal_moves:
             return None
 
-        my_color = game.current_turn
+        my_color = view.viewer
         best_moves: list[JieqiMove] = []
         best_score = float("-inf")
 
-        for move in legal_moves:
-            score = self._evaluate_move(game, move, my_color)
+        # 创建模拟棋盘
+        sim_board = SimulationBoard(view)
+
+        for move in view.legal_moves:
+            score = self._evaluate_move(sim_board, move, my_color)
 
             if score > best_score:
                 best_score = score
@@ -169,10 +187,11 @@ class CoordinationAI(AIStrategy):
 
         return self._rng.choice(best_moves)
 
-    def _evaluate_move(self, game: JieqiGame, move: JieqiMove, my_color: Color) -> float:
+    def _evaluate_move(self, board: SimulationBoard, move: JieqiMove, my_color: Color) -> float:
+        """评估走法得分"""
         score = 0.0
 
-        target = game.board.get_piece(move.to_pos)
+        target = board.get_piece(move.to_pos)
 
         # 1. 吃子得分
         if target is not None and target.color != my_color:
@@ -182,32 +201,40 @@ class CoordinationAI(AIStrategy):
             if target.actual_type == PieceType.KING:
                 return 100000
 
-        piece = game.board.get_piece(move.from_pos)
+        piece = board.get_piece(move.from_pos)
         if piece is None:
             return score
 
+        # 逃离危险加分
+        old_attackers = count_attackers(board, move.from_pos, my_color)
+        if old_attackers > 0:
+            old_defenders = count_defenders(board, move.from_pos, my_color)
+            if old_defenders < old_attackers:
+                my_piece_value = get_piece_value(piece)
+                score += my_piece_value * 0.35
+
         was_hidden = piece.is_hidden
-        captured = game.board.make_move(move)
+        captured = board.make_move(move)
 
         # 2. 检查获胜
-        result = game.board.get_game_result(my_color.opposite)
+        result = board.get_game_result(my_color.opposite)
         if result == GameResult.RED_WIN and my_color == Color.RED:
-            game.board.undo_move(move, captured, was_hidden)
+            board.undo_move(move, captured, was_hidden)
             return 100000
         elif result == GameResult.BLACK_WIN and my_color == Color.BLACK:
-            game.board.undo_move(move, captured, was_hidden)
+            board.undo_move(move, captured, was_hidden)
             return 100000
 
         # 3. 将军加分
-        if game.board.is_in_check(my_color.opposite):
+        if board.is_in_check(my_color.opposite):
             score += 60
 
         # 4. 防守评估（来自 v004）
-        moved_piece = game.board.get_piece(move.to_pos)
+        moved_piece = board.get_piece(move.to_pos)
         if moved_piece:
             my_piece_value = get_piece_value(moved_piece)
-            attackers = count_attackers(game, move.to_pos, my_color)
-            defenders = count_defenders(game, move.to_pos, my_color)
+            attackers = count_attackers(board, move.to_pos, my_color)
+            defenders = count_defenders(board, move.to_pos, my_color)
 
             if attackers > 0:
                 if defenders >= attackers:
@@ -215,15 +242,15 @@ class CoordinationAI(AIStrategy):
                 else:
                     score -= my_piece_value * 0.75
 
-            if moved_piece.is_revealed and moved_piece.actual_type == PieceType.ROOK:
+            if not moved_piece.is_hidden and moved_piece.actual_type == PieceType.ROOK:
                 if attackers > 0:
                     score -= 150
 
         # 5. 揭子策略（来自 v007）
         if was_hidden:
-            game_phase = get_game_phase(game, my_color)
-            attackers = count_attackers(game, move.to_pos, my_color)
-            defenders = count_defenders(game, move.to_pos, my_color)
+            game_phase = get_game_phase(board, my_color)
+            attackers = count_attackers(board, move.to_pos, my_color)
+            defenders = count_defenders(board, move.to_pos, my_color)
 
             if attackers == 0:
                 base_reveal_bonus = 25
@@ -242,25 +269,43 @@ class CoordinationAI(AIStrategy):
             score += base_reveal_bonus * phase_multiplier
 
         # 6. 棋子协作 - 核心改进
-        old_coordination = evaluate_coordination(game, my_color)
-        # 走完后重新评估协作
-        new_coordination = evaluate_coordination(game, my_color)
-        score += (new_coordination - old_coordination) * 0.3
-
-        # 额外：走后的协作状态
-        score += new_coordination * 0.1
+        # 走后的协作状态
+        new_coordination = evaluate_coordination(board, my_color)
+        score += new_coordination * 0.15
 
         # 7. 检查危险棋子
-        for ally in game.board.get_all_pieces(my_color):
+        for ally in board.get_all_pieces(my_color):
             if ally.position == move.to_pos:
                 continue
             ally_value = get_piece_value(ally)
-            ally_attackers = count_attackers(game, ally.position, my_color)
+            ally_attackers = count_attackers(board, ally.position, my_color)
             if ally_attackers > 0:
-                ally_defenders = count_defenders(game, ally.position, my_color)
+                ally_defenders = count_defenders(board, ally.position, my_color)
                 if ally_defenders < ally_attackers:
                     score -= ally_value * 0.1
 
-        game.board.undo_move(move, captured, was_hidden)
+        # 8. 1层前瞻：考虑对手的最佳吃子
+        enemy_threat = find_best_enemy_capture(board, my_color.opposite)
+        score -= enemy_threat * 0.55
+
+        # 9. 吃子额外加成
+        if captured:
+            score += get_piece_value(captured) * 0.25
+
+        # 10. 将帅安全评估
+        king_pos = board.find_king(my_color)
+        if king_pos:
+            king_attackers = count_attackers(board, king_pos, my_color)
+            if king_attackers > 0:
+                score -= 100  # 将帅被威胁扣分
+
+        # 11. 位置评估：过河和中心控制
+        if moved_piece and not moved_piece.is_hidden:
+            if not move.to_pos.is_on_own_side(my_color):
+                score += 12
+            if 3 <= move.to_pos.col <= 5:
+                score += 6
+
+        board.undo_move(move, captured, was_hidden)
 
         return score
