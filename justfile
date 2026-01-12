@@ -10,13 +10,19 @@ overmind-restart:
     -pkill -f "uvicorn main:app" 2>/dev/null
     -pkill -f "uvicorn jieqi_main:app" 2>/dev/null
     -pkill -f "npm run dev -- --port 6701" 2>/dev/null
+    -pkill -f "streamlit" 2>/dev/null
     -lsof -ti:6701 | xargs kill -9 2>/dev/null
     -lsof -ti:6702 | xargs kill -9 2>/dev/null
     -lsof -ti:6703 | xargs kill -9 2>/dev/null
+    -lsof -ti:6704 | xargs kill -9 2>/dev/null
     -rm -f .overmind.sock
     sleep 1
     overmind start -D
-    overmind connect
+    @echo "Waiting for services..."
+    @sleep 5
+    @echo "Services started. Use 'overmind connect' to attach."
+    @echo "Ports: Frontend=6701, Backend=6702, Jieqi=6703, Dashboard=6704"
+    open http://localhost:6701
 
 # Start backend only
 backend:

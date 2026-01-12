@@ -1,7 +1,8 @@
 // 揭棋游戏控制组件
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import type { AIStrategyInfo, CreateJieqiGameOptions, GameMode, JieqiGameState } from './types';
+import type { AIStrategyInfo, CreateJieqiGameOptions, GameMode, JieqiGameState, AITimeLimit } from './types';
+import { AI_TIME_OPTIONS } from './types';
 import { getAIInfo } from './api';
 import './JieqiGameControls.css';
 
@@ -24,6 +25,11 @@ export function JieqiGameControls({
   const [redAIStrategy, setRedAIStrategy] = useState<string>('greedy');
   const [blackAIStrategy, setBlackAIStrategy] = useState<string>('random');
   const [delayReveal, setDelayReveal] = useState<boolean>(true);  // 默认开启延迟分配模式
+
+  // AI 思考时间限制
+  const [aiTimeLimit, setAITimeLimit] = useState<AITimeLimit>(5);
+  const [redAITimeLimit, setRedAITimeLimit] = useState<AITimeLimit>(5);
+  const [blackAITimeLimit, setBlackAITimeLimit] = useState<AITimeLimit>(5);
 
   // AI 策略列表（从后端获取）
   const [aiStrategies, setAiStrategies] = useState<AIStrategyInfo[]>([]);
@@ -86,13 +92,16 @@ export function JieqiGameControls({
 
     if (mode === 'human_vs_ai') {
       options.ai_strategy = aiStrategy;
+      options.ai_time_limit = aiTimeLimit;
     } else if (mode === 'ai_vs_ai') {
       options.red_ai_strategy = redAIStrategy;
       options.black_ai_strategy = blackAIStrategy;
+      options.red_ai_time_limit = redAITimeLimit;
+      options.black_ai_time_limit = blackAITimeLimit;
     }
 
     onNewGame(options);
-  }, [mode, aiColor, aiStrategy, redAIStrategy, blackAIStrategy, delayReveal, onNewGame]);
+  }, [mode, aiColor, aiStrategy, redAIStrategy, blackAIStrategy, delayReveal, aiTimeLimit, redAITimeLimit, blackAITimeLimit, onNewGame]);
 
   const getStatusText = () => {
     if (!gameState) return 'No game in progress';
@@ -175,6 +184,14 @@ export function JieqiGameControls({
                 ))}
               </select>
             </div>
+            <div className="control-group">
+              <label htmlFor="aiTime">AI Time (s):</label>
+              <select id="aiTime" value={aiTimeLimit} onChange={e => setAITimeLimit(Number(e.target.value) as AITimeLimit)}>
+                {AI_TIME_OPTIONS.map(t => (
+                  <option key={t} value={t}>{t}s</option>
+                ))}
+              </select>
+            </div>
           </>
         )}
 
@@ -189,10 +206,26 @@ export function JieqiGameControls({
               </select>
             </div>
             <div className="control-group">
+              <label htmlFor="redAITime">Red Time (s):</label>
+              <select id="redAITime" value={redAITimeLimit} onChange={e => setRedAITimeLimit(Number(e.target.value) as AITimeLimit)}>
+                {AI_TIME_OPTIONS.map(t => (
+                  <option key={t} value={t}>{t}s</option>
+                ))}
+              </select>
+            </div>
+            <div className="control-group">
               <label htmlFor="blackAI">Black AI:</label>
               <select id="blackAI" value={blackAIStrategy} onChange={e => setBlackAIStrategy(e.target.value)}>
                 {aiStrategies.map(s => (
                   <option key={s.name} value={s.name} title={s.description}>{s.name} - {s.description}</option>
+                ))}
+              </select>
+            </div>
+            <div className="control-group">
+              <label htmlFor="blackAITime">Black Time (s):</label>
+              <select id="blackAITime" value={blackAITimeLimit} onChange={e => setBlackAITimeLimit(Number(e.target.value) as AITimeLimit)}>
+                {AI_TIME_OPTIONS.map(t => (
+                  <option key={t} value={t}>{t}s</option>
                 ))}
               </select>
             </div>

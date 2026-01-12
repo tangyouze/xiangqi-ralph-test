@@ -53,6 +53,10 @@ export interface JieqiMoveResponse {
   pending_ai_reveal_types: string[] | null;
 }
 
+// AI 思考时间选项
+export const AI_TIME_OPTIONS = [1, 3, 5, 15, 30] as const;
+export type AITimeLimit = typeof AI_TIME_OPTIONS[number];
+
 // 创建游戏请求
 export interface CreateJieqiGameOptions {
   mode: GameMode;
@@ -65,6 +69,10 @@ export interface CreateJieqiGameOptions {
   black_ai_strategy?: AIStrategy;
   // 延迟分配模式：翻棋时决定身份
   delay_reveal?: boolean;
+  // AI 思考时间（秒）
+  ai_time_limit?: AITimeLimit;
+  red_ai_time_limit?: AITimeLimit;
+  black_ai_time_limit?: AITimeLimit;
 }
 
 // 可用棋子类型响应（延迟分配模式）
