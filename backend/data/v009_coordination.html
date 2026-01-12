@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>v009 Coordination AI Strategy</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; background: #f5f5f5; }
+        .card { background: white; border-radius: 12px; padding: 24px; margin: 20px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        h1 { color: #1a1a2e; border-bottom: 3px solid #4a90d9; padding-bottom: 10px; }
+        h2 { color: #4a90d9; }
+        .metric { display: inline-block; background: #e8f4fd; padding: 8px 16px; border-radius: 20px; margin: 5px; }
+        .metric-value { font-weight: bold; color: #2d5a8a; }
+        .success { background: #d4edda; color: #155724; }
+        .feature { background: #fff3cd; padding: 12px; border-left: 4px solid #ffc107; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>v009 Coordination AI</h1>
+        <p><strong>ID:</strong> v009 | <strong>Name:</strong> coordination</p>
+        <p>棋子协作策略，评估棋子之间的配合</p>
+    </div>
+
+    <div class="card">
+        <h2>Core Features</h2>
+        <div class="feature"><strong>Rook Pair:</strong> 双车协作加分</div>
+        <div class="feature"><strong>Cannon-Horse:</strong> 炮马配合评估</div>
+        <div class="feature"><strong>Protection Chain:</strong> 保护链评估</div>
+        <div class="feature"><strong>Escape Bonus:</strong> 逃离危险位置</div>
+    </div>
+
+    <div class="card">
+        <h2>Latest Iteration</h2>
+        <p><strong>Direction:</strong> 添加将帅安全评估 + 位置评估</p>
+        <ul>
+            <li>将帅被威胁: -100</li>
+            <li>过河加分: +12</li>
+            <li>中心控制: +6</li>
+        </ul>
+        <p><span class="metric success">Result: <span class="metric-value">SUCCESS</span></span></p>
+    </div>
+
+    <div class="card">
+        <h2>Battle Results</h2>
+        <p>
+            <span class="metric">Overall: <span class="metric-value">67.5%</span></span>
+            <span class="metric">vs Advanced: <span class="metric-value">20%</span></span>
+            <span class="metric">vs Random: <span class="metric-value">85%</span></span>
+        </p>
+    </div>
+</body>
+</html>

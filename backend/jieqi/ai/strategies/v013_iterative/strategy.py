@@ -426,11 +426,16 @@ class IterativeAI(AIStrategy):
 
     def select_move(self, view: PlayerView) -> JieqiMove | None:
         """选择最佳走法"""
+        candidates = self.select_moves(view, n=1)
+        return candidates[0][0] if candidates else None
+
+    def select_moves(self, view: PlayerView, n: int = 10) -> list[tuple[JieqiMove, float]]:
+        """返回 Top-N 候选着法及其评分"""
         if not view.legal_moves:
-            return None
+            return []
 
         if len(view.legal_moves) == 1:
-            return view.legal_moves[0]
+            return [(view.legal_moves[0], 0.0)]
 
         my_color = view.viewer
 
@@ -439,41 +444,36 @@ class IterativeAI(AIStrategy):
         self._nodes_evaluated = 0
         self._start_time = time.time()
 
-        # 迭代加深
-        best_move = view.legal_moves[0]
-        best_score = float("-inf")
+        # 迭代加深，收集所有走法的评分
+        all_scores: dict[JieqiMove, float] = {}
 
         for depth in range(1, self.max_depth + 1):
-            # 检查时间
             if time.time() - self._start_time > self.time_limit * 0.8:
                 break
 
             try:
-                move, score = self._search_root(sim_board, view.legal_moves, depth, my_color)
-                if move is not None:
-                    best_move = move
-                    best_score = score
+                scores = self._search_root_all(sim_board, view.legal_moves, depth, my_color)
+                all_scores = scores  # 用最深层的评分覆盖
             except TimeoutError:
                 break
 
-        return best_move
+        # 按分数降序排列，取前 N 个
+        sorted_moves = sorted(all_scores.items(), key=lambda x: -x[1])
+        return sorted_moves[:n]
 
-    def _search_root(
+    def _search_root_all(
         self,
         board: SimulationBoard,
         legal_moves: list[JieqiMove],
         depth: int,
         color: Color,
-    ) -> tuple[JieqiMove | None, float]:
-        """根节点搜索"""
+    ) -> dict[JieqiMove, float]:
+        """根节点搜索，返回所有走法的评分"""
         position_hash = board.get_position_hash()
-
-        # TT lookup for move ordering
         tt_entry = self._tt.get(position_hash)
         sorted_moves = self._order_moves(board, legal_moves, color, 0, tt_entry)
 
-        best_score = float("-inf")
-        best_move = None
+        scores: dict[JieqiMove, float] = {}
         alpha = float("-inf")
         beta = float("inf")
 
@@ -489,21 +489,16 @@ class IterativeAI(AIStrategy):
 
             if captured and captured.actual_type == PieceType.KING:
                 board.undo_move(move, captured, was_hidden)
-                return move, 100000
+                scores[move] = 100000
+                continue
 
             score = -self._alpha_beta(board, depth - 1, -beta, -alpha, color.opposite, 1)
-
             board.undo_move(move, captured, was_hidden)
 
-            if score > best_score:
-                best_score = score
-                best_move = move
-                alpha = max(alpha, score)
+            scores[move] = score
+            alpha = max(alpha, score)
 
-        # Store in TT
-        self._tt.store(position_hash, depth, best_score, TTFlag.EXACT, best_move)
-
-        return best_move, best_score
+        return scores
 
     def _alpha_beta(
         self,
@@ -722,13 +717,42 @@ class IterativeAI(AIStrategy):
         score = 0.0
 
         # 子力价值 + 位置价值
-        for piece in board.get_all_pieces():
-            piece_score = get_piece_value(piece) + get_position_value(piece)
+        my_pieces = board.get_all_pieces(color)
+        enemy_pieces = board.get_all_pieces(color.opposite)
 
-            if piece.color == color:
-                score += piece_score
-            else:
-                score -= piece_score
+        # 预计算敌方攻击范围
+        enemy_attacks: set[Position] = set()
+        for enemy in enemy_pieces:
+            for pos in board.get_potential_moves(enemy):
+                enemy_attacks.add(pos)
+
+        # 预计算己方防守范围
+        my_defense: set[Position] = set()
+        for ally in my_pieces:
+            for pos in board.get_potential_moves(ally):
+                my_defense.add(pos)
+
+        for piece in my_pieces:
+            piece_score = get_piece_value(piece) + get_position_value(piece)
+            score += piece_score
+
+            # 机动性加分（明子可移动位置数）
+            if not piece.is_hidden:
+                mobility = len(board.get_potential_moves(piece))
+                score += mobility * 5
+
+                # 安全性评估：被攻击但未被保护的棋子扣分
+                if piece.position in enemy_attacks:
+                    if piece.position not in my_defense:
+                        score -= get_piece_value(piece) * 0.3
+
+        for piece in enemy_pieces:
+            piece_score = get_piece_value(piece) + get_position_value(piece)
+            score -= piece_score
+
+            if not piece.is_hidden:
+                mobility = len(board.get_potential_moves(piece))
+                score -= mobility * 5
 
         # 将军
         if board.is_in_check(color.opposite):

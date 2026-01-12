@@ -59,6 +59,22 @@ class AIStrategy(ABC):
         """
         pass
 
+    def select_moves(self, view: PlayerView, n: int = 10) -> list[tuple[JieqiMove, float]]:
+        """返回 Top-N 候选着法及其评分
+
+        默认实现调用 select_move() 返回单元素列表。
+        子类可以重写此方法以提供更多候选着法。
+
+        Args:
+            view: 玩家视角
+            n: 返回的最大候选数
+
+        Returns:
+            [(move, score), ...] 按分数降序排列
+        """
+        move = self.select_move(view)
+        return [(move, 0.0)] if move else []
+
 
 class AIEngine:
     """AI 引擎

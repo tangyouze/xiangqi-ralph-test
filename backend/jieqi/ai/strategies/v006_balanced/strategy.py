@@ -70,6 +70,22 @@ def count_defenders(board: SimulationBoard, pos: Position, color: Color) -> int:
     return count
 
 
+def find_best_enemy_capture(board: SimulationBoard, enemy_color: Color) -> float:
+    """找出对手能吃掉的最高价值棋子"""
+    best_capture = 0.0
+
+    for enemy in board.get_all_pieces(enemy_color):
+        potential_moves = board.get_potential_moves(enemy)
+        for target_pos in potential_moves:
+            target = board.get_piece(target_pos)
+            if target and target.color != enemy_color:
+                value = get_piece_value(target)
+                if value > best_capture:
+                    best_capture = value
+
+    return best_capture
+
+
 def get_position_bonus(piece: SimPiece, pos: Position) -> float:
     """位置加成（来自 v003）"""
     bonus = 0.0
@@ -156,6 +172,15 @@ class BalancedAI(AIStrategy):
         if piece is None:
             return score
 
+        # 逃离危险加分：如果原位置被攻击，移动到安全位置
+        old_attackers = count_attackers(board, move.from_pos, my_color)
+        if old_attackers > 0:
+            old_defenders = count_defenders(board, move.from_pos, my_color)
+            if old_defenders < old_attackers:
+                # 棋子处于危险中，检查新位置是否更安全
+                my_piece_value = get_piece_value(piece)
+                score += my_piece_value * 0.3  # 逃跑奖励
+
         was_hidden = piece.is_hidden
         captured = board.make_move(move)
 
@@ -214,6 +239,19 @@ class BalancedAI(AIStrategy):
                 score += 12
             else:
                 score -= 15
+
+        # 8. 1层前瞻：考虑对手的最佳吃子
+        enemy_threat = find_best_enemy_capture(board, my_color.opposite)
+        score -= enemy_threat * 0.6
+
+        # 9. 吃子加成（额外奖励）
+        if captured:
+            score += get_piece_value(captured) * 0.3
+
+        # 10. 机动性评估：己方可走步数 vs 敌方可走步数
+        my_mobility = len(board.get_legal_moves(my_color))
+        enemy_mobility = len(board.get_legal_moves(my_color.opposite))
+        score += (my_mobility - enemy_mobility) * 0.5
 
         board.undo_move(move, captured, was_hidden)
 

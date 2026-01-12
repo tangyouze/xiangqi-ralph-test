@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>v011 Minimax AI Strategy</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; background: #f5f5f5; }
+        .card { background: white; border-radius: 12px; padding: 24px; margin: 20px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        h1 { color: #1a1a2e; border-bottom: 3px solid #e74c3c; padding-bottom: 10px; }
+        h2 { color: #e74c3c; }
+        .metric { display: inline-block; background: #e8f4fd; padding: 8px 16px; border-radius: 20px; margin: 5px; }
+        .metric-value { font-weight: bold; color: #2d5a8a; }
+        .warning { background: #fff3cd; color: #856404; }
+        .feature { background: #fff3cd; padding: 12px; border-left: 4px solid #ffc107; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>v011 Minimax AI</h1>
+        <p><strong>ID:</strong> v011 | <strong>Name:</strong> minimax</p>
+        <p>Minimax with Alpha-Beta Pruning - 深度2搜索</p>
+    </div>
+
+    <div class="card">
+        <h2>Core Features</h2>
+        <div class="feature"><strong>Alpha-Beta Pruning:</strong> 减少搜索节点</div>
+        <div class="feature"><strong>Position Tables:</strong> 车/马/炮位置价值</div>
+        <div class="feature"><strong>Move Ordering:</strong> 吃子优先</div>
+    </div>
+
+    <div class="card">
+        <h2>Latest Iteration</h2>
+        <p><strong>Direction:</strong> 简化评估函数 + 位置评估</p>
+        <p><span class="metric warning">Result: <span class="metric-value">NO IMPROVEMENT</span></span></p>
+        <p style="color:#856404;">Minimax 搜索可能不适合揭棋的不确定性</p>
+    </div>
+
+    <div class="card">
+        <h2>Battle Results</h2>
+        <p>
+            <span class="metric">Overall: <span class="metric-value">52.5%</span></span>
+            <span class="metric">vs Advanced: <span class="metric-value">5%</span></span>
+            <span class="metric">vs Random: <span class="metric-value">70%</span></span>
+        </p>
+    </div>
+</body>
+</html>

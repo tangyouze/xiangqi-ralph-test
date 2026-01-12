@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aggressive AI 迭代报告</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; }
+        h2 { color: #666; border-bottom: 2px solid #e74c3c; padding-bottom: 10px; }
+        .success { color: #27ae60; }
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .metric-label { color: #666; }
+        .metric-value { font-weight: bold; }
+        .improvement { color: #27ae60; font-size: 1.2em; }
+        code {
+            background: #f0f0f0;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Menlo', monospace;
+        }
+        .version-history {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 4px;
+        }
+        .version-history li {
+            margin: 8px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Aggressive AI 迭代报告</h1>
+
+    <div class="card">
+        <h2>策略概述</h2>
+        <p><strong>策略名称：</strong> Aggressive AI (v005)</p>
+        <p><strong>策略ID：</strong> v005</p>
+        <p><strong>核心特点：</strong> 进攻性策略，带1层前瞻搜索</p>
+    </div>
+
+    <div class="card">
+        <h2>迭代结果</h2>
+        <div class="metric">
+            <span class="metric-label">迭代前胜率</span>
+            <span class="metric-value">24.4%</span>
+        </div>
+        <div class="metric">
+            <span class="metric-label">迭代后胜率</span>
+            <span class="metric-value success">41.9%</span>
+        </div>
+        <div class="metric">
+            <span class="metric-label">胜率提升</span>
+            <span class="metric-value improvement">+17.5%</span>
+        </div>
+        <div class="metric">
+            <span class="metric-label">迭代前 Elo</span>
+            <span class="metric-value">1361</span>
+        </div>
+        <div class="metric">
+            <span class="metric-label">迭代后 Elo</span>
+            <span class="metric-value success">1458</span>
+        </div>
+        <div class="metric">
+            <span class="metric-label">Elo 提升</span>
+            <span class="metric-value improvement">+97</span>
+        </div>
+        <div class="metric">
+            <span class="metric-label">排名变化</span>
+            <span class="metric-value">第13名 → 第5名</span>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>优化方向</h2>
+        <p><strong>主要改进：</strong> 添加1层前瞻搜索</p>
+        <p>原版本的 aggressive 策略只评估当前走法的直接效果，导致经常"送子"。
+        新版本通过考虑对方的最佳回应，能够避免明显的失误走法。</p>
+
+        <h3>技术细节</h3>
+        <ul>
+            <li>使用 minimax 思想进行1层搜索</li>
+            <li>评估对方所有可能回应后的最坏情况</li>
+            <li>保留进攻性奖励（吃子、将军加分）</li>
+            <li>位置评估：过河加分、威胁对方棋子加分</li>
+        </ul>
+    </div>
+
+    <div class="card">
+        <h2>版本历史</h2>
+        <div class="version-history">
+            <ul>
+                <li><strong>v1:</strong> 初始版本，纯贪心策略，无搜索，过于激进</li>
+                <li><strong>v2:</strong> 增加防守权重，效果不佳，胜率反而下降</li>
+                <li><strong>v3 (当前):</strong> 添加1层前瞻搜索，胜率显著提升</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>对战详情</h2>
+        <table style="width:100%; border-collapse: collapse;">
+            <tr style="background:#f0f0f0;">
+                <th style="padding:10px; text-align:left;">对手</th>
+                <th style="padding:10px; text-align:center;">胜率</th>
+            </tr>
+            <tr><td style="padding:10px;">vs Advanced</td><td style="text-align:center;">10%</td></tr>
+            <tr style="background:#f9f9f9;"><td style="padding:10px;">vs Balanced</td><td style="text-align:center;">20%</td></tr>
+            <tr><td style="padding:10px;">vs Iterative</td><td style="text-align:center;">15%</td></tr>
+            <tr style="background:#f9f9f9;"><td style="padding:10px;">vs Defensive</td><td style="text-align:center;">30%</td></tr>
+        </table>
+    </div>
+
+    <div class="card">
+        <h2>下一步优化方向</h2>
+        <ul>
+            <li>增加搜索深度到2层</li>
+            <li>添加更精细的位置价值表 (PST)</li>
+            <li>优化揭棋策略</li>
+            <li>改进走法排序加速搜索</li>
+        </ul>
+    </div>
+
+    <footer style="text-align:center; color:#999; margin-top:40px;">
+        <p>生成时间: 2026-01-12 | 揭棋 AI 迭代系统</p>
+    </footer>
+</body>
+</html>

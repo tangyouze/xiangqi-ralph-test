@@ -10,6 +10,10 @@ ID: v003
 - 过河棋子加分
 - 靠近对方将的位置加分
 
+迭代记录：
+- v1: 初始版本
+- v2: 增强安全评估（攻击者/防御者计数）
+
 注意：AI 使用 PlayerView，无法看到暗子的真实身份！
 """
 
@@ -183,17 +187,44 @@ class PositionalAI(AIStrategy):
             new_pos_bonus = get_position_bonus(moved_piece, move.to_pos)
             score += new_pos_bonus - old_pos_bonus
 
-        # 5. 被吃风险
+        # 5. 安全评估（攻击者/防御者）
         if moved_piece:
-            for enemy_piece in board.get_all_pieces(my_color.opposite):
-                if move.to_pos in board.get_potential_moves(enemy_piece):
-                    my_piece_value = get_piece_value(moved_piece)
-                    score -= my_piece_value * 0.3
-                    break
+            my_piece_value = get_piece_value(moved_piece)
+            attackers = 0
+            defenders = 0
 
-        # 6. 揭子加分
+            for enemy in board.get_all_pieces(my_color.opposite):
+                if move.to_pos in board.get_potential_moves(enemy):
+                    attackers += 1
+
+            for ally in board.get_all_pieces(my_color):
+                if ally.position != move.to_pos and move.to_pos in board.get_potential_moves(ally):
+                    defenders += 1
+
+            if attackers > 0:
+                if defenders >= attackers:
+                    score -= my_piece_value * 0.15
+                else:
+                    score -= my_piece_value * 0.7
+
+            # 5.5 逃离危险加分：原位置被攻击时移动到安全位置
+            old_attackers = 0
+            for enemy in board.get_all_pieces(my_color.opposite):
+                if move.from_pos in board.get_potential_moves(enemy):
+                    old_attackers += 1
+            if old_attackers > 0 and attackers == 0:
+                score += my_piece_value * 0.35  # 逃跑奖励
+
+        # 6. 揭子策略
         if was_hidden:
-            score += 10
+            attackers = 0
+            for enemy in board.get_all_pieces(my_color.opposite):
+                if move.to_pos in board.get_potential_moves(enemy):
+                    attackers += 1
+            if attackers == 0:
+                score += 15
+            else:
+                score -= 10
 
         board.undo_move(move, captured, was_hidden)
 

@@ -10,6 +10,10 @@ ID: v008
 - 考虑对手吃子的威胁
 - 避免被对手反吃
 
+迭代记录：
+- v1: 初始版本，缺少吃子评估
+- v2: 添加吃子加分，优化评估
+
 注意：AI 使用 PlayerView，无法看到暗子的真实身份！
 """
 
@@ -171,6 +175,11 @@ class LookaheadAI(AIStrategy):
             board.undo_move(move, captured, was_hidden)
             return 100000
 
+        # 吃子加分
+        capture_score = 0.0
+        if captured:
+            capture_score = get_piece_value(captured) * 1.2
+
         # 基础分数
         base_score = self._evaluate_move_base(board, move, my_color, was_hidden)
 
@@ -179,8 +188,8 @@ class LookaheadAI(AIStrategy):
 
         board.undo_move(move, captured, was_hidden)
 
-        # 如果对手能吃掉高价值棋子，扣分
-        final_score = base_score - enemy_best_capture * 0.8
+        # 综合评估：吃子 + 基础 - 对手威胁
+        final_score = capture_score + base_score - enemy_best_capture * 0.8
 
         return final_score
 
@@ -230,6 +239,18 @@ class LookaheadAI(AIStrategy):
             if not moved_piece.is_hidden and moved_piece.actual_type == PieceType.ROOK:
                 if attackers > 0:
                     score -= 150
+
+            # 逃离危险加分：原位置被攻击时移动到安全位置
+            old_attackers = count_attackers(board, move.from_pos, my_color)
+            if old_attackers > 0 and attackers == 0:
+                score += my_piece_value * 0.4  # 逃跑奖励
+
+            # 位置评估：过河和中心控制
+            if not moved_piece.is_hidden:
+                if not move.to_pos.is_on_own_side(my_color):
+                    score += 15  # 过河加分
+                if 3 <= move.to_pos.col <= 5:
+                    score += 8  # 中心控制
 
         # 揭子策略
         if was_hidden:

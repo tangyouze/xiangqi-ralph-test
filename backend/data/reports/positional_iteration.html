@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Positional AI 迭代报告</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; }
+        h2 { color: #666; border-bottom: 2px solid #e74c3c; padding-bottom: 10px; }
+        .success { color: #27ae60; }
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .metric-label { color: #666; }
+        .metric-value { font-weight: bold; }
+        pre {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Positional AI 迭代报告</h1>
+
+    <div class="card">
+        <h2>策略概述</h2>
+        <p><strong>策略名称：</strong> Positional AI (v003)</p>
+        <p><strong>策略ID：</strong> v003</p>
+        <p><strong>核心特点：</strong> 位置评估 + 增强安全评估</p>
+    </div>
+
+    <div class="card">
+        <h2>迭代结果</h2>
+        <div class="metric">
+            <span class="metric-label">快速测试胜率</span>
+            <span class="metric-value">62.5%</span>
+        </div>
+        <div class="metric">
+            <span class="metric-label">优化方向</span>
+            <span class="metric-value">安全评估 (攻击者/防御者计数)</span>
+        </div>
+        <div class="metric">
+            <span class="metric-label">迭代状态</span>
+            <span class="metric-value success">成功改进</span>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>主要改进</h2>
+        <ul>
+            <li><strong>攻击者/防御者计数：</strong> 统计目标位置有多少敌方可攻击、己方可保护</li>
+            <li><strong>风险评估：</strong> 如果攻击者多于防御者，降低走法评分</li>
+            <li><strong>安全揭子：</strong> 只在没有攻击者时才揭子</li>
+        </ul>
+    </div>
+
+    <div class="card">
+        <h2>核心代码</h2>
+        <pre>
+# 安全评估（攻击者/防御者）
+attackers = 0
+defenders = 0
+
+for enemy in board.get_all_pieces(my_color.opposite):
+    if move.to_pos in board.get_potential_moves(enemy):
+        attackers += 1
+
+for ally in board.get_all_pieces(my_color):
+    if ally.position != move.to_pos and move.to_pos in board.get_potential_moves(ally):
+        defenders += 1
+
+if attackers > 0:
+    if defenders >= attackers:
+        score -= my_piece_value * 0.15
+    else:
+        score -= my_piece_value * 0.7
+        </pre>
+    </div>
+
+    <div class="card">
+        <h2>位置评估因素</h2>
+        <ul>
+            <li><strong>中心控制：</strong> 第3-5列价值 +10，第2-6列价值 +5</li>
+            <li><strong>过河加分：</strong> 过河棋子 +20，兵过河 +30</li>
+            <li><strong>前进加分：</strong> 越靠近对方越有威胁</li>
+            <li><strong>棋子类型修正：</strong> 车在中间更强，炮在后方更强</li>
+        </ul>
+    </div>
+
+    <footer style="text-align:center; color:#999; margin-top:40px;">
+        <p>生成时间: 2026-01-12 | 揭棋 AI 迭代系统</p>
+    </footer>
+</body>
+</html>

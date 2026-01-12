@@ -93,6 +93,22 @@ def get_game_phase(board: SimulationBoard, my_color: Color) -> str:
         return "late"
 
 
+def find_best_enemy_capture(board: SimulationBoard, enemy_color: Color) -> float:
+    """找出对手能吃掉的最高价值棋子"""
+    best_capture = 0.0
+
+    for enemy in board.get_all_pieces(enemy_color):
+        potential_moves = board.get_potential_moves(enemy)
+        for target_pos in potential_moves:
+            target = board.get_piece(target_pos)
+            if target and target.color != enemy_color:
+                value = get_piece_value(target)
+                if value > best_capture:
+                    best_capture = value
+
+    return best_capture
+
+
 def evaluate_coordination(board: SimulationBoard, my_color: Color) -> float:
     """评估棋子协作"""
     bonus = 0.0
@@ -189,6 +205,14 @@ class CoordinationAI(AIStrategy):
         if piece is None:
             return score
 
+        # 逃离危险加分
+        old_attackers = count_attackers(board, move.from_pos, my_color)
+        if old_attackers > 0:
+            old_defenders = count_defenders(board, move.from_pos, my_color)
+            if old_defenders < old_attackers:
+                my_piece_value = get_piece_value(piece)
+                score += my_piece_value * 0.35
+
         was_hidden = piece.is_hidden
         captured = board.make_move(move)
 
@@ -259,6 +283,28 @@ class CoordinationAI(AIStrategy):
                 ally_defenders = count_defenders(board, ally.position, my_color)
                 if ally_defenders < ally_attackers:
                     score -= ally_value * 0.1
+
+        # 8. 1层前瞻：考虑对手的最佳吃子
+        enemy_threat = find_best_enemy_capture(board, my_color.opposite)
+        score -= enemy_threat * 0.55
+
+        # 9. 吃子额外加成
+        if captured:
+            score += get_piece_value(captured) * 0.25
+
+        # 10. 将帅安全评估
+        king_pos = board.find_king(my_color)
+        if king_pos:
+            king_attackers = count_attackers(board, king_pos, my_color)
+            if king_attackers > 0:
+                score -= 100  # 将帅被威胁扣分
+
+        # 11. 位置评估：过河和中心控制
+        if moved_piece and not moved_piece.is_hidden:
+            if not move.to_pos.is_on_own_side(my_color):
+                score += 12
+            if 3 <= move.to_pos.col <= 5:
+                score += 6
 
         board.undo_move(move, captured, was_hidden)
 

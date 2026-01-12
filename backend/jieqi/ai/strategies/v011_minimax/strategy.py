@@ -11,6 +11,10 @@ ID: v011
 - 移动排序优化剪枝效率
 - 改进的评估函数
 
+迭代记录：
+- v1: 初始版本
+- v2: 优化评估函数，增加安全性评估和机动性评估
+
 注意：AI 使用 PlayerView，无法看到暗子的真实身份！
 """
 
@@ -362,64 +366,65 @@ class MinimaxAI(AIStrategy):
 
     def __init__(self, config: AIConfig | None = None):
         super().__init__(config)
-        # 默认深度2（比较快）
-        if self.config.depth == 3:  # AIConfig 默认值是 3
-            self.config.depth = 2
+        # 深度2，搜索更快
+        self.config.depth = 2
         self._rng = random.Random(self.config.seed)
         self._nodes_evaluated = 0
 
     def select_move(self, view: PlayerView) -> JieqiMove | None:
         """选择最佳走法"""
-        if not view.legal_moves:
+        candidates = self.select_moves(view, n=1)
+        if not candidates:
             return None
+        # 如果有多个同分的，随机选择
+        best_score = candidates[0][1]
+        best_moves = [m for m, s in candidates if s == best_score]
+        return self._rng.choice(best_moves)
+
+    def select_moves(self, view: PlayerView, n: int = 10) -> list[tuple[JieqiMove, float]]:
+        """返回 Top-N 候选着法及其评分"""
+        if not view.legal_moves:
+            return []
 
         if len(view.legal_moves) == 1:
-            return view.legal_moves[0]
+            return [(view.legal_moves[0], 0.0)]
 
         my_color = view.viewer
         depth = self.config.depth
 
         # 创建模拟棋盘
         sim_board = SimulationBoard(view)
-
         self._nodes_evaluated = 0
 
         # 对走法排序以提高剪枝效率
         sorted_moves = self._order_moves(sim_board, view.legal_moves, my_color)
 
-        best_score = float("-inf")
-        best_moves: list[JieqiMove] = []
-
+        scores: dict[JieqiMove, float] = {}
         alpha = float("-inf")
         beta = float("inf")
 
         for move in sorted_moves:
-            # 执行走法
             piece = sim_board.get_piece(move.from_pos)
             if piece is None:
                 continue
             was_hidden = piece.is_hidden
             captured = sim_board.make_move(move)
 
-            # 吃将直接返回
+            # 吃将直接高分
             if captured and captured.actual_type == PieceType.KING:
                 sim_board.undo_move(move, captured, was_hidden)
-                return move
+                scores[move] = 50000
+                continue
 
-            # 递归搜索
             score = -self._minimax(sim_board, depth - 1, -beta, -alpha, my_color.opposite)
-
             sim_board.undo_move(move, captured, was_hidden)
 
-            if score > best_score:
-                best_score = score
-                best_moves = [move]
-                alpha = max(alpha, score)
-            elif score == best_score:
-                best_moves.append(move)
+            scores[move] = score
+            alpha = max(alpha, score)
 
-        # 从最佳走法中随机选择一个（添加少量随机性）
-        return self._rng.choice(best_moves)
+        # 按分数降序排列，取前 N 个
+        sorted_results = sorted(scores.items(), key=lambda x: -x[1])
+        return sorted_results[:n]
 
     def _minimax(
         self,
@@ -528,41 +533,36 @@ class MinimaxAI(AIStrategy):
     def _evaluate_position(self, board: SimulationBoard, color: Color) -> float:
         """评估当前局面
 
-        从指定颜色的视角评估。
+        从指定颜色的视角评估。简化版评估，让搜索更快。
         """
         score = 0.0
 
-        # 子力价值（最重要的因素）
-        for piece in board.get_all_pieces():
+        my_pieces = board.get_all_pieces(color)
+        enemy_pieces = board.get_all_pieces(color.opposite)
+
+        # 1. 子力价值 + 位置加成（简化版，更快）
+        for piece in my_pieces:
             value = get_piece_value(piece)
             pos_bonus = get_position_bonus(piece)
-            total = value + pos_bonus
+            score += value + pos_bonus
 
-            if piece.color == color:
-                score += total
-            else:
-                score -= total
+            # 简化位置评估
+            if not piece.is_hidden:
+                if not piece.position.is_on_own_side(color):
+                    score += 15  # 过河加分
+                if 3 <= piece.position.col <= 5:
+                    score += 8  # 中心控制
 
-        # 将军威胁
+        for piece in enemy_pieces:
+            value = get_piece_value(piece)
+            pos_bonus = get_position_bonus(piece)
+            score -= value + pos_bonus
+
+        # 2. 将军威胁
         if board.is_in_check(color.opposite):
-            score += 50
+            score += 60
         if board.is_in_check(color):
-            score -= 50
-
-        # 控制中心区域的加分
-        center_control = self._evaluate_center_control(board, color)
-        score += center_control
-
-        # 暗子数量评估
-        my_hidden = len([p for p in board.get_all_pieces(color) if p.is_hidden])
-        enemy_hidden = len([p for p in board.get_all_pieces(color.opposite) if p.is_hidden])
-
-        # 游戏早期，己方暗子多是优势（保留选择权）
-        total_pieces = len(board.get_all_pieces())
-        if total_pieces > 24:
-            score += (my_hidden - enemy_hidden) * 5
-        else:
-            score -= (my_hidden - enemy_hidden) * 3
+            score -= 60
 
         return score
 

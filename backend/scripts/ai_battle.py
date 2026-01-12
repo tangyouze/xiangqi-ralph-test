@@ -72,13 +72,29 @@ def calculate_elo(
     return elo
 
 
+def would_cause_draw(game: JieqiGame, move) -> bool:
+    """预判走这步是否会导致和棋"""
+    game.make_move(move)
+    is_draw = game.result == GameResult.DRAW
+    game.undo_move()
+    return is_draw
+
+
 def run_single_game(
     ai_red: str,
     ai_black: str,
     max_moves: int = 1000,
     seed: int | None = None,
+    avoid_draw: bool = True,
 ) -> tuple[GameResult, int]:
     """运行单场对战
+
+    Args:
+        ai_red: 红方 AI 名称
+        ai_black: 黑方 AI 名称
+        max_moves: 最大步数
+        seed: 随机种子
+        avoid_draw: 是否启用和棋规避（使用 Top-N 候选）
 
     Returns:
         (结果, 步数)
@@ -94,7 +110,21 @@ def run_single_game(
         current_ai = red_ai if game.current_turn == Color.RED else black_ai
         # AI 使用 PlayerView 而不是直接访问 game
         view = game.get_view(game.current_turn)
-        move = current_ai.select_move(view)
+
+        # 选择走法
+        move = None
+        if avoid_draw:
+            # 使用 Top-N 候选，规避和棋
+            candidates = current_ai.select_moves(view, n=10)
+            for candidate_move, score in candidates:
+                if not would_cause_draw(game, candidate_move):
+                    move = candidate_move
+                    break
+            # 如果所有候选都会和棋，选第一个
+            if move is None and candidates:
+                move = candidates[0][0]
+        else:
+            move = current_ai.select_move(view)
 
         if move is None:
             # 无合法走法，当前方输
@@ -124,8 +154,17 @@ def run_battle(
     num_games: int = 100,
     max_moves: int = 1000,
     seed: int | None = None,
+    avoid_draw: bool = True,
 ) -> dict:
     """运行多场对战
+
+    Args:
+        ai_red: 红方 AI 名称
+        ai_black: 黑方 AI 名称
+        num_games: 对战场数
+        max_moves: 每场最大步数
+        seed: 随机种子
+        avoid_draw: 是否启用和棋规避
 
     Returns:
         统计结果
@@ -149,7 +188,7 @@ def run_battle(
 
         for i in range(num_games):
             game_seed = seed + i * 2 if seed else None
-            result, moves = run_single_game(ai_red, ai_black, max_moves, game_seed)
+            result, moves = run_single_game(ai_red, ai_black, max_moves, game_seed, avoid_draw)
 
             stats["total_moves"] += moves
             stats["games"].append({"result": result, "moves": moves})
@@ -172,8 +211,13 @@ def battle(
     ai_red: str = typer.Option("random", "--red", "-r", help="Red AI strategy"),
     ai_black: str = typer.Option("random", "--black", "-b", help="Black AI strategy"),
     num_games: int = typer.Option(100, "--games", "-n", help="Number of games"),
-    max_moves: int = typer.Option(1000, "--max-moves", "-m", help="Max moves per game (draw if exceeded)"),
+    max_moves: int = typer.Option(
+        1000, "--max-moves", "-m", help="Max moves per game (draw if exceeded)"
+    ),
     seed: int | None = typer.Option(None, "--seed", "-s", help="Random seed for reproducibility"),
+    avoid_draw: bool = typer.Option(
+        True, "--avoid-draw/--no-avoid-draw", help="Avoid draw by choosing alternative moves"
+    ),
 ):
     """Run AI vs AI battle"""
 
@@ -188,18 +232,23 @@ def battle(
 
     console.print(f"\n[bold]Jieqi AI Battle[/bold]")
     console.print(f"Red: [red]{ai_red}[/red] vs Black: [blue]{ai_black}[/blue]")
-    console.print(f"Games: {num_games}, Max moves: {max_moves}\n")
+    console.print(f"Games: {num_games}, Max moves: {max_moves}, Avoid draw: {avoid_draw}\n")
 
-    stats = run_battle(ai_red, ai_black, num_games, max_moves, seed)
+    stats = run_battle(ai_red, ai_black, num_games, max_moves, seed, avoid_draw)
 
     # 显示结果
     table = Table(title="Battle Results")
     table.add_column("Metric", style="cyan")
     table.add_column("Value", justify="right")
 
-    table.add_row("Red Wins", f"[red]{stats['red_wins']}[/red] ({stats['red_wins']/num_games*100:.1f}%)")
-    table.add_row("Black Wins", f"[blue]{stats['black_wins']}[/blue] ({stats['black_wins']/num_games*100:.1f}%)")
-    table.add_row("Draws", f"{stats['draws']} ({stats['draws']/num_games*100:.1f}%)")
+    table.add_row(
+        "Red Wins", f"[red]{stats['red_wins']}[/red] ({stats['red_wins'] / num_games * 100:.1f}%)"
+    )
+    table.add_row(
+        "Black Wins",
+        f"[blue]{stats['black_wins']}[/blue] ({stats['black_wins'] / num_games * 100:.1f}%)",
+    )
+    table.add_row("Draws", f"{stats['draws']} ({stats['draws'] / num_games * 100:.1f}%)")
     table.add_row("Avg Moves", f"{stats['avg_moves']:.1f}")
 
     console.print(table)
@@ -246,7 +295,9 @@ def compare(
     max_moves: int = typer.Option(500, "--max-moves", "-m", help="Max moves per game"),
     seed: int | None = typer.Option(42, "--seed", "-s", help="Random seed"),
     output: str | None = typer.Option(None, "--output", "-o", help="Output JSON file"),
-    strategies_filter: str | None = typer.Option(None, "--filter", "-f", help="Comma-separated list of strategies to include"),
+    strategies_filter: str | None = typer.Option(
+        None, "--filter", "-f", help="Comma-separated list of strategies to include"
+    ),
 ):
     """Run round-robin comparison between all AI strategies"""
     import json
@@ -341,7 +392,9 @@ def compare(
                 row.append("-")
             else:
                 wins = results[s1][s2]["wins"]
-                total = results[s1][s2]["wins"] + results[s1][s2]["losses"] + results[s1][s2]["draws"]
+                total = (
+                    results[s1][s2]["wins"] + results[s1][s2]["losses"] + results[s1][s2]["draws"]
+                )
                 rate = wins / total * 100 if total > 0 else 0
                 # 颜色编码
                 if rate >= 70:
@@ -351,7 +404,7 @@ def compare(
                 else:
                     cell = f"[red]{rate:.0f}%[/red]"
                 row.append(cell)
-        row.append(f"{scores[s1]*100:.1f}%")
+        row.append(f"{scores[s1] * 100:.1f}%")
         table.add_row(*row)
 
     console.print(table)
@@ -360,7 +413,7 @@ def compare(
     console.print("\n[bold]Final Rankings (Win Rate | Elo):[/bold]")
     elo_sorted = sorted(strategies_list, key=lambda s: elo[s], reverse=True)
     for i, s in enumerate(sorted_strategies, 1):
-        console.print(f"  {i:2}. {s:15} - {scores[s]*100:.1f}% | Elo: {elo[s]:.0f}")
+        console.print(f"  {i:2}. {s:15} - {scores[s] * 100:.1f}% | Elo: {elo[s]:.0f}")
 
     # 保存 JSON
     output_data = {

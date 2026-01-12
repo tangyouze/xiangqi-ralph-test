@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minimax AI 迭代报告</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; }
+        h2 { color: #666; border-bottom: 2px solid #9b59b6; padding-bottom: 10px; }
+        .neutral { color: #f39c12; }
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .metric-label { color: #666; }
+        .metric-value { font-weight: bold; }
+        .version-history {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 4px;
+        }
+        .version-history li { margin: 8px 0; }
+    </style>
+</head>
+<body>
+    <h1>Minimax AI 迭代报告</h1>
+
+    <div class="card">
+        <h2>策略概述</h2>
+        <p><strong>策略名称：</strong> Minimax AI (v011)</p>
+        <p><strong>策略ID：</strong> v011</p>
+        <p><strong>核心特点：</strong> Minimax 搜索 + Alpha-Beta 剪枝</p>
+    </div>
+
+    <div class="card">
+        <h2>迭代结果</h2>
+        <div class="metric">
+            <span class="metric-label">快速测试胜率</span>
+            <span class="metric-value">66.7%</span>
+        </div>
+        <div class="metric">
+            <span class="metric-label">搜索深度</span>
+            <span class="metric-value">2</span>
+        </div>
+        <div class="metric">
+            <span class="metric-label">迭代状态</span>
+            <span class="metric-value neutral">保持原有配置</span>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>尝试的优化方向</h2>
+        <ul>
+            <li><strong>增加评估复杂度：</strong> 添加机动性和安全性评估 - 效果不佳，性能下降</li>
+            <li><strong>增加搜索深度到3：</strong> 太慢，每局需要数分钟</li>
+            <li><strong>最终决定：</strong> 保持深度2和简单评估，平衡速度和质量</li>
+        </ul>
+    </div>
+
+    <div class="card">
+        <h2>经验教训</h2>
+        <ul>
+            <li>对于搜索类策略，评估函数的复杂度需要与搜索深度平衡</li>
+            <li>复杂评估 + 深搜索 = 极慢</li>
+            <li>简单评估 + 适中深度 = 更好的实际表现</li>
+        </ul>
+    </div>
+
+    <footer style="text-align:center; color:#999; margin-top:40px;">
+        <p>生成时间: 2026-01-12 | 揭棋 AI 迭代系统</p>
+    </footer>
+</body>
+</html>

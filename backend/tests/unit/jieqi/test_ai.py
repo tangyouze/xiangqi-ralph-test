@@ -3,7 +3,8 @@
 """
 
 import pytest
-from jieqi.ai import AIConfig, AIEngine, RandomAI
+from jieqi.ai import AIConfig, AIEngine
+from jieqi.ai.strategies.v001_random.strategy import RandomAI
 from jieqi.game import GameConfig, JieqiGame
 from jieqi.types import ActionType, Color, GameResult
 
@@ -148,3 +149,58 @@ class TestAIVsAI:
         assert total == 5
 
         print(f"AI vs AI results: {results}")
+
+
+class TestSelectMoves:
+    """测试 select_moves() 接口"""
+
+    def test_select_moves_returns_candidates(self):
+        """测试 select_moves 返回多个候选"""
+        config = GameConfig(seed=42)
+        game = JieqiGame(config=config)
+        view = game.get_view(game.current_turn)
+
+        # 使用实现了 select_moves 的 advanced AI
+        ai = AIEngine.create("advanced")
+        candidates = ai.select_moves(view, n=5)
+
+        assert len(candidates) > 0
+        assert len(candidates) <= 5
+
+        # 检查返回格式：[(move, score), ...]
+        for move, score in candidates:
+            assert move is not None
+            assert isinstance(score, (int, float))
+
+        # 检查分数降序排列
+        scores = [s for _, s in candidates]
+        assert scores == sorted(scores, reverse=True)
+
+    def test_select_moves_default_returns_one(self):
+        """测试未实现 select_moves 的 AI 返回单个候选"""
+        config = GameConfig(seed=42)
+        game = JieqiGame(config=config)
+        view = game.get_view(game.current_turn)
+
+        # random AI 使用默认实现
+        ai = AIEngine.create("random")
+        candidates = ai.select_moves(view, n=10)
+
+        # 默认实现只返回 1 个候选
+        assert len(candidates) == 1
+        move, score = candidates[0]
+        assert move is not None
+        assert score == 0.0  # 默认分数
+
+    def test_select_moves_scores_consistent_with_order(self):
+        """测试 select_moves 的分数与走法排序一致"""
+        config = GameConfig(seed=42)
+        game = JieqiGame(config=config)
+        view = game.get_view(game.current_turn)
+
+        ai = AIEngine.create("minimax")
+        candidates = ai.select_moves(view, n=10)
+
+        if len(candidates) > 1:
+            # 第一个候选的分数应该 >= 第二个
+            assert candidates[0][1] >= candidates[1][1]

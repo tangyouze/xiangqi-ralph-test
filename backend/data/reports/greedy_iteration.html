@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Greedy AI 迭代报告</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; }
+        h2 { color: #666; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+        .success { color: #27ae60; }
+        .failure { color: #e74c3c; }
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .metric-label { color: #666; }
+        .metric-value { font-weight: bold; }
+        .improvement { color: #27ae60; font-size: 1.2em; }
+        .version-history {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 4px;
+        }
+        .version-history li { margin: 8px 0; }
+    </style>
+</head>
+<body>
+    <h1>Greedy AI 迭代报告</h1>
+
+    <div class="card">
+        <h2>策略概述</h2>
+        <p><strong>策略名称：</strong> Greedy AI (v002)</p>
+        <p><strong>策略ID：</strong> v002</p>
+        <p><strong>核心特点：</strong> 贪心策略，优先吃子，增强安全检查</p>
+    </div>
+
+    <div class="card">
+        <h2>迭代结果</h2>
+        <div class="metric">
+            <span class="metric-label">迭代前胜率</span>
+            <span class="metric-value">38.1%</span>
+        </div>
+        <div class="metric">
+            <span class="metric-label">迭代后胜率</span>
+            <span class="metric-value success">44.4%</span>
+        </div>
+        <div class="metric">
+            <span class="metric-label">胜率提升</span>
+            <span class="metric-value improvement">+6.3%</span>
+        </div>
+        <div class="metric">
+            <span class="metric-label">迭代前 Elo</span>
+            <span class="metric-value">1395</span>
+        </div>
+        <div class="metric">
+            <span class="metric-label">迭代后 Elo</span>
+            <span class="metric-value success">1468</span>
+        </div>
+        <div class="metric">
+            <span class="metric-label">Elo 提升</span>
+            <span class="metric-value improvement">+73</span>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>优化方向</h2>
+        <p><strong>主要改进：</strong> 增强安全检查和位置评估</p>
+
+        <h3>技术细节</h3>
+        <ul>
+            <li>增强吃子奖励（1.5倍权重）</li>
+            <li>添加攻击者/防御者计数，更准确评估安全性</li>
+            <li>逃离威胁加分</li>
+            <li>位置控制：过河加分、中心控制加分</li>
+            <li>更谨慎的揭子策略</li>
+        </ul>
+    </div>
+
+    <div class="card">
+        <h2>版本历史</h2>
+        <div class="version-history">
+            <ul>
+                <li><strong>v1:</strong> 初始版本，简单贪心</li>
+                <li class="failure"><strong>v2:</strong> 尝试1层搜索，效果反而下降（29.4%）</li>
+                <li class="success"><strong>v3 (当前):</strong> 回归简单策略，增强安全检查和位置评估</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>经验教训</h2>
+        <ul>
+            <li>对于简单策略，盲目增加搜索深度不一定有效</li>
+            <li>评估函数的质量比搜索深度更重要</li>
+            <li>安全性检查（攻击者/防御者）是关键改进点</li>
+        </ul>
+    </div>
+
+    <footer style="text-align:center; color:#999; margin-top:40px;">
+        <p>生成时间: 2026-01-12 | 揭棋 AI 迭代系统</p>
+    </footer>
+</body>
+</html>

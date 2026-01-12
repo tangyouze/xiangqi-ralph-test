@@ -136,11 +136,21 @@ class AlphaBetaAI(AIStrategy):
 
     def select_move(self, view: PlayerView) -> JieqiMove | None:
         """选择最佳走法"""
-        if not view.legal_moves:
+        candidates = self.select_moves(view, n=1)
+        if not candidates:
             return None
+        # 如果有多个同分的，随机选择
+        best_score = candidates[0][1]
+        best_moves = [m for m, s in candidates if s == best_score]
+        return self._rng.choice(best_moves)
+
+    def select_moves(self, view: PlayerView, n: int = 10) -> list[tuple[JieqiMove, float]]:
+        """返回 Top-N 候选着法及其评分"""
+        if not view.legal_moves:
+            return []
 
         if len(view.legal_moves) == 1:
-            return view.legal_moves[0]
+            return [(view.legal_moves[0], 0.0)]
 
         my_color = view.viewer
         depth = self.config.depth
@@ -149,15 +159,10 @@ class AlphaBetaAI(AIStrategy):
         sim_board = SimulationBoard(view)
         self._nodes_evaluated = 0
 
-        # 获取局面哈希
-        position_hash = sim_board.get_position_hash()
-
         # 对走法排序
         sorted_moves = self._order_moves(sim_board, view.legal_moves, my_color, 0)
 
-        best_score = float("-inf")
-        best_moves: list[JieqiMove] = []
-
+        scores: dict[JieqiMove, float] = {}
         alpha = float("-inf")
         beta = float("inf")
 
@@ -168,23 +173,21 @@ class AlphaBetaAI(AIStrategy):
             was_hidden = piece.is_hidden
             captured = sim_board.make_move(move)
 
-            # 吃将直接返回
+            # 吃将直接高分
             if captured and captured.actual_type == PieceType.KING:
                 sim_board.undo_move(move, captured, was_hidden)
-                return move
+                scores[move] = 50000
+                continue
 
             score = -self._alpha_beta(sim_board, depth - 1, -beta, -alpha, my_color.opposite, 1)
-
             sim_board.undo_move(move, captured, was_hidden)
 
-            if score > best_score:
-                best_score = score
-                best_moves = [move]
-                alpha = max(alpha, score)
-            elif score == best_score:
-                best_moves.append(move)
+            scores[move] = score
+            alpha = max(alpha, score)
 
-        return self._rng.choice(best_moves)
+        # 按分数降序排列，取前 N 个
+        sorted_results = sorted(scores.items(), key=lambda x: -x[1])
+        return sorted_results[:n]
 
     def _alpha_beta(
         self,
@@ -358,19 +361,58 @@ class AlphaBetaAI(AIStrategy):
         """评估当前局面"""
         score = 0.0
 
-        # 子力价值
-        for piece in board.get_all_pieces():
+        my_pieces = board.get_all_pieces(color)
+        enemy_pieces = board.get_all_pieces(color.opposite)
+
+        # 预计算敌方攻击范围
+        enemy_attacks: set[Position] = set()
+        for enemy in enemy_pieces:
+            for pos in board.get_potential_moves(enemy):
+                enemy_attacks.add(pos)
+
+        # 预计算己方防守范围
+        my_defense: set[Position] = set()
+        for ally in my_pieces:
+            for pos in board.get_potential_moves(ally):
+                my_defense.add(pos)
+
+        # 1. 子力价值 + 安全性评估
+        for piece in my_pieces:
             value = get_piece_value(piece)
+            score += value
+            # 被攻击但未被保护的棋子扣分
+            if piece.position in enemy_attacks:
+                if piece.position not in my_defense:
+                    score -= value * 0.3
 
-            if piece.color == color:
-                score += value
-            else:
-                score -= value
+        for piece in enemy_pieces:
+            value = get_piece_value(piece)
+            score -= value
+            # 对方被攻击但未被保护的棋子加分
+            if piece.position in my_defense:
+                # 检查对方是否有保护
+                enemy_defense: set[Position] = set()
+                for ally in enemy_pieces:
+                    if ally.position != piece.position:
+                        for pos in board.get_potential_moves(ally):
+                            enemy_defense.add(pos)
+                if piece.position not in enemy_defense:
+                    score += value * 0.2
 
-        # 将军
+        # 2. 将军
         if board.is_in_check(color.opposite):
-            score += 50
+            score += 80
         if board.is_in_check(color):
-            score -= 50
+            score -= 80
+
+        # 3. 位置评估（过河、中心控制）
+        for piece in my_pieces:
+            if not piece.is_hidden:
+                # 过河加分
+                if not piece.position.is_on_own_side(color):
+                    score += 15
+                # 中心控制
+                if 3 <= piece.position.col <= 5:
+                    score += 8
 
         return score

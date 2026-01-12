@@ -78,6 +78,21 @@ def has_defender(board: SimulationBoard, pos: Position, defender_color: Color) -
     return False
 
 
+def find_max_threat(board: SimulationBoard, enemy_color: Color) -> float:
+    """快速找出对手最大威胁（简化版）"""
+    max_threat = 0.0
+
+    for enemy in board.get_all_pieces(enemy_color):
+        for target_pos in board.get_potential_moves(enemy):
+            target = board.get_piece(target_pos)
+            if target and target.color != enemy_color:
+                value = get_piece_value(target)
+                if value > max_threat:
+                    max_threat = value
+
+    return max_threat
+
+
 @AIEngine.register(AI_NAME)
 class FastAI(AIStrategy):
     """快速评估 AI
@@ -138,6 +153,12 @@ class FastAI(AIStrategy):
         piece = board.get_piece(move.from_pos)
         if piece is None:
             return score
+
+        # 逃离危险加分（快速版本）
+        if is_attacked_by(board, move.from_pos, my_color.opposite):
+            if not has_defender(board, move.from_pos, my_color):
+                my_piece_value = get_piece_value(piece)
+                score += my_piece_value * 0.35
 
         was_hidden = piece.is_hidden
         captured = board.make_move(move)
@@ -205,6 +226,23 @@ class FastAI(AIStrategy):
             if is_attacked_by(board, ally.position, my_color.opposite):
                 if not has_defender(board, ally.position, my_color):
                     score -= ally_value * 0.1
+
+        # 7. 简单前瞻：考虑对手最大威胁
+        max_threat = find_max_threat(board, my_color.opposite)
+        score -= max_threat * 0.5
+
+        # 8. 吃子额外加成
+        if captured:
+            score += get_piece_value(captured) * 0.2
+
+        # 9. 位置评估：过河和中心控制
+        if moved_piece and not moved_piece.is_hidden:
+            if not move.to_pos.is_on_own_side(my_color):
+                score += 12  # 过河加分
+            if 3 <= move.to_pos.col <= 5:
+                score += 6  # 中心控制
+            elif 2 <= move.to_pos.col <= 6:
+                score += 3  # 次中心
 
         board.undo_move(move, captured, was_hidden)
 

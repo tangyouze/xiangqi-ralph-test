@@ -110,6 +110,22 @@ def get_game_phase(board: SimulationBoard, my_color: Color) -> str:
         return "late"
 
 
+def find_best_enemy_capture(board: SimulationBoard, enemy_color: Color) -> float:
+    """找出对手能吃掉的最高价值棋子"""
+    best_capture = 0.0
+
+    for enemy in board.get_all_pieces(enemy_color):
+        potential_moves = board.get_potential_moves(enemy)
+        for target_pos in potential_moves:
+            target = board.get_piece(target_pos)
+            if target and target.color != enemy_color:
+                value = get_piece_value(target)
+                if value > best_capture:
+                    best_capture = value
+
+    return best_capture
+
+
 @AIEngine.register(AI_NAME)
 class RevealAI(AIStrategy):
     """揭子策略优化 AI
@@ -165,6 +181,14 @@ class RevealAI(AIStrategy):
         piece = board.get_piece(move.from_pos)
         if piece is None:
             return score
+
+        # 逃离危险加分：如果原位置被攻击，移动获得奖励
+        old_attackers = count_attackers(board, move.from_pos, my_color)
+        if old_attackers > 0:
+            old_defenders = count_defenders(board, move.from_pos, my_color)
+            if old_defenders < old_attackers:
+                my_piece_value = get_piece_value(piece)
+                score += my_piece_value * 0.35  # 逃跑奖励
 
         was_hidden = piece.is_hidden
         captured = board.make_move(move)
@@ -260,6 +284,26 @@ class RevealAI(AIStrategy):
                 ally_defenders = count_defenders(board, ally.position, my_color)
                 if ally_defenders < ally_attackers:
                     score -= ally_value * 0.1
+
+        # 7. 1层前瞻：考虑对手的最佳吃子
+        enemy_threat = find_best_enemy_capture(board, my_color.opposite)
+        score -= enemy_threat * 0.5
+
+        # 8. 吃子额外加成
+        if captured:
+            score += get_piece_value(captured) * 0.25
+
+        # 9. 机动性评估
+        my_mobility = len(board.get_legal_moves(my_color))
+        enemy_mobility = len(board.get_legal_moves(my_color.opposite))
+        score += (my_mobility - enemy_mobility) * 0.4
+
+        # 10. 位置评估：过河和中心控制
+        if moved_piece and not moved_piece.is_hidden:
+            if not move.to_pos.is_on_own_side(my_color):
+                score += 12
+            if 3 <= move.to_pos.col <= 5:
+                score += 6
 
         board.undo_move(move, captured, was_hidden)
 
