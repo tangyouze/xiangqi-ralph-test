@@ -14,6 +14,50 @@
   display: flex;
   justify-content: center;
   align-items: center;
+  position: relative;
+}
+
+/* AI 思考中遮罩 */
+.ai-thinking-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.3);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 5px;
+  z-index: 100;
+}
+
+.ai-thinking-indicator {
+  background: rgba(255, 255, 255, 0.95);
+  padding: 16px 24px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 16px;
+  font-weight: 500;
+  color: #333;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.thinking-spinner {
+  width: 20px;
+  height: 20px;
+  border: 3px solid #ddd;
+  border-top-color: #4a90d9;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .controls-area {
@@ -21,7 +65,7 @@
   margin-left: 20px;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto auto 1fr;
   gap: 15px;
   min-width: 500px;
   max-height: calc(100vh - 40px);
@@ -38,9 +82,14 @@
   grid-row: 1;
 }
 
-.controls-area > .jieqi-history {
+.controls-area > .jieqi-captured {
   grid-column: 1 / -1;
   grid-row: 2;
+}
+
+.controls-area > .jieqi-history {
+  grid-column: 1 / -1;
+  grid-row: 3;
   overflow: hidden;
 }
 

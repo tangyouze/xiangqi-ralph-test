@@ -5,6 +5,7 @@ import { JieqiBoard } from './JieqiBoard';
 import { JieqiGameControls } from './JieqiGameControls';
 import { JieqiEvaluation } from './JieqiEvaluation';
 import { JieqiHistory } from './JieqiHistory';
+import { JieqiCaptured } from './JieqiCaptured';
 import { createJieqiGame, makeJieqiMove, requestJieqiAIMove, getAvailableTypes, executeAIMove } from './api';
 import type { CreateJieqiGameOptions, JieqiGameState, JieqiMove, JieqiMoveRequest, PieceType, Position } from './types';
 import { PIECE_NAMES } from './types';
@@ -25,6 +26,7 @@ export function JieqiApp() {
   const [selectedPosition, setSelectedPosition] = useState<Position | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isAIThinking, setIsAIThinking] = useState(false);  // AI 思考状态
 
   // 揭棋类型选择模态框
   const [revealModal, setRevealModal] = useState<RevealModalState>({
@@ -49,6 +51,29 @@ export function JieqiApp() {
       console.error(err);
     } finally {
       setIsLoading(false);
+    }
+  }, []);
+
+  // 触发 AI 走棋（人机模式下，人走完后自动触发）
+  const triggerAIMove = useCallback(async (currentGameState: JieqiGameState) => {
+    if (!currentGameState || currentGameState.result !== 'ongoing') return;
+    if (currentGameState.mode !== 'human_vs_ai') return;
+
+    setIsAIThinking(true);
+    setError(null);
+
+    try {
+      const response = await requestJieqiAIMove(currentGameState.game_id);
+      if (response.success && response.game_state) {
+        setGameState(response.game_state);
+      } else if (response.error) {
+        setError(response.error);
+      }
+    } catch (err) {
+      setError('Failed to get AI move');
+      console.error(err);
+    } finally {
+      setIsAIThinking(false);
     }
   }, []);
 
@@ -78,6 +103,12 @@ export function JieqiApp() {
             pieceColor: aiPiece?.color || null,
             isAIMove: true,
           });
+        } else if (response.game_state.mode === 'human_vs_ai' && response.game_state.result === 'ongoing') {
+          // 人机模式：人走完后，短暂延迟后让 AI 走
+          // 延迟让用户看到自己的走法
+          setTimeout(() => {
+            triggerAIMove(response.game_state!);
+          }, 300);
         }
       } else if (response.error) {
         setError(response.error);
@@ -88,7 +119,7 @@ export function JieqiApp() {
     } finally {
       setIsLoading(false);
     }
-  }, [gameState]);
+  }, [gameState, triggerAIMove]);
 
   const handleMove = useCallback(async (move: JieqiMove) => {
     if (!gameState) return;
@@ -248,12 +279,23 @@ export function JieqiApp() {
     <div className="jieqi-app">
       <div className="game-area">
         {gameState ? (
-          <JieqiBoard
-            gameState={gameState}
-            selectedPosition={selectedPosition}
-            onSelectPosition={setSelectedPosition}
-            onMove={handleMove}
-          />
+          <>
+            <JieqiBoard
+              gameState={gameState}
+              selectedPosition={selectedPosition}
+              onSelectPosition={setSelectedPosition}
+              onMove={handleMove}
+            />
+            {/* AI 思考中提示 */}
+            {isAIThinking && (
+              <div className="ai-thinking-overlay">
+                <div className="ai-thinking-indicator">
+                  <span className="thinking-spinner"></span>
+                  <span>AI Thinking...</span>
+                </div>
+              </div>
+            )}
+          </>
         ) : (
           <div className="no-game">
             <p>Start a new Jieqi game to begin playing</p>
@@ -266,8 +308,11 @@ export function JieqiApp() {
           gameState={gameState}
           onNewGame={handleNewGame}
           onRequestAIMove={handleRequestAIMove}
-          isLoading={isLoading}
+          isLoading={isLoading || isAIThinking}
         />
+
+        {/* 吃掉的棋子展示 */}
+        <JieqiCaptured capturedPieces={gameState?.captured_pieces} />
 
         <JieqiEvaluation
           gameState={gameState}

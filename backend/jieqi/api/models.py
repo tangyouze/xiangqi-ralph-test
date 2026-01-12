@@ -49,6 +49,21 @@ class PieceModel(BaseModel):
     type: str | None = None  # 只有明子才有
 
 
+class CapturedPieceModel(BaseModel):
+    """被吃棋子模型"""
+
+    color: str
+    type: str | None = None  # 明子有类型，暗子没有
+    was_hidden: bool = False  # 被吃时是否是暗子
+
+
+class CapturedPiecesModel(BaseModel):
+    """被吃棋子列表"""
+
+    red: list[CapturedPieceModel] = []  # 红方吃掉的棋子（黑方的棋子）
+    black: list[CapturedPieceModel] = []  # 黑方吃掉的棋子（红方的棋子）
+
+
 class CreateGameRequest(BaseModel):
     """创建游戏请求"""
 
@@ -105,6 +120,7 @@ class GameStateResponse(BaseModel):
     hidden_count: dict[str, int]
     mode: str
     delay_reveal: bool = False  # 是否为延迟分配模式
+    captured_pieces: CapturedPiecesModel | None = None  # 被吃的棋子
 
 
 class AIInfoResponse(BaseModel):
