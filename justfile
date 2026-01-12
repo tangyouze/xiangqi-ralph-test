@@ -1,5 +1,9 @@
 # Xiangqi project commands
 
+# List all available commands (default)
+default:
+    @just --list
+
 # Start both frontend and backend with overmind
 overmind-start:
     overmind start

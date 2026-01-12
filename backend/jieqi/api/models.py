@@ -62,6 +62,10 @@ class CreateGameRequest(BaseModel):
     black_ai_strategy: str | None = None
     # 延迟分配模式：翻棋时决定身份
     delay_reveal: bool = False
+    # AI 思考时间限制（秒）
+    ai_time_limit: int | None = None  # Human vs AI 模式
+    red_ai_time_limit: int | None = None  # AI vs AI 模式
+    black_ai_time_limit: int | None = None  # AI vs AI 模式
 
 
 class MoveRequest(BaseModel):
