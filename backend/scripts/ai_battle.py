@@ -73,11 +73,18 @@ def calculate_elo(
 
 
 def would_cause_draw(game: JieqiGame, move) -> bool:
-    """预判走这步是否会导致和棋"""
+    """预判走这步是否会导致和棋或增加重复局面
+
+    检测：
+    1. 走完后是否立即和棋（重复3次）
+    2. 走完后的局面是否已经出现过（避免走入重复）
+    """
     game.make_move(move)
     is_draw = game.result == GameResult.DRAW
+    # 检查当前局面是否已经出现过（出现2次就危险了）
+    is_repeated = game.get_position_count() >= 2
     game.undo_move()
-    return is_draw
+    return is_draw or is_repeated
 
 
 def run_single_game(
