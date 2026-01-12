@@ -17,6 +17,7 @@
 - v013_iterative: 迭代加深搜索 AI
 - v014_advanced: 高级搜索 AI
 - v016_muses: Muses 风格 AI（参考揭棋 AI 大师思路）
+- v017_muses2: 深度优化揭棋 AI
 """
 
 # 导入所有策略以触发注册
@@ -35,3 +36,4 @@ from jieqi.ai.strategies.v012_alphabeta import strategy as v012  # noqa: F401
 from jieqi.ai.strategies.v013_iterative import strategy as v013  # noqa: F401
 from jieqi.ai.strategies.v014_advanced import strategy as v014  # noqa: F401
 from jieqi.ai.strategies.v016_muses import strategy as v016  # noqa: F401
+from jieqi.ai.strategies.v017_muses2 import strategy as v017  # noqa: F401
