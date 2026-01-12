@@ -42,6 +42,18 @@ PIECE_BASE_VALUES = {
 # 兵过河后价值提升
 PAWN_CROSSED_RIVER_BONUS = 30
 
+# 暗子折扣因子 (参考 miaosisrai: discount_factor = 1.6)
+# 暗子期望价值 = 加权平均价值 / HIDDEN_DISCOUNT_FACTOR
+HIDDEN_DISCOUNT_FACTOR = 1.6
+
+# 特殊位置加分 (参考 miaosisrai 的 Key "0" 表)
+# 底线 A/I 列 (1路、9路) 威胁对方暗子
+BOTTOM_THREAT_BONUS = 100
+# 翻动暗兵加分
+REVEAL_PAWN_BONUS = 30
+# 本方底线 A/I 列防守压力
+BOTTOM_DEFENSE_PENALTY = -80
+
 
 # ============================================================================
 # 位置价值表 (PST - Position Score Tables)
@@ -191,7 +203,8 @@ class HiddenPieceDistribution:
     def get_expected_value(self, position: Position, color: Color) -> float:
         """计算某位置暗子的期望价值
 
-        基于剩余可能棋子的加权平均值
+        基于剩余可能棋子的加权平均值，并应用折扣因子
+        参考 miaosisrai: 使用 discount_factor = 1.6 降低暗子估值的确定性
         """
         total = self.total_remaining()
         if total == 0:
@@ -201,8 +214,6 @@ class HiddenPieceDistribution:
         for piece_type, count in self.remaining.items():
             if count > 0:
                 prob = count / total
-                # 基础价值
-                value = PIECE_BASE_VALUES.get(piece_type, 0)
                 # 位置价值
                 pst = PST_TABLES.get(piece_type)
                 if pst:
@@ -212,10 +223,15 @@ class HiddenPieceDistribution:
                         row = 9 - row
                     if 0 <= row < 10 and 0 <= col < 9:
                         value = pst[row][col]
+                    else:
+                        value = PIECE_BASE_VALUES.get(piece_type, 0)
+                else:
+                    value = PIECE_BASE_VALUES.get(piece_type, 0)
 
                 expected += prob * value
 
-        return expected
+        # 应用折扣因子：暗子的不确定性降低其估值可信度
+        return expected / HIDDEN_DISCOUNT_FACTOR
 
     def get_average_value(self) -> float:
         """获取暗子的平均价值（不考虑位置）"""
@@ -325,7 +341,15 @@ class JieqiEvaluator:
         return score
 
     def _evaluate_jieqi_tactics(self, board: SimulationBoard, color: Color) -> float:
-        """评估揭棋特有战术"""
+        """评估揭棋特有战术
+
+        参考 miaosisrai 的战术评估:
+        1. 暗子数量与神秘感
+        2. 空头炮
+        3. 沉底炮
+        4. 肋道车争夺
+        5. 底线威胁
+        """
         score = 0.0
 
         my_pieces = board.get_all_pieces(color)
@@ -343,15 +367,107 @@ class JieqiEvaluator:
         # 检查空头炮（炮瞄准对方将/帅，中间没有棋子）
         score += self._evaluate_kongtoupao(board, color)
 
-        # 车的活跃度
+        # 评估车的位置和活跃度
+        score += self._evaluate_rook_position(board, color)
+
+        # 评估沉底炮（炮进入对方底线）
+        score += self._evaluate_sinking_cannon(board, color)
+
+        # 评估底线威胁（占据对方底线 A/I 列）
+        score += self._evaluate_bottom_threat(board, color)
+
+        return score
+
+    def _evaluate_rook_position(self, board: SimulationBoard, color: Color) -> float:
+        """评估车的位置
+
+        参考 miaosisrai: 车占据中路和肋道的价值
+        """
+        score = 0.0
+        my_pieces = board.get_all_pieces(color)
+
         for piece in my_pieces:
             if not piece.is_hidden and piece.actual_type == PieceType.ROOK:
-                # 车占据中路
-                if piece.position.col == 4:
+                col = piece.position.col
+                row = piece.position.row
+
+                # 车占据中路 (第5列，col=4)
+                if col == 4:
                     score += 30
-                # 车占据肋道（第4列或第6列）
-                if piece.position.col in [3, 5]:
+
+                # 车占据肋道（第4列或第6列，col=3 或 col=5）
+                if col in [3, 5]:
                     score += 20
+
+                # 底线车威胁：红方车在 row>=7，黑方车在 row<=2
+                enemy_bottom_row = 9 if color == Color.RED else 0
+                if row == enemy_bottom_row:
+                    # 底线车可以横扫对方暗子
+                    enemy_hidden = sum(
+                        1
+                        for p in board.get_all_pieces(color.opposite)
+                        if p.is_hidden and p.position.row == enemy_bottom_row
+                    )
+                    score += 40 + enemy_hidden * 15
+
+        return score
+
+    def _evaluate_sinking_cannon(self, board: SimulationBoard, color: Color) -> float:
+        """评估沉底炮
+
+        参考 miaosisrai: 沉底炮（炮进入对方底线）的评估
+        - 如果对方底线没有暗子，沉底炮价值降低
+        - 如果有暗子可以牵制，价值提高
+        """
+        score = 0.0
+        my_pieces = board.get_all_pieces(color)
+        enemy_pieces = board.get_all_pieces(color.opposite)
+
+        enemy_bottom_row = 9 if color == Color.RED else 0
+
+        # 统计对方底线暗子
+        enemy_bottom_hidden = sum(
+            1 for p in enemy_pieces if p.is_hidden and p.position.row == enemy_bottom_row
+        )
+
+        for piece in my_pieces:
+            if not piece.is_hidden and piece.actual_type == PieceType.CANNON:
+                if piece.position.row == enemy_bottom_row:
+                    # 沉底炮
+                    if enemy_bottom_hidden > 0:
+                        # 有暗子可牵制，价值提高
+                        score += 25 + enemy_bottom_hidden * 10
+                    else:
+                        # 无暗子，价值降低（可能陷入被动）
+                        score -= 30
+
+        return score
+
+    def _evaluate_bottom_threat(self, board: SimulationBoard, color: Color) -> float:
+        """评估底线威胁
+
+        参考 miaosisrai Key "0" 表:
+        - 占据对方底线 A/I 列（1路、9路）威胁暗子: +100
+        - 本方底线 A/I 列被占据有防守压力: -80
+        """
+        score = 0.0
+        my_pieces = board.get_all_pieces(color)
+        enemy_pieces = board.get_all_pieces(color.opposite)
+
+        enemy_bottom_row = 9 if color == Color.RED else 0
+        my_bottom_row = 0 if color == Color.RED else 9
+
+        # 我方棋子占据对方底线 A/I 列
+        for piece in my_pieces:
+            if not piece.is_hidden:
+                if piece.position.row == enemy_bottom_row and piece.position.col in [0, 8]:
+                    score += 50  # 对方底线边路威胁
+
+        # 对方棋子占据我方底线 A/I 列
+        for piece in enemy_pieces:
+            if not piece.is_hidden:
+                if piece.position.row == my_bottom_row and piece.position.col in [0, 8]:
+                    score -= 40  # 本方底线边路受威胁
 
         return score
 
