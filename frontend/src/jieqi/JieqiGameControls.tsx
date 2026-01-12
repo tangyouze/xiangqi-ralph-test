@@ -19,17 +19,17 @@ export function JieqiGameControls({
   onRequestAIMove,
   isLoading,
 }: JieqiGameControlsProps) {
-  const [mode, setMode] = useState<GameMode>('ai_vs_ai');
+  const [mode, setMode] = useState<GameMode>('human_vs_ai');  // 默认人机对战
   const [aiColor, setAIColor] = useState<string>('black');
-  const [aiStrategy, setAIStrategy] = useState<string>('greedy');
-  const [redAIStrategy, setRedAIStrategy] = useState<string>('greedy');
-  const [blackAIStrategy, setBlackAIStrategy] = useState<string>('random');
+  const [aiStrategy, setAIStrategy] = useState<string>('muses');  // 默认最强 AI
+  const [redAIStrategy, setRedAIStrategy] = useState<string>('muses');
+  const [blackAIStrategy, setBlackAIStrategy] = useState<string>('muses');
   const [delayReveal, setDelayReveal] = useState<boolean>(true);  // 默认开启延迟分配模式
 
   // AI 思考时间限制
-  const [aiTimeLimit, setAITimeLimit] = useState<AITimeLimit>(5);
-  const [redAITimeLimit, setRedAITimeLimit] = useState<AITimeLimit>(5);
-  const [blackAITimeLimit, setBlackAITimeLimit] = useState<AITimeLimit>(5);
+  const [aiTimeLimit, setAITimeLimit] = useState<AITimeLimit>(15);  // 默认 15 秒
+  const [redAITimeLimit, setRedAITimeLimit] = useState<AITimeLimit>(15);
+  const [blackAITimeLimit, setBlackAITimeLimit] = useState<AITimeLimit>(15);
 
   // AI 策略列表（从后端获取）
   const [aiStrategies, setAiStrategies] = useState<AIStrategyInfo[]>([]);
@@ -39,16 +39,14 @@ export function JieqiGameControls({
     getAIInfo()
       .then(info => {
         setAiStrategies(info.available_strategies);
-        // 设置默认策略
+        // 设置默认策略为最强的 muses，如果不存在则用 advanced
         if (info.available_strategies.length > 0) {
-          const defaultStrategy = info.available_strategies.find(s => s.name === 'greedy')?.name
+          const strongestStrategy = info.available_strategies.find(s => s.name === 'muses')?.name
+            || info.available_strategies.find(s => s.name === 'advanced')?.name
             || info.available_strategies[0].name;
-          setAIStrategy(defaultStrategy);
-          setRedAIStrategy(defaultStrategy);
-          // 黑方用 random 作为默认（用于对比测试）
-          const randomStrategy = info.available_strategies.find(s => s.name === 'random')?.name
-            || info.available_strategies[0].name;
-          setBlackAIStrategy(randomStrategy);
+          setAIStrategy(strongestStrategy);
+          setRedAIStrategy(strongestStrategy);
+          setBlackAIStrategy(strongestStrategy);
         }
       })
       .catch(err => console.error('Failed to load AI strategies:', err));

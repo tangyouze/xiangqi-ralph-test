@@ -13,6 +13,8 @@ from jieqi.api.models import (
     AIInfoResponse,
     AILevel,
     AvailableTypesResponse,
+    CapturedPieceModel,
+    CapturedPiecesModel,
     CreateGameRequest,
     EvaluationResponse,
     ExecuteAIMoveRequest,
@@ -34,7 +36,7 @@ from jieqi.api.models import (
     ReplayResponse,
 )
 from jieqi.evaluator import evaluate_game
-from jieqi.types import ActionType, GameResult, JieqiMove, Position
+from jieqi.types import ActionType, Color, GameResult, JieqiMove, Position
 
 
 # AI 策略描述
@@ -145,41 +147,29 @@ def create_app() -> FastAPI:
         mode = game_manager.get_mode(game_id) or GameMode.HUMAN_VS_HUMAN
         delay_reveal = game_manager.is_delay_reveal(game_id)
 
-        # 如果是人机模式且轮到 AI，自动走棋
-        ai_move_response = None
+        # 人机模式下：不自动执行 AI 走棋，让前端控制（这样用户可以先看到自己的走法）
+        # 只在延迟分配模式下，如果 AI 要翻棋，返回 pending 信息让用户选择类型
         pending_ai_reveal = None
         pending_ai_reveal_types = None
 
-        if mode == GameMode.HUMAN_VS_AI and game.result == GameResult.ONGOING:
+        if mode == GameMode.HUMAN_VS_AI and delay_reveal and game.result == GameResult.ONGOING:
             ai_move = game_manager.get_ai_move(game_id)
-            if ai_move:
-                # 延迟分配模式下，如果 AI 要翻棋，需要用户选择类型
-                if delay_reveal and ai_move.action_type == ActionType.REVEAL_AND_MOVE:
-                    # 获取可选类型
-                    piece = game.board.get_piece(ai_move.from_pos)
-                    if piece:
-                        available = game.board.get_available_types_unique(piece.color)
-                        pending_ai_reveal = MoveModel(
-                            action_type=ai_move.action_type.value,
-                            from_pos=PositionModel(
-                                row=ai_move.from_pos.row, col=ai_move.from_pos.col
-                            ),
-                            to_pos=PositionModel(row=ai_move.to_pos.row, col=ai_move.to_pos.col),
-                        )
-                        pending_ai_reveal_types = [t.value for t in available]
-                else:
-                    # 非翻棋走法，直接执行
-                    game.make_move(ai_move)
-                    ai_move_response = MoveModel(
+            if ai_move and ai_move.action_type == ActionType.REVEAL_AND_MOVE:
+                # 延迟分配模式下，AI 要翻棋，需要用户选择类型
+                piece = game.board.get_piece(ai_move.from_pos)
+                if piece:
+                    available = game.board.get_available_types_unique(piece.color)
+                    pending_ai_reveal = MoveModel(
                         action_type=ai_move.action_type.value,
                         from_pos=PositionModel(row=ai_move.from_pos.row, col=ai_move.from_pos.col),
                         to_pos=PositionModel(row=ai_move.to_pos.row, col=ai_move.to_pos.col),
                     )
+                    pending_ai_reveal_types = [t.value for t in available]
 
         return MoveResponse(
             success=True,
             game_state=_game_to_response(game, mode, delay_reveal),
-            ai_move=ai_move_response,
+            ai_move=None,  # 不再自动返回 AI 走法，让前端调用 /ai-move
             pending_ai_reveal=pending_ai_reveal,
             pending_ai_reveal_types=pending_ai_reveal_types,
         )
@@ -455,6 +445,20 @@ def _game_to_response(game, mode: GameMode, delay_reveal: bool = False) -> GameS
         )
         legal_moves.append(move)
 
+    # 构建被吃棋子列表
+    red_captured: list[CapturedPieceModel] = []  # 红方吃掉的（黑方的棋子）
+    black_captured: list[CapturedPieceModel] = []  # 黑方吃掉的（红方的棋子）
+    for cap in game.captured_pieces:
+        captured_model = CapturedPieceModel(
+            color=cap.color.value,
+            type=cap.actual_type.value if cap.actual_type else None,
+            was_hidden=cap.was_hidden,
+        )
+        if cap.captured_by == Color.RED:
+            red_captured.append(captured_model)
+        else:
+            black_captured.append(captured_model)
+
     return GameStateResponse(
         game_id=game_dict["game_id"],
         pieces=pieces,
@@ -466,6 +470,7 @@ def _game_to_response(game, mode: GameMode, delay_reveal: bool = False) -> GameS
         hidden_count=game_dict["hidden_count"],
         mode=mode.value,
         delay_reveal=delay_reveal,
+        captured_pieces=CapturedPiecesModel(red=red_captured, black=black_captured),
     )
 
 

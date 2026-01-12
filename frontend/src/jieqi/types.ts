@@ -41,6 +41,13 @@ export interface JieqiGameState {
     black: number;
   };
   delay_reveal: boolean;  // 是否为延迟分配模式
+  // 吃掉的棋子
+  captured_pieces?: {
+    red: CapturedPiece[];  // 红方吃掉的棋子（黑方的棋子）
+    black: CapturedPiece[];  // 黑方吃掉的棋子（红方的棋子）
+  };
+  // AI 正在思考
+  ai_thinking?: boolean;
 }
 
 export interface JieqiMoveResponse {
@@ -54,8 +61,15 @@ export interface JieqiMoveResponse {
 }
 
 // AI 思考时间选项
-export const AI_TIME_OPTIONS = [1, 3, 5, 15, 30] as const;
+export const AI_TIME_OPTIONS = [1, 3, 5, 10, 15, 30] as const;
 export type AITimeLimit = typeof AI_TIME_OPTIONS[number];
+
+// 吃掉的棋子
+export interface CapturedPiece {
+  color: Color;
+  type?: PieceType;  // 明子有类型，暗子没有
+  was_hidden: boolean;  // 被吃时是否是暗子
+}
 
 // 创建游戏请求
 export interface CreateJieqiGameOptions {
