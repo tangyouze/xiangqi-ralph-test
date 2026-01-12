@@ -93,7 +93,8 @@ def run_single_game(
     max_moves: int = 1000,
     seed: int | None = None,
     avoid_draw: bool = True,
-) -> tuple[GameResult, int]:
+    time_limit: float | None = None,
+) -> tuple[GameResult, int, dict]:
     """运行单场对战
 
     Args:
@@ -102,14 +103,20 @@ def run_single_game(
         max_moves: 最大步数
         seed: 随机种子
         avoid_draw: 是否启用和棋规避（使用 Top-N 候选）
+        time_limit: AI 思考时间限制（秒）
 
     Returns:
-        (结果, 步数)
+        (结果, 步数, 统计信息)
     """
     game = JieqiGame()
 
-    red_ai = AIEngine.create(ai_red, AIConfig(seed=seed))
-    black_ai = AIEngine.create(ai_black, AIConfig(seed=seed + 1 if seed else None))
+    red_config = AIConfig(seed=seed, time_limit=time_limit)
+    black_config = AIConfig(seed=seed + 1 if seed else None, time_limit=time_limit)
+    red_ai = AIEngine.create(ai_red, red_config)
+    black_ai = AIEngine.create(ai_black, black_config)
+
+    # 统计信息
+    stats = {"red_nodes": 0, "black_nodes": 0, "red_depth": 0, "black_depth": 0}
 
     move_count = 0
 
@@ -136,9 +143,22 @@ def run_single_game(
         if move is None:
             # 无合法走法，当前方输
             if game.current_turn == Color.RED:
-                return GameResult.BLACK_WIN, move_count
+                return GameResult.BLACK_WIN, move_count, stats
             else:
-                return GameResult.RED_WIN, move_count
+                return GameResult.RED_WIN, move_count, stats
+
+        # 收集统计信息
+        nodes = getattr(current_ai, "_nodes_evaluated", 0)
+        depth = 0
+        if hasattr(current_ai, "_best_move_at_depth") and current_ai._best_move_at_depth:
+            depth = max(current_ai._best_move_at_depth.keys())
+
+        if game.current_turn == Color.RED:
+            stats["red_nodes"] += nodes
+            stats["red_depth"] = max(stats["red_depth"], depth)
+        else:
+            stats["black_nodes"] += nodes
+            stats["black_depth"] = max(stats["black_depth"], depth)
 
         success = game.make_move(move)
         if not success:
@@ -150,9 +170,9 @@ def run_single_game(
 
     # 超过最大步数算平局
     if game.result == GameResult.ONGOING:
-        return GameResult.DRAW, move_count
+        return GameResult.DRAW, move_count, stats
 
-    return game.result, move_count
+    return game.result, move_count, stats
 
 
 def run_battle(
@@ -162,6 +182,7 @@ def run_battle(
     max_moves: int = 1000,
     seed: int | None = None,
     avoid_draw: bool = True,
+    time_limit: float | None = None,
 ) -> dict:
     """运行多场对战
 
@@ -172,15 +193,20 @@ def run_battle(
         max_moves: 每场最大步数
         seed: 随机种子
         avoid_draw: 是否启用和棋规避
+        time_limit: AI 思考时间限制（秒）
 
     Returns:
         统计结果
     """
-    stats = {
+    battle_stats = {
         "red_wins": 0,
         "black_wins": 0,
         "draws": 0,
         "total_moves": 0,
+        "total_red_nodes": 0,
+        "total_black_nodes": 0,
+        "max_red_depth": 0,
+        "max_black_depth": 0,
         "games": [],
     }
 
@@ -195,22 +221,28 @@ def run_battle(
 
         for i in range(num_games):
             game_seed = seed + i * 2 if seed else None
-            result, moves = run_single_game(ai_red, ai_black, max_moves, game_seed, avoid_draw)
+            result, moves, game_stats = run_single_game(
+                ai_red, ai_black, max_moves, game_seed, avoid_draw, time_limit
+            )
 
-            stats["total_moves"] += moves
-            stats["games"].append({"result": result, "moves": moves})
+            battle_stats["total_moves"] += moves
+            battle_stats["total_red_nodes"] += game_stats["red_nodes"]
+            battle_stats["total_black_nodes"] += game_stats["black_nodes"]
+            battle_stats["max_red_depth"] = max(battle_stats["max_red_depth"], game_stats["red_depth"])
+            battle_stats["max_black_depth"] = max(battle_stats["max_black_depth"], game_stats["black_depth"])
+            battle_stats["games"].append({"result": result, "moves": moves, "stats": game_stats})
 
             if result == GameResult.RED_WIN:
-                stats["red_wins"] += 1
+                battle_stats["red_wins"] += 1
             elif result == GameResult.BLACK_WIN:
-                stats["black_wins"] += 1
+                battle_stats["black_wins"] += 1
             else:
-                stats["draws"] += 1
+                battle_stats["draws"] += 1
 
             progress.update(task, advance=1)
 
-    stats["avg_moves"] = stats["total_moves"] / num_games
-    return stats
+    battle_stats["avg_moves"] = battle_stats["total_moves"] / num_games
+    return battle_stats
 
 
 @app.command()
@@ -224,6 +256,9 @@ def battle(
     seed: int | None = typer.Option(None, "--seed", "-s", help="Random seed for reproducibility"),
     avoid_draw: bool = typer.Option(
         True, "--avoid-draw/--no-avoid-draw", help="Avoid draw by choosing alternative moves"
+    ),
+    time_limit: float = typer.Option(
+        1.0, "--time", "-t", help="AI thinking time limit per move (seconds)"
     ),
 ):
     """Run AI vs AI battle"""
@@ -239,9 +274,9 @@ def battle(
 
     console.print(f"\n[bold]Jieqi AI Battle[/bold]")
     console.print(f"Red: [red]{ai_red}[/red] vs Black: [blue]{ai_black}[/blue]")
-    console.print(f"Games: {num_games}, Max moves: {max_moves}, Avoid draw: {avoid_draw}\n")
+    console.print(f"Games: {num_games}, Max moves: {max_moves}, Time: {time_limit}s, Avoid draw: {avoid_draw}\n")
 
-    stats = run_battle(ai_red, ai_black, num_games, max_moves, seed, avoid_draw)
+    stats = run_battle(ai_red, ai_black, num_games, max_moves, seed, avoid_draw, time_limit)
 
     # 显示结果
     table = Table(title="Battle Results")
@@ -257,6 +292,14 @@ def battle(
     )
     table.add_row("Draws", f"{stats['draws']} ({stats['draws'] / num_games * 100:.1f}%)")
     table.add_row("Avg Moves", f"{stats['avg_moves']:.1f}")
+
+    # 搜索统计
+    avg_red_nodes = stats["total_red_nodes"] / max(stats["total_moves"], 1)
+    avg_black_nodes = stats["total_black_nodes"] / max(stats["total_moves"], 1)
+    table.add_row("Red Avg Nodes/Move", f"{avg_red_nodes:,.0f}")
+    table.add_row("Black Avg Nodes/Move", f"{avg_black_nodes:,.0f}")
+    table.add_row("Red Max Depth", f"{stats['max_red_depth']}")
+    table.add_row("Black Max Depth", f"{stats['max_black_depth']}")
 
     console.print(table)
 
@@ -297,6 +340,149 @@ def list_ai():
 
 
 @app.command()
+def verbose_battle(
+    ai_red: str = typer.Option("muses", "--red", "-r", help="Red AI strategy"),
+    ai_black: str = typer.Option("muses2", "--black", "-b", help="Black AI strategy"),
+    max_moves: int = typer.Option(100, "--max-moves", "-m", help="Max moves per game"),
+    seed: int | None = typer.Option(42, "--seed", "-s", help="Random seed"),
+    time_limit: float = typer.Option(1.0, "--time", "-t", help="AI thinking time per move (seconds)"),
+    quiet: bool = typer.Option(False, "--quiet", "-q", help="Only output to log file, no console output"),
+    log_dir: str | None = typer.Option(None, "--log-dir", "-l", help="Log directory (default: battle_logs/)"),
+):
+    """Run a single game with detailed logging to JSONL file"""
+    import time
+    from jieqi.ai.battle_log import BattleLogger
+
+    # 创建日志记录器
+    logger = BattleLogger(
+        red_ai=ai_red,
+        black_ai=ai_black,
+        log_dir=log_dir,
+        time_limit=time_limit,
+        max_moves=max_moves,
+        seed=seed,
+    )
+
+    game = JieqiGame()
+    red_ai_instance = AIEngine.create(ai_red, AIConfig(seed=seed, time_limit=time_limit))
+    black_ai_instance = AIEngine.create(ai_black, AIConfig(seed=seed + 1 if seed else None, time_limit=time_limit))
+
+    if not quiet:
+        console.print(f"\n[bold]Battle: {ai_red} vs {ai_black}[/bold]")
+        console.print(f"Time limit: {time_limit}s, Max moves: {max_moves}")
+        console.print(f"Log file: {logger.log_path}\n")
+
+    move_count = 0
+
+    while game.result == GameResult.ONGOING and move_count < max_moves:
+        current_ai = red_ai_instance if game.current_turn == Color.RED else black_ai_instance
+        ai_name = ai_red if game.current_turn == Color.RED else ai_black
+        player = "red" if game.current_turn == Color.RED else "black"
+
+        view = game.get_view(game.current_turn)
+
+        if not view.legal_moves:
+            break
+
+        # 计时
+        start_time = time.time()
+        candidates = current_ai.select_moves(view, n=5)
+        elapsed_ms = (time.time() - start_time) * 1000
+
+        if not candidates:
+            break
+
+        best_move, best_score = candidates[0]
+
+        # 收集统计
+        nodes = getattr(current_ai, "_nodes_evaluated", 0)
+        depth = 0
+        if hasattr(current_ai, "_best_move_at_depth") and current_ai._best_move_at_depth:
+            depth = max(current_ai._best_move_at_depth.keys())
+
+        tt_hits = getattr(current_ai, "_tt", None)
+        tt_hits_count = tt_hits.hits if tt_hits else 0
+        tt_misses_count = tt_hits.misses if tt_hits else 0
+
+        move_count += 1
+
+        # 记录到日志
+        logger.log_move(
+            move_num=move_count,
+            player=player,
+            ai_name=ai_name,
+            move=best_move,
+            score=best_score,
+            nodes=nodes,
+            depth=depth,
+            tt_hits=tt_hits_count,
+            tt_misses=tt_misses_count,
+            candidates=candidates,
+            elapsed_ms=elapsed_ms,
+        )
+
+        # 简洁的控制台输出
+        if not quiet:
+            color = "[red]R[/red]" if player == "red" else "[blue]B[/blue]"
+            console.print(
+                f"  {move_count:3}. {color} {ai_name:10} | "
+                f"score={best_score:+7.1f} | nodes={nodes:>6,} | depth={depth} | "
+                f"{elapsed_ms:.0f}ms"
+            )
+
+        game.make_move(best_move)
+
+    # 确定结果
+    if game.result == GameResult.RED_WIN:
+        result = "red_win"
+    elif game.result == GameResult.BLACK_WIN:
+        result = "black_win"
+    elif game.result == GameResult.DRAW:
+        result = "draw"
+    else:
+        result = "ongoing"
+
+    # 记录游戏结束
+    logger.log_game_end(result)
+
+    if not quiet:
+        console.print(f"\n[bold]Result: {result}[/bold]")
+        console.print(f"[green]Log saved to: {logger.log_path}[/green]")
+
+
+def _run_matchup_games(args: tuple) -> tuple[str, str, list[GameResult], dict]:
+    """单个对战组合的多场比赛（用于多进程）"""
+    ai_red, ai_black, num_games, max_moves, seed, time_limit = args
+    results = []
+    total_moves = 0
+    total_red_nodes = 0
+    total_black_nodes = 0
+    max_red_depth = 0
+    max_black_depth = 0
+
+    for game_idx in range(num_games):
+        game_seed = (seed + game_idx * 2) if seed else None
+        result, moves, game_stats = run_single_game(ai_red, ai_black, max_moves, game_seed, True, time_limit)
+        results.append(result)
+        total_moves += moves
+        total_red_nodes += game_stats.get("red_nodes", 0)
+        total_black_nodes += game_stats.get("black_nodes", 0)
+        max_red_depth = max(max_red_depth, game_stats.get("red_depth", 0))
+        max_black_depth = max(max_black_depth, game_stats.get("black_depth", 0))
+
+    stats = {
+        "avg_moves": total_moves / num_games if num_games > 0 else 0,
+        "total_red_nodes": total_red_nodes,
+        "total_black_nodes": total_black_nodes,
+        "avg_red_nodes": total_red_nodes / max(total_moves, 1),
+        "avg_black_nodes": total_black_nodes / max(total_moves, 1),
+        "max_red_depth": max_red_depth,
+        "max_black_depth": max_black_depth,
+    }
+    return ai_red, ai_black, results, stats
+
+
+@app.command()
 def compare(
     num_games: int = typer.Option(10, "--games", "-n", help="Number of games per matchup"),
     max_moves: int = typer.Option(500, "--max-moves", "-m", help="Max moves per game"),
@@ -305,10 +491,15 @@ def compare(
     strategies_filter: str | None = typer.Option(
         None, "--filter", "-f", help="Comma-separated list of strategies to include"
     ),
+    time_limit: float = typer.Option(
+        1.0, "--time", "-t", help="AI thinking time limit per move (seconds)"
+    ),
+    workers: int = typer.Option(
+        4, "--workers", "-w", help="Number of parallel workers"
+    ),
 ):
     """Run round-robin comparison between all AI strategies"""
     import json
-    from itertools import combinations
     from concurrent.futures import ProcessPoolExecutor, as_completed
 
     # 获取策略列表
@@ -320,10 +511,15 @@ def compare(
     else:
         strategies_list = all_strategies
 
+    total_matchups = len(strategies_list) * (len(strategies_list) - 1)
+    total_games = total_matchups * num_games
+
     console.print(f"\n[bold]AI Round-Robin Comparison[/bold]")
     console.print(f"Strategies: {len(strategies_list)}")
     console.print(f"Games per matchup: {num_games}")
-    console.print(f"Matchups: {len(strategies_list) * (len(strategies_list) - 1)}\n")
+    console.print(f"Total matchups: {total_matchups}")
+    console.print(f"Total games: {total_games}")
+    console.print(f"Time limit: {time_limit}s, Workers: {workers}\n")
 
     # 结果矩阵：results[row_ai][col_ai] = win_rate (row as red vs col as black)
     results: dict[str, dict[str, dict]] = {
@@ -332,40 +528,58 @@ def compare(
     }
 
     # 所有对战组合
-    matchups = []
-    for s1 in strategies_list:
-        for s2 in strategies_list:
+    matchup_args = []
+    for idx, s1 in enumerate(strategies_list):
+        for jdx, s2 in enumerate(strategies_list):
             if s1 != s2:
-                matchups.append((s1, s2))
+                matchup_seed = (seed + idx * 1000 + jdx * 100) if seed else None
+                matchup_args.append((s1, s2, num_games, max_moves, matchup_seed, time_limit))
 
-    total_matchups = len(matchups)
+    completed = 0
 
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        BarColumn(),
-        TaskProgressColumn(),
-        console=console,
-    ) as progress:
-        task = progress.add_task("[cyan]Running matchups...", total=total_matchups)
+    def process_matchup_result(ai_red: str, ai_black: str, game_results: list, stats: dict):
+        """处理一个对战组合的结果"""
+        nonlocal completed
+        wins = sum(1 for r in game_results if r == GameResult.RED_WIN)
+        losses = sum(1 for r in game_results if r == GameResult.BLACK_WIN)
+        draws = len(game_results) - wins - losses
 
-        for idx, (ai_red, ai_black) in enumerate(matchups):
-            # 运行多场对战
-            for game_idx in range(num_games):
-                game_seed = (seed + idx * num_games + game_idx * 2) if seed else None
-                result, _ = run_single_game(ai_red, ai_black, max_moves, game_seed)
+        results[ai_red][ai_black]["wins"] += wins
+        results[ai_red][ai_black]["losses"] += losses
+        results[ai_red][ai_black]["draws"] += draws
+        results[ai_black][ai_red]["wins"] += losses
+        results[ai_black][ai_red]["losses"] += wins
+        results[ai_black][ai_red]["draws"] += draws
 
-                if result == GameResult.RED_WIN:
-                    results[ai_red][ai_black]["wins"] += 1
-                    results[ai_black][ai_red]["losses"] += 1
-                elif result == GameResult.BLACK_WIN:
-                    results[ai_red][ai_black]["losses"] += 1
-                    results[ai_black][ai_red]["wins"] += 1
-                else:
-                    results[ai_red][ai_black]["draws"] += 1
-                    results[ai_black][ai_red]["draws"] += 1
+        completed += 1
+        # 打印进度（包含节点统计）
+        red_nps = stats.get("avg_red_nodes", 0)
+        black_nps = stats.get("avg_black_nodes", 0)
+        red_depth = stats.get("max_red_depth", 0)
+        black_depth = stats.get("max_black_depth", 0)
+        console.print(
+            f"  [{completed:3}/{len(matchup_args)}] "
+            f"[cyan]{ai_red:12}[/cyan] vs [magenta]{ai_black:12}[/magenta]: "
+            f"[green]{wins}W[/green]-[red]{losses}L[/red]-{draws}D | "
+            f"moves={stats['avg_moves']:.0f} | "
+            f"nodes/move: {red_nps:,.0f} vs {black_nps:,.0f} | "
+            f"depth: {red_depth} vs {black_depth}"
+        )
 
-            progress.update(task, advance=1)
+    if workers > 1:
+        # 多进程模式
+        console.print(f"[bold]Running with {workers} workers...[/bold]\n")
+        with ProcessPoolExecutor(max_workers=workers) as executor:
+            futures = {executor.submit(_run_matchup_games, args): args for args in matchup_args}
+            for future in as_completed(futures):
+                ai_red, ai_black, game_results, stats = future.result()
+                process_matchup_result(ai_red, ai_black, game_results, stats)
+    else:
+        # 单进程模式
+        console.print("[bold]Running in single process mode...[/bold]\n")
+        for args in matchup_args:
+            ai_red, ai_black, game_results, stats = _run_matchup_games(args)
+            process_matchup_result(ai_red, ai_black, game_results, stats)
 
     # 计算胜率和综合得分
     scores: dict[str, float] = {}

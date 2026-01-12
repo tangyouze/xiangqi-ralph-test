@@ -333,9 +333,9 @@ class JieqiEvaluator:
         # 3. 揭棋特有评估
         score += self._evaluate_jieqi_tactics(board, color)
 
-        # 4. 机动性评估
-        my_mobility = self._count_moves(board, color)
-        enemy_mobility = self._count_moves(board, color.opposite)
+        # 4. 机动性评估（轻量级近似）
+        my_mobility = self._estimate_mobility(board, color)
+        enemy_mobility = self._estimate_mobility(board, color.opposite)
         score += (my_mobility - enemy_mobility) * 2
 
         return score
@@ -515,13 +515,32 @@ class JieqiEvaluator:
 
         return score
 
-    def _count_moves(self, board: SimulationBoard, color: Color) -> int:
-        """统计可用走法数量"""
-        try:
-            moves = board.get_legal_moves(color)
-            return len(moves)
-        except Exception:
-            return 0
+    def _estimate_mobility(self, board: SimulationBoard, color: Color) -> int:
+        """估算机动性（轻量级近似）
+
+        用棋子类型加权来近似走法数量，避免昂贵的 get_legal_moves 调用。
+        每种棋子的"机动性潜力"不同：车最高，士/象最低。
+        """
+        # 每种棋子的机动性权重（近似平均走法数）
+        MOBILITY_WEIGHTS = {
+            PieceType.ROOK: 12,     # 车：横竖可走很远
+            PieceType.CANNON: 10,   # 炮：类似车但需要炮架
+            PieceType.HORSE: 6,     # 马：最多8个方向
+            PieceType.PAWN: 2,      # 兵：1-3个方向
+            PieceType.ELEPHANT: 2,  # 象：最多4个田字位
+            PieceType.ADVISOR: 2,   # 士：最多4个斜向位
+            PieceType.KING: 2,      # 将：九宫内移动
+        }
+
+        mobility = 0
+        for piece in board.get_all_pieces(color):
+            if piece.is_hidden:
+                # 暗子用平均权重
+                mobility += 5
+            elif piece.actual_type:
+                mobility += MOBILITY_WEIGHTS.get(piece.actual_type, 3)
+
+        return mobility
 
     def normalize_score(self, raw_score: float) -> float:
         """将原始分数归一化到 -1000 到 1000 范围

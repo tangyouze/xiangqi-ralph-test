@@ -1,66 +1,66 @@
 {
   "strategies": [
-    "advanced",
-    "minimax",
-    "random"
+    "muses2",
+    "muses",
+    "advanced"
   ],
-  "num_games": 10,
-  "max_moves": 200,
+  "num_games": 5,
+  "max_moves": 150,
   "results": {
+    "muses2": {
+      "muses2": {
+        "wins": 0,
+        "losses": 0,
+        "draws": 0,
+        "win_rate": 0.0
+      },
+      "muses": {
+        "wins": 6,
+        "losses": 4,
+        "draws": 0,
+        "win_rate": 1.2
+      },
+      "advanced": {
+        "wins": 4,
+        "losses": 5,
+        "draws": 1,
+        "win_rate": 0.8
+      }
+    },
+    "muses": {
+      "muses2": {
+        "wins": 4,
+        "losses": 6,
+        "draws": 0,
+        "win_rate": 0.8
+      },
+      "muses": {
+        "wins": 0,
+        "losses": 0,
+        "draws": 0,
+        "win_rate": 0.0
+      },
+      "advanced": {
+        "wins": 5,
+        "losses": 3,
+        "draws": 2,
+        "win_rate": 1.0
+      }
+    },
     "advanced": {
+      "muses2": {
+        "wins": 5,
+        "losses": 4,
+        "draws": 1,
+        "win_rate": 1.0
+      },
+      "muses": {
+        "wins": 3,
+        "losses": 5,
+        "draws": 2,
+        "win_rate": 0.6
+      },
       "advanced": {
-        "wins": 0,
-        "losses": 0,
-        "draws": 0,
-        "win_rate": 0.0
-      },
-      "minimax": {
-        "wins": 13,
-        "losses": 1,
-        "draws": 6,
-        "win_rate": 1.3
-      },
-      "random": {
-        "wins": 13,
-        "losses": 0,
-        "draws": 7,
-        "win_rate": 1.3
-      }
-    },
-    "minimax": {
-      "advanced": {
-        "wins": 1,
-        "losses": 13,
-        "draws": 6,
-        "win_rate": 0.1
-      },
-      "minimax": {
-        "wins": 0,
-        "losses": 0,
-        "draws": 0,
-        "win_rate": 0.0
-      },
-      "random": {
-        "wins": 14,
-        "losses": 0,
-        "draws": 6,
-        "win_rate": 1.4
-      }
-    },
-    "random": {
-      "advanced": {
-        "wins": 0,
-        "losses": 13,
-        "draws": 7,
-        "win_rate": 0.0
-      },
-      "minimax": {
-        "wins": 0,
-        "losses": 14,
-        "draws": 6,
-        "win_rate": 0.0
-      },
-      "random": {
         "wins": 0,
         "losses": 0,
         "draws": 0,
@@ -69,33 +69,33 @@
     }
   },
   "scores": {
-    "advanced": 0.8125,
-    "minimax": 0.525,
-    "random": 0.1625
+    "muses2": 0.525,
+    "muses": 0.5,
+    "advanced": 0.475
   },
   "elo": {
-    "advanced": 1616.382246638109,
-    "minimax": 1512.4697559330098,
-    "random": 1380.329761233251
+    "muses2": 1508.5123925351454,
+    "muses": 1501.0531283880578,
+    "advanced": 1492.2874173620214
   },
   "rankings": [
     {
       "rank": 1,
-      "name": "advanced",
-      "score": 0.8125,
-      "elo": 1616.382246638109
+      "name": "muses2",
+      "score": 0.525,
+      "elo": 1508.5123925351454
     },
     {
       "rank": 2,
-      "name": "minimax",
-      "score": 0.525,
-      "elo": 1512.4697559330098
+      "name": "muses",
+      "score": 0.5,
+      "elo": 1501.0531283880578
     },
     {
       "rank": 3,
-      "name": "random",
-      "score": 0.1625,
-      "elo": 1380.329761233251
+      "name": "advanced",
+      "score": 0.475,
+      "elo": 1492.2874173620214
     }
   ]
 }
