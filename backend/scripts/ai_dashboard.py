@@ -52,12 +52,16 @@ def run_single_game(
     max_moves: int = 500,
     seed: int | None = None,
     avoid_draw: bool = True,
+    red_time: float | None = None,
+    black_time: float | None = None,
 ) -> tuple[GameResult, int]:
     """运行单场对战"""
     game = JieqiGame()
 
-    red_ai = AIEngine.create(ai_red, AIConfig(seed=seed))
-    black_ai = AIEngine.create(ai_black, AIConfig(seed=seed + 1 if seed else None))
+    red_ai = AIEngine.create(ai_red, AIConfig(seed=seed, time_limit=red_time))
+    black_ai = AIEngine.create(
+        ai_black, AIConfig(seed=seed + 1 if seed else None, time_limit=black_time)
+    )
 
     move_count = 0
 
@@ -131,7 +135,13 @@ def calculate_elo(results: dict, k: float = 32, initial_elo: float = 1500) -> di
 
 
 def run_comparison(
-    strategies_list: list[str], num_games: int, max_moves: int, seed: int, progress_bar
+    strategies_list: list[str],
+    num_games: int,
+    max_moves: int,
+    seed: int,
+    progress_bar,
+    red_time: float | None = None,
+    black_time: float | None = None,
 ):
     """运行 AI 对战比较"""
     results = {
@@ -149,7 +159,9 @@ def run_comparison(
 
             for game_idx in range(num_games):
                 game_seed = seed + current_matchup * num_games + game_idx * 2
-                result, _ = run_single_game(s1, s2, max_moves, game_seed)
+                result, _ = run_single_game(
+                    s1, s2, max_moves, game_seed, red_time=red_time, black_time=black_time
+                )
 
                 if result == GameResult.RED_WIN:
                     results[s1][s2]["wins"] += 1
@@ -192,6 +204,21 @@ def main():
     max_moves = st.sidebar.slider("Max moves per game", 100, 1000, 500)
     seed = st.sidebar.number_input("Random seed", value=42)
 
+    # AI 思考时间设置
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("AI Thinking Time")
+    time_options = [1, 3, 5, 15, 30]
+    red_time = st.sidebar.select_slider(
+        "Red AI Time (seconds)",
+        options=time_options,
+        value=3,
+    )
+    black_time = st.sidebar.select_slider(
+        "Black AI Time (seconds)",
+        options=time_options,
+        value=3,
+    )
+
     # 运行比较
     if st.sidebar.button("🚀 Run Comparison", type="primary"):
         if len(selected_strategies) < 2:
@@ -200,7 +227,15 @@ def main():
 
         with st.spinner("Running AI battles..."):
             progress_bar = st.progress(0)
-            results = run_comparison(selected_strategies, num_games, max_moves, seed, progress_bar)
+            results = run_comparison(
+                selected_strategies,
+                num_games,
+                max_moves,
+                seed,
+                progress_bar,
+                red_time=float(red_time),
+                black_time=float(black_time),
+            )
 
             # 计算得分和 Elo
             scores = {}
@@ -222,6 +257,8 @@ def main():
                 "strategies": selected_strategies,
                 "num_games": num_games,
                 "max_moves": max_moves,
+                "red_time": red_time,
+                "black_time": black_time,
                 "results": results,
                 "scores": scores,
                 "elo": elo,
