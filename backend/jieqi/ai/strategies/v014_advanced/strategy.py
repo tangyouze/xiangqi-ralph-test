@@ -20,6 +20,7 @@ ID: v014
 
 from __future__ import annotations
 
+import math
 import random
 import time
 from dataclasses import dataclass
@@ -230,8 +231,12 @@ class AdvancedAI(AIStrategy):
 
     def __init__(self, config: AIConfig | None = None):
         super().__init__(config)
-        self.max_depth = max(self.config.depth, 3)
         self.time_limit = self.config.time_limit or 1.5
+        # 如果有时间限制，让时间控制搜索深度；否则使用配置的深度
+        if self.config.time_limit:
+            self.max_depth = 30  # 足够深，让时间来控制
+        else:
+            self.max_depth = max(self.config.depth, 3)
 
         self._rng = random.Random(self.config.seed)
         self._tt = TranspositionTable()
@@ -266,7 +271,8 @@ class AdvancedAI(AIStrategy):
         all_scores: dict[JieqiMove, float] = {}
 
         for depth in range(1, self.max_depth + 1):
-            if time.time() - self._start_time > self.time_limit * 0.7:
+            # depth 1 必须完成，否则可能返回空结果
+            if depth > 1 and time.time() - self._start_time > self.time_limit * 0.7:
                 break
 
             try:
@@ -278,9 +284,16 @@ class AdvancedAI(AIStrategy):
             except TimeoutError:
                 break
 
-        # 按分数降序排列，取前 N 个
+        # 如果搜索超时没有收集到任何评分，使用随机合法着法
+        if not all_scores:
+            shuffled = view.legal_moves[:]
+            self._rng.shuffle(shuffled)
+            return [(move, 0.0) for move in shuffled[:n]]
+
+        # 按分数降序排列，取前 N 个，并归一化分数到 -1000 ~ 1000
         sorted_moves = sorted(all_scores.items(), key=lambda x: -x[1])
-        return sorted_moves[:n]
+        normalized = [(move, self._normalize_score(score)) for move, score in sorted_moves[:n]]
+        return normalized
 
     def _search_root_all(
         self,
@@ -729,3 +742,16 @@ class AdvancedAI(AIStrategy):
         score += (my_moves - enemy_moves) * 3
 
         return score
+
+    def _normalize_score(self, score: float) -> float:
+        """将评估分数归一化到 -1000 到 1000 范围
+
+        使用 tanh 函数平滑压缩：
+        - 普通局面会映射到 (-1000, 1000) 内
+        - 绝对优势/劣势接近 ±1000
+        - 杀棋分数 (±100000) 会被压缩到接近 ±1000
+        """
+        # 缩放因子：20000 分对应 tanh(1) ≈ 0.76
+        # 这样 10000 分差约等于 460 分，5000 分差约等于 245 分
+        SCALE_FACTOR = 20000.0
+        return math.tanh(score / SCALE_FACTOR) * 1000.0

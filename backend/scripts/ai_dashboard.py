@@ -31,11 +31,27 @@ DATA_DIR.mkdir(exist_ok=True)
 RESULTS_FILE = DATA_DIR / "ai_comparison.json"
 
 
+def would_cause_draw(game: JieqiGame, move) -> bool:
+    """预判走这步是否会导致和棋或增加重复局面
+
+    检测：
+    1. 走完后是否立即和棋（重复3次）
+    2. 走完后的局面是否已经出现过（避免走入重复）
+    """
+    game.make_move(move)
+    is_draw = game.result == GameResult.DRAW
+    # 检查当前局面是否已经出现过（出现2次就危险了）
+    is_repeated = game.get_position_count() >= 2
+    game.undo_move()
+    return is_draw or is_repeated
+
+
 def run_single_game(
     ai_red: str,
     ai_black: str,
     max_moves: int = 500,
     seed: int | None = None,
+    avoid_draw: bool = True,
 ) -> tuple[GameResult, int]:
     """运行单场对战"""
     game = JieqiGame()
@@ -48,7 +64,21 @@ def run_single_game(
     while game.result == GameResult.ONGOING and move_count < max_moves:
         current_ai = red_ai if game.current_turn == Color.RED else black_ai
         view = game.get_view(game.current_turn)
-        move = current_ai.select_move(view)
+
+        # 选择走法
+        move = None
+        if avoid_draw:
+            # 使用 Top-N 候选，规避和棋
+            candidates = current_ai.select_moves(view, n=10)
+            for candidate_move, _score in candidates:
+                if not would_cause_draw(game, candidate_move):
+                    move = candidate_move
+                    break
+            # 如果所有候选都会和棋，选第一个
+            if move is None and candidates:
+                move = candidates[0][0]
+        else:
+            move = current_ai.select_move(view)
 
         if move is None:
             if game.current_turn == Color.RED:
@@ -100,7 +130,9 @@ def calculate_elo(results: dict, k: float = 32, initial_elo: float = 1500) -> di
     return elo
 
 
-def run_comparison(strategies_list: list[str], num_games: int, max_moves: int, seed: int, progress_bar):
+def run_comparison(
+    strategies_list: list[str], num_games: int, max_moves: int, seed: int, progress_bar
+):
     """运行 AI 对战比较"""
     results = {
         s1: {s2: {"wins": 0, "losses": 0, "draws": 0} for s2 in strategies_list}
@@ -174,8 +206,12 @@ def main():
             scores = {}
             for s in selected_strategies:
                 total_wins = sum(results[s][opp]["wins"] for opp in selected_strategies if opp != s)
-                total_losses = sum(results[s][opp]["losses"] for opp in selected_strategies if opp != s)
-                total_draws = sum(results[s][opp]["draws"] for opp in selected_strategies if opp != s)
+                total_losses = sum(
+                    results[s][opp]["losses"] for opp in selected_strategies if opp != s
+                )
+                total_draws = sum(
+                    results[s][opp]["draws"] for opp in selected_strategies if opp != s
+                )
                 total_games = total_wins + total_losses + total_draws
                 scores[s] = (total_wins + total_draws * 0.5) / total_games if total_games > 0 else 0
 
@@ -227,7 +263,11 @@ def display_results(data: dict):
                 if s1 == s2:
                     row.append(None)
                 else:
-                    total = results[s1][s2]["wins"] + results[s1][s2]["losses"] + results[s1][s2]["draws"]
+                    total = (
+                        results[s1][s2]["wins"]
+                        + results[s1][s2]["losses"]
+                        + results[s1][s2]["draws"]
+                    )
                     win_rate = results[s1][s2]["wins"] / total * 100 if total > 0 else 0
                     row.append(win_rate)
             matrix_data.append(row)
@@ -235,22 +275,24 @@ def display_results(data: dict):
         df = pd.DataFrame(matrix_data, index=sorted_strategies, columns=sorted_strategies)
 
         # 创建热力图
-        fig = go.Figure(data=go.Heatmap(
-            z=df.values,
-            x=sorted_strategies,
-            y=sorted_strategies,
-            colorscale=[
-                [0, "rgb(255, 100, 100)"],    # 红色 - 低胜率
-                [0.5, "rgb(255, 255, 150)"],  # 黄色 - 50%
-                [1, "rgb(100, 255, 100)"],    # 绿色 - 高胜率
-            ],
-            zmin=0,
-            zmax=100,
-            text=[[f"{v:.0f}%" if v is not None else "-" for v in row] for row in df.values],
-            texttemplate="%{text}",
-            textfont={"size": 12},
-            hovertemplate="Red: %{y}<br>Black: %{x}<br>Win Rate: %{z:.1f}%<extra></extra>",
-        ))
+        fig = go.Figure(
+            data=go.Heatmap(
+                z=df.values,
+                x=sorted_strategies,
+                y=sorted_strategies,
+                colorscale=[
+                    [0, "rgb(255, 100, 100)"],  # 红色 - 低胜率
+                    [0.5, "rgb(255, 255, 150)"],  # 黄色 - 50%
+                    [1, "rgb(100, 255, 100)"],  # 绿色 - 高胜率
+                ],
+                zmin=0,
+                zmax=100,
+                text=[[f"{v:.0f}%" if v is not None else "-" for v in row] for row in df.values],
+                texttemplate="%{text}",
+                textfont={"size": 12},
+                hovertemplate="Red: %{y}<br>Black: %{x}<br>Win Rate: %{z:.1f}%<extra></extra>",
+            )
+        )
 
         fig.update_layout(
             xaxis_title="Black Player",
@@ -271,15 +313,19 @@ def display_results(data: dict):
             ranking_data = []
             for i, s in enumerate(sorted_strategies, 1):
                 total_wins = sum(results[s][opp]["wins"] for opp in sorted_strategies if opp != s)
-                total_losses = sum(results[s][opp]["losses"] for opp in sorted_strategies if opp != s)
+                total_losses = sum(
+                    results[s][opp]["losses"] for opp in sorted_strategies if opp != s
+                )
                 total_draws = sum(results[s][opp]["draws"] for opp in sorted_strategies if opp != s)
 
-                ranking_data.append({
-                    "Rank": i,
-                    "Strategy": s,
-                    "Score": f"{scores[s]*100:.1f}%",
-                    "W/L/D": f"{total_wins}/{total_losses}/{total_draws}",
-                })
+                ranking_data.append(
+                    {
+                        "Rank": i,
+                        "Strategy": s,
+                        "Score": f"{scores[s] * 100:.1f}%",
+                        "W/L/D": f"{total_wins}/{total_losses}/{total_draws}",
+                    }
+                )
 
             st.dataframe(pd.DataFrame(ranking_data), hide_index=True, use_container_width=True)
 
@@ -339,13 +385,15 @@ def display_results(data: dict):
                 wins_2 = results[s2][s1]["wins"]
                 draws = results[s1][s2]["draws"]
 
-                h2h_data.append({
-                    "Matchup": f"{s1} vs {s2}",
-                    f"{s1} Wins": wins_1,
-                    f"{s2} Wins": wins_2,
-                    "Draws": draws,
-                    "Total": wins_1 + wins_2 + draws,
-                })
+                h2h_data.append(
+                    {
+                        "Matchup": f"{s1} vs {s2}",
+                        f"{s1} Wins": wins_1,
+                        f"{s2} Wins": wins_2,
+                        "Draws": draws,
+                        "Total": wins_1 + wins_2 + draws,
+                    }
+                )
 
         if h2h_data:
             st.dataframe(pd.DataFrame(h2h_data), hide_index=True, use_container_width=True)
