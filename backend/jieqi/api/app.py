@@ -92,6 +92,9 @@ def create_app() -> FastAPI:
             red_ai_strategy=request.red_ai_strategy,
             black_ai_strategy=request.black_ai_strategy,
             delay_reveal=request.delay_reveal,
+            ai_time_limit=request.ai_time_limit,
+            red_ai_time_limit=request.red_ai_time_limit,
+            black_ai_time_limit=request.black_ai_time_limit,
         )
         return _game_to_response(game, request.mode, request.delay_reveal)
 

@@ -31,6 +31,9 @@ class GameManager:
         red_ai_strategy: str | None = None,
         black_ai_strategy: str | None = None,
         delay_reveal: bool = False,
+        ai_time_limit: int | None = None,
+        red_ai_time_limit: int | None = None,
+        black_ai_time_limit: int | None = None,
     ) -> JieqiGame:
         """创建新游戏
 
@@ -43,6 +46,9 @@ class GameManager:
             red_ai_strategy: 红方 AI 策略（AI vs AI 模式）
             black_ai_strategy: 黑方 AI 策略（AI vs AI 模式）
             delay_reveal: 延迟分配模式（翻棋时决定身份）
+            ai_time_limit: AI 思考时间限制（秒）- Human vs AI 模式
+            red_ai_time_limit: 红方 AI 思考时间限制（秒）- AI vs AI 模式
+            black_ai_time_limit: 黑方 AI 思考时间限制（秒）- AI vs AI 模式
 
         Returns:
             新创建的游戏
@@ -54,22 +60,25 @@ class GameManager:
         self._modes[game.game_id] = mode
 
         # 配置 AI
-        ai_config = {"mode": mode}
+        ai_config_dict = {"mode": mode}
 
         if mode == GameMode.HUMAN_VS_AI:
             strategy_name = self._get_strategy_name(ai_level, ai_strategy)
-            ai_config["ai_color"] = ai_color
-            ai_config["ai_strategy"] = strategy_name
-            ai_config["ai"] = AIEngine.create(strategy_name)
+            ai_engine_config = AIConfig(time_limit=ai_time_limit) if ai_time_limit else None
+            ai_config_dict["ai_color"] = ai_color
+            ai_config_dict["ai_strategy"] = strategy_name
+            ai_config_dict["ai"] = AIEngine.create(strategy_name, ai_engine_config)
         elif mode == GameMode.AI_VS_AI:
             red_strategy = self._get_strategy_name(ai_level, red_ai_strategy)
             black_strategy = self._get_strategy_name(ai_level, black_ai_strategy)
-            ai_config["red_ai"] = AIEngine.create(red_strategy)
-            ai_config["black_ai"] = AIEngine.create(black_strategy)
-            ai_config["red_strategy"] = red_strategy
-            ai_config["black_strategy"] = black_strategy
+            red_config = AIConfig(time_limit=red_ai_time_limit) if red_ai_time_limit else None
+            black_config = AIConfig(time_limit=black_ai_time_limit) if black_ai_time_limit else None
+            ai_config_dict["red_ai"] = AIEngine.create(red_strategy, red_config)
+            ai_config_dict["black_ai"] = AIEngine.create(black_strategy, black_config)
+            ai_config_dict["red_strategy"] = red_strategy
+            ai_config_dict["black_strategy"] = black_strategy
 
-        self._ai_configs[game.game_id] = ai_config
+        self._ai_configs[game.game_id] = ai_config_dict
 
         return game
 
