@@ -8,6 +8,7 @@ dependencies = [
     "uvicorn>=0.34.0",
     "websockets>=14.0",
     "pydantic>=2.10.0",
+    "loguru>=0.7.0",
 ]
 
 [project.optional-dependencies]

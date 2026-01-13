@@ -9,40 +9,70 @@ AI 对战日志系统
 3. game_end - 游戏结束和汇总
 
 日志存储：
-- 位置: backend/battle_logs/
+- 位置: backend/data/battle_logs/
 - 文件名: {timestamp}_{red_ai}_vs_{black_ai}.jsonl
 """
 
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from jieqi.logging import BATTLE_LOGS_DIR
 
-# 默认日志目录
-DEFAULT_LOG_DIR = Path(__file__).parent.parent.parent / "battle_logs"
+# 默认日志目录（使用中央配置）
+DEFAULT_LOG_DIR = BATTLE_LOGS_DIR
+
+
+def serialize_move(move: Any) -> dict:
+    """将 JieqiMove 序列化为标准 JSON 格式"""
+    if move is None:
+        return {}
+
+    result = {}
+
+    # action_type
+    if hasattr(move, "action_type"):
+        result["action_type"] = (
+            move.action_type.value if hasattr(move.action_type, "value") else str(move.action_type)
+        )
+
+    # from_pos
+    if hasattr(move, "from_pos") and move.from_pos is not None:
+        result["from_pos"] = [move.from_pos.row, move.from_pos.col]
+
+    # to_pos
+    if hasattr(move, "to_pos") and move.to_pos is not None:
+        result["to_pos"] = [move.to_pos.row, move.to_pos.col]
+
+    return result
 
 
 @dataclass
 class MoveRecord:
-    """单步走法记录"""
+    """单步走法记录
+
+    move 字段格式：
+    {
+        "action_type": "move" | "reveal_and_move",
+        "from_pos": [row, col],
+        "to_pos": [row, col]
+    }
+    """
 
     move_num: int  # 步数
     player: str  # "red" | "black"
     ai_name: str  # AI 名称
-    move: str  # 走法字符串
-    action_type: str  # "move" | "reveal_and_move"
-    from_pos: tuple[int, int]  # (row, col)
-    to_pos: tuple[int, int]  # (row, col)
+    move: dict  # 走法（结构化 JSON）
     score: float  # 评分
     nodes: int  # 搜索节点数
     depth: int  # 搜索深度
     tt_hits: int  # TT 命中数
     tt_total: int  # TT 总查询数
-    candidates: list[dict]  # 候选着法 [{move, score}, ...]
+    candidates: list[dict]  # 候选着法 [{action_type, from_pos, to_pos, score}, ...]
     elapsed_ms: float = 0.0  # 思考时间（毫秒）
 
 
@@ -163,26 +193,21 @@ class BattleLogger:
             self.black_total_nodes += nodes
             self.black_max_depth = max(self.black_max_depth, depth)
 
-        # 解析走法
-        from_pos = (move.from_pos.row, move.from_pos.col) if hasattr(move, "from_pos") else (0, 0)
-        to_pos = (move.to_pos.row, move.to_pos.col) if hasattr(move, "to_pos") else (0, 0)
-        action_type = str(move.action_type.value) if hasattr(move, "action_type") else "unknown"
+        # 序列化走法为结构化 JSON
+        move_data = serialize_move(move)
 
         record = {
             "type": "move",
             "move_num": move_num,
             "player": player,
             "ai_name": ai_name,
-            "move": str(move),
-            "action_type": action_type,
-            "from_pos": from_pos,
-            "to_pos": to_pos,
+            "move": move_data,
             "score": score,
             "nodes": nodes,
             "depth": depth,
             "tt_hits": tt_hits,
             "tt_total": tt_hits + tt_misses,
-            "candidates": [{"move": str(m), "score": s} for m, s in candidates],
+            "candidates": [{**serialize_move(m), "score": s} for m, s in candidates],
             "elapsed_ms": elapsed_ms,
         }
         self._write_record(record)

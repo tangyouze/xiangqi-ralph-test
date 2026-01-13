@@ -54,7 +54,9 @@ Thumbs.db
 # Project specific
 logs/
 *.log
+backend/battle_logs/
 backend/data/battle_logs/
+backend/logs/
 .call_count
 .circuit_breaker_history
 .circuit_breaker_state
