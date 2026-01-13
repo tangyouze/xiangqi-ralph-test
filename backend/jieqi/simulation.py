@@ -27,13 +27,18 @@ from jieqi.attack_tables import (
     get_horse_attacks,
     get_pawn_attacks,
     get_line_attacks,
+    get_horse_reverse_attacks,
+    get_pawn_reverse_attacks,
+    get_elephant_reverse_attacks,
+    get_advisor_reverse_attacks,
+    get_king_reverse_attacks,
 )
 
 if TYPE_CHECKING:
     from jieqi.view import PlayerView, ViewPiece
 
 
-@dataclass
+@dataclass(slots=True)
 class SimPiece:
     """模拟棋子
 
@@ -233,21 +238,26 @@ class SimulationBoard:
 
     def _get_horse_moves(self, piece: SimPiece) -> list[Position]:
         moves = []
+        pieces = self._pieces
+        piece_color = piece.color
         for new_pos, leg_pos in get_horse_attacks(piece.position):
-            if self.get_piece(leg_pos) is not None:
+            if pieces.get(leg_pos) is not None:
                 continue
-            if self._can_move_to(piece, new_pos):
+            target = pieces.get(new_pos)
+            if target is None or target.color != piece_color:
                 moves.append(new_pos)
         return moves
 
     def _get_rook_moves(self, piece: SimPiece) -> list[Position]:
         moves = []
+        pieces = self._pieces
+        piece_color = piece.color
         for direction in range(4):
             for pos in get_line_attacks(piece.position, direction):
-                target = self.get_piece(pos)
+                target = pieces.get(pos)
                 if target is None:
                     moves.append(pos)
-                elif target.color != piece.color:
+                elif target.color != piece_color:
                     moves.append(pos)
                     break
                 else:
@@ -256,10 +266,12 @@ class SimulationBoard:
 
     def _get_cannon_moves(self, piece: SimPiece) -> list[Position]:
         moves = []
+        pieces = self._pieces  # 局部变量加速访问
+        piece_color = piece.color
         for direction in range(4):
             found_platform = False
             for pos in get_line_attacks(piece.position, direction):
-                target = self.get_piece(pos)
+                target = pieces.get(pos)
                 if not found_platform:
                     if target is None:
                         moves.append(pos)
@@ -267,7 +279,7 @@ class SimulationBoard:
                         found_platform = True
                 else:
                     if target is not None:
-                        if target.color != piece.color:
+                        if target.color != piece_color:
                             moves.append(pos)
                         break
         return moves
@@ -285,23 +297,123 @@ class SimulationBoard:
         king_pos = self.find_king(color)
         if king_pos is None:
             return True
+        return self.is_king_attacked(king_pos, color)
 
-        for piece in self.get_all_pieces(color.opposite):
-            if king_pos in self.get_potential_moves(piece):
+    def is_king_attacked(self, king_pos: Position, king_color: Color) -> bool:
+        """快速检测将是否被攻击（使用反向攻击表）"""
+        pieces = self._pieces
+        enemy_color = king_color.opposite
+        enemy_is_red = enemy_color == Color.RED
+
+        # 1. 检查马的攻击（使用反向攻击表）
+        for horse_pos, leg_pos in get_horse_reverse_attacks(king_pos):
+            piece = pieces.get(horse_pos)
+            if piece and piece.color == enemy_color:
+                movement = piece.get_movement_type()
+                if movement == PieceType.HORSE:
+                    # 检查马腿
+                    if pieces.get(leg_pos) is None:
+                        return True
+
+        # 2. 检查兵/卒的攻击（使用反向攻击表）
+        for pawn_pos in get_pawn_reverse_attacks(king_pos, enemy_is_red):
+            piece = pieces.get(pawn_pos)
+            if piece and piece.color == enemy_color:
+                movement = piece.get_movement_type()
+                if movement == PieceType.PAWN:
+                    return True
+
+        # 3. 检查车/炮的攻击（同行或同列）
+        for direction in range(4):
+            first_piece = None
+            for pos in get_line_attacks(king_pos, direction):
+                piece = pieces.get(pos)
+                if piece:
+                    if first_piece is None:
+                        # 第一个棋子
+                        if piece.color == enemy_color:
+                            movement = piece.get_movement_type()
+                            if movement == PieceType.ROOK:
+                                return True
+                        first_piece = piece
+                    else:
+                        # 第二个棋子（炮架）
+                        if piece.color == enemy_color:
+                            movement = piece.get_movement_type()
+                            if movement == PieceType.CANNON:
+                                return True
+                        break
+
+        # 4. 检查象的攻击（使用反向攻击表）
+        for elephant_pos, eye_pos in get_elephant_reverse_attacks(king_pos):
+            piece = pieces.get(elephant_pos)
+            if piece and piece.color == enemy_color:
+                movement = piece.get_movement_type()
+                if movement == PieceType.ELEPHANT:
+                    # 检查象眼
+                    if pieces.get(eye_pos) is None:
+                        return True
+
+        # 5. 检查士的攻击（使用反向攻击表）
+        for advisor_pos in get_advisor_reverse_attacks(king_pos):
+            piece = pieces.get(advisor_pos)
+            if piece and piece.color == enemy_color:
+                movement = piece.get_movement_type()
+                if movement == PieceType.ADVISOR:
+                    return True
+
+        # 6. 检查敌方将的直接攻击（相邻格）
+        for king_attack_pos in get_king_reverse_attacks(king_pos):
+            piece = pieces.get(king_attack_pos)
+            if piece and piece.color == enemy_color:
+                movement = piece.get_movement_type()
+                if movement == PieceType.KING:
+                    return True
+
+        # 7. 检查飞将（敌方将在同一列）
+        enemy_king_pos = self.find_king(enemy_color)
+        if enemy_king_pos and enemy_king_pos.col == king_pos.col:
+            min_row = min(king_pos.row, enemy_king_pos.row)
+            max_row = max(king_pos.row, enemy_king_pos.row)
+            has_piece = False
+            for row in range(min_row + 1, max_row):
+                if pieces.get(Position(row, king_pos.col)):
+                    has_piece = True
+                    break
+            if not has_piece:
                 return True
+
         return False
 
     def get_legal_moves(self, color: Color) -> list[JieqiMove]:
         """获取所有合法走法"""
         moves = []
-        for piece in self.get_all_pieces(color):
+        king_pos = self.find_king(color)
+        if king_pos is None:
+            return moves
+
+        # 获取所有己方棋子和潜在走法（内联优化）
+        pieces = self._pieces
+        my_pieces = [p for p in pieces.values() if p.color == color]
+        get_moves = self.get_potential_moves
+        is_attacked = self.is_king_attacked
+
+        for piece in my_pieces:
             action_type = ActionType.REVEAL_AND_MOVE if piece.is_hidden else ActionType.MOVE
             was_hidden = piece.is_hidden
+            from_pos = piece.position
+            is_king = piece.get_movement_type() == PieceType.KING
 
-            for to_pos in self.get_potential_moves(piece):
-                move = JieqiMove(action_type, piece.position, to_pos)
+            for to_pos in get_moves(piece):
+                move = JieqiMove(action_type, from_pos, to_pos)
                 captured = self.make_move(move)
-                in_check = self.is_in_check(color)
+
+                # 如果是将移动，更新将的位置
+                check_king_pos = to_pos if is_king else king_pos
+
+                # 使用快速攻击检测
+                in_check = is_attacked(check_king_pos, color)
+
                 self.undo_move(move, captured, was_hidden)
 
                 if not in_check:
@@ -309,8 +421,15 @@ class SimulationBoard:
 
         return moves
 
-    def get_game_result(self, current_turn: Color) -> GameResult:
-        """判断游戏结果"""
+    def get_game_result(
+        self, current_turn: Color, legal_moves: list[JieqiMove] | None = None
+    ) -> GameResult:
+        """判断游戏结果
+
+        Args:
+            current_turn: 当前回合的颜色
+            legal_moves: 预先计算的合法走法（可选，避免重复计算）
+        """
         red_king = self.find_king(Color.RED)
         black_king = self.find_king(Color.BLACK)
 
@@ -319,8 +438,9 @@ class SimulationBoard:
         if black_king is None:
             return GameResult.RED_WIN
 
-        legal_moves = self.get_legal_moves(current_turn)
-        if not legal_moves:
+        # 使用预计算的走法或重新计算
+        moves = legal_moves if legal_moves is not None else self.get_legal_moves(current_turn)
+        if not moves:
             if self.is_in_check(current_turn):
                 return GameResult.RED_WIN if current_turn == Color.BLACK else GameResult.BLACK_WIN
             return GameResult.DRAW

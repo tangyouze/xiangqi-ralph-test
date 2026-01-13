@@ -14,13 +14,9 @@ ID: v001
 from __future__ import annotations
 
 import random
-from typing import TYPE_CHECKING
 
 from jieqi.ai.base import AIConfig, AIEngine, AIStrategy
-
-if TYPE_CHECKING:
-    from jieqi.types import JieqiMove
-    from jieqi.view import PlayerView
+from jieqi.fen import get_legal_moves_from_fen
 
 
 AI_ID = "v001"
@@ -43,8 +39,13 @@ class RandomAI(AIStrategy):
         super().__init__(config)
         self._rng = random.Random(self.config.seed)
 
-    def select_move(self, view: PlayerView) -> JieqiMove | None:
-        """从合法走法中随机选择一个"""
-        if not view.legal_moves:
-            return None
-        return self._rng.choice(view.legal_moves)
+    def select_moves_fen(self, fen: str, n: int = 10) -> list[tuple[str, float]]:
+        """从合法走法中随机选择 n 个"""
+        legal_moves = get_legal_moves_from_fen(fen)
+        if not legal_moves:
+            return []
+
+        # 随机选择最多 n 个走法
+        selected = self._rng.sample(legal_moves, min(n, len(legal_moves)))
+        # 所有走法评分相同（随机策略）
+        return [(move, 0.0) for move in selected]

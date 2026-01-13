@@ -14,7 +14,7 @@ ID: v008
 - v1: 初始版本，缺少吃子评估
 - v2: 添加吃子加分，优化评估
 
-注意：AI 使用 PlayerView，无法看到暗子的真实身份！
+注意：AI 使用 FEN 接口，无法看到暗子的真实身份！
 """
 
 from __future__ import annotations
@@ -23,12 +23,12 @@ import random
 from typing import TYPE_CHECKING
 
 from jieqi.ai.base import AIConfig, AIEngine, AIStrategy
+from jieqi.fen import create_board_from_fen, get_legal_moves_from_fen, parse_fen, parse_move
 from jieqi.simulation import SimulationBoard, SimPiece
 from jieqi.types import Color, GameResult, PieceType, Position
 
 if TYPE_CHECKING:
     from jieqi.types import JieqiMove
-    from jieqi.view import PlayerView
 
 
 AI_ID = "v008"

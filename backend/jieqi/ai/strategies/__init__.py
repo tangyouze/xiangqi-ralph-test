@@ -18,6 +18,9 @@
 - v014_advanced: 高级搜索 AI
 - v016_muses: Muses 风格 AI（参考揭棋 AI 大师思路）
 - v017_muses2: 深度优化揭棋 AI
+- v018_mcts: 基础 MCTS (UCT)
+- v019_mcts_rave: MCTS + RAVE 快速收敛
+- v020_mcts_eval: MCTS + 评估函数混合深度搜索
 """
 
 # 导入所有策略以触发注册
@@ -37,3 +40,6 @@ from jieqi.ai.strategies.v013_iterative import strategy as v013  # noqa: F401
 from jieqi.ai.strategies.v014_advanced import strategy as v014  # noqa: F401
 from jieqi.ai.strategies.v016_muses import strategy as v016  # noqa: F401
 from jieqi.ai.strategies.v017_muses2 import strategy as v017  # noqa: F401
+from jieqi.ai.strategies.v018_mcts import strategy as v018  # noqa: F401
+from jieqi.ai.strategies.v019_mcts_rave import strategy as v019  # noqa: F401
+from jieqi.ai.strategies.v020_mcts_eval import strategy as v020  # noqa: F401
