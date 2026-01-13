@@ -29,11 +29,12 @@ from jieqi.ai.evaluator import (
     JieqiEvaluator,
     get_evaluator,
 )
+from jieqi.fen import create_board_from_fen, get_legal_moves_from_fen, parse_fen, parse_move
 from jieqi.simulation import SimulationBoard, SimPiece
 from jieqi.types import ActionType, Color, JieqiMove, PieceType, Position
 
 if TYPE_CHECKING:
-    from jieqi.view import PlayerView
+    pass
 
 
 AI_ID = "v017"
@@ -153,21 +154,23 @@ class Muses2AI(AIStrategy):
         self._start_time = 0.0
         self._best_move_at_depth: dict[int, tuple[JieqiMove, float]] = {}
 
-    def select_move(self, view: PlayerView) -> JieqiMove | None:
-        """选择最佳走法"""
-        candidates = self.select_moves(view, n=1)
-        return candidates[0][0] if candidates else None
-
-    def select_moves(self, view: PlayerView, n: int = 10) -> list[tuple[JieqiMove, float]]:
-        """返回 Top-N 候选着法及其评分（-1000 到 1000）"""
-        if not view.legal_moves:
+    def select_moves_fen(self, fen: str, n: int = 10) -> list[tuple[str, float]]:
+        """选择得分最高的 n 个走法"""
+        legal_moves = get_legal_moves_from_fen(fen)
+        if not legal_moves:
             return []
 
-        if len(view.legal_moves) == 1:
-            return [(view.legal_moves[0], 0.0)]
+        if len(legal_moves) == 1:
+            return [(legal_moves[0], 0.0)]
 
-        my_color = view.viewer
-        sim_board = SimulationBoard(view)
+        state = parse_fen(fen)
+        my_color = state.turn
+        sim_board = create_board_from_fen(fen)
+
+        # 解析走法
+        parsed_moves = [(move_str, parse_move(move_str)[0]) for move_str in legal_moves]
+        move_to_str = {m: s for s, m in parsed_moves}
+        jieqi_moves = [m for _, m in parsed_moves]
 
         self._nodes_evaluated = 0
         self._start_time = time.time()
@@ -175,10 +178,6 @@ class Muses2AI(AIStrategy):
         self._tt.clear()
 
         all_scores: dict[JieqiMove, float] = {}
-        last_complete_depth = 0
-
-        # 初始评估
-        initial_eval = self._evaluator.evaluate(sim_board, my_color)
 
         # 迭代加深搜索
         for depth in range(1, self.max_depth + 1):
@@ -186,10 +185,9 @@ class Muses2AI(AIStrategy):
                 break
 
             try:
-                scores = self._search_root(sim_board, view.legal_moves, depth, my_color)
+                scores = self._search_root(sim_board, jieqi_moves, depth, my_color)
                 if scores:
                     all_scores = scores
-                    last_complete_depth = depth
                     best_move = max(scores, key=scores.get)  # type: ignore
                     best_score = scores[best_move]
                     self._best_move_at_depth[depth] = (best_move, best_score)
@@ -197,15 +195,33 @@ class Muses2AI(AIStrategy):
                 break
 
         if not all_scores:
-            shuffled = view.legal_moves[:]
+            shuffled = legal_moves[:]
             self._rng.shuffle(shuffled)
             return [(move, 0.0) for move in shuffled[:n]]
 
-        # 按分数排序并归一化
-        sorted_moves = sorted(all_scores.items(), key=lambda x: -x[1])
-        result = [
-            (move, self._evaluator.normalize_score(score)) for move, score in sorted_moves[:n]
-        ]
+        # 转换为字符串格式并排序
+        str_scores: dict[str, float] = {}
+        for move, score in all_scores.items():
+            move_str = move_to_str.get(move)
+            if move_str:
+                str_scores[move_str] = self._evaluator.normalize_score(score)
+
+        sorted_results = sorted(str_scores.items(), key=lambda x: -x[1])
+
+        # 处理同分情况
+        result: list[tuple[str, float]] = []
+        i = 0
+        items = sorted_results
+        while i < len(items) and len(result) < n:
+            current_score = items[i][1]
+            same_score_moves = []
+            while i < len(items) and items[i][1] == current_score:
+                same_score_moves.append(items[i])
+                i += 1
+            self._rng.shuffle(same_score_moves)
+            for move in same_score_moves:
+                if len(result) < n:
+                    result.append(move)
 
         return result
 

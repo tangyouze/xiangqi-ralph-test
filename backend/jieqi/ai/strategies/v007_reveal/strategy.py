@@ -141,30 +141,43 @@ class RevealAI(AIStrategy):
         super().__init__(config)
         self._rng = random.Random(self.config.seed)
 
-    def select_move(self, view: PlayerView) -> JieqiMove | None:
-        """选择得分最高的走法"""
-        if not view.legal_moves:
-            return None
+    def select_moves_fen(self, fen: str, n: int = 10) -> list[tuple[str, float]]:
+        """选择得分最高的 n 个走法"""
+        legal_moves = get_legal_moves_from_fen(fen)
+        if not legal_moves:
+            return []
 
-        my_color = view.viewer
-        best_moves: list[JieqiMove] = []
-        best_score = float("-inf")
+        state = parse_fen(fen)
+        my_color = state.turn
+        sim_board = create_board_from_fen(fen)
 
-        # 创建模拟棋盘
-        sim_board = SimulationBoard(view)
-
-        for move in view.legal_moves:
+        # 计算每个走法的评分
+        scored_moves: list[tuple[str, float]] = []
+        for move_str in legal_moves:
+            move, _ = parse_move(move_str)
             score = self._evaluate_move(sim_board, move, my_color)
+            scored_moves.append((move_str, score))
 
-            if score > best_score:
-                best_score = score
-                best_moves = [move]
-            elif score == best_score:
-                best_moves.append(move)
+        # 按分数降序排序
+        scored_moves.sort(key=lambda x: x[1], reverse=True)
 
-        return self._rng.choice(best_moves)
+        # 处理同分情况
+        result: list[tuple[str, float]] = []
+        i = 0
+        while i < len(scored_moves) and len(result) < n:
+            current_score = scored_moves[i][1]
+            same_score_moves = []
+            while i < len(scored_moves) and scored_moves[i][1] == current_score:
+                same_score_moves.append(scored_moves[i])
+                i += 1
+            self._rng.shuffle(same_score_moves)
+            for move in same_score_moves:
+                if len(result) < n:
+                    result.append(move)
 
-    def _evaluate_move(self, board: SimulationBoard, move: JieqiMove, my_color: Color) -> float:
+        return result
+
+    def _evaluate_move(self, board: SimulationBoard, move: "JieqiMove", my_color: Color) -> float:
         """评估走法得分"""
         score = 0.0
 

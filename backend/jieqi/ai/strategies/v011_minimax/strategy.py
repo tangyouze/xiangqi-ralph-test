@@ -24,11 +24,12 @@ import random
 from typing import TYPE_CHECKING
 
 from jieqi.ai.base import AIConfig, AIEngine, AIStrategy
+from jieqi.fen import create_board_from_fen, get_legal_moves_from_fen, parse_fen, parse_move
 from jieqi.simulation import SimulationBoard, SimPiece
 from jieqi.types import ActionType, Color, GameResult, JieqiMove, PieceType, Position
 
 if TYPE_CHECKING:
-    from jieqi.view import PlayerView
+    pass
 
 
 AI_ID = "v011"
@@ -371,39 +372,41 @@ class MinimaxAI(AIStrategy):
         self._rng = random.Random(self.config.seed)
         self._nodes_evaluated = 0
 
-    def select_move(self, view: PlayerView) -> JieqiMove | None:
-        """选择最佳走法"""
-        candidates = self.select_moves(view, n=1)
-        if not candidates:
-            return None
-        # 如果有多个同分的，随机选择
-        best_score = candidates[0][1]
-        best_moves = [m for m, s in candidates if s == best_score]
-        return self._rng.choice(best_moves)
-
-    def select_moves(self, view: PlayerView, n: int = 10) -> list[tuple[JieqiMove, float]]:
-        """返回 Top-N 候选着法及其评分"""
-        if not view.legal_moves:
+    def select_moves_fen(self, fen: str, n: int = 10) -> list[tuple[str, float]]:
+        """选择得分最高的 n 个走法"""
+        legal_moves = get_legal_moves_from_fen(fen)
+        if not legal_moves:
             return []
 
-        if len(view.legal_moves) == 1:
-            return [(view.legal_moves[0], 0.0)]
+        if len(legal_moves) == 1:
+            return [(legal_moves[0], 0.0)]
 
-        my_color = view.viewer
+        state = parse_fen(fen)
+        my_color = state.turn
         depth = self.config.depth
 
         # 创建模拟棋盘
-        sim_board = SimulationBoard(view)
+        sim_board = create_board_from_fen(fen)
         self._nodes_evaluated = 0
 
-        # 对走法排序以提高剪枝效率
-        sorted_moves = self._order_moves(sim_board, view.legal_moves, my_color)
+        # 解析走法
+        parsed_moves = [(move_str, parse_move(move_str)[0]) for move_str in legal_moves]
 
-        scores: dict[JieqiMove, float] = {}
+        # 对走法排序以提高剪枝效率
+        sorted_moves = self._order_moves(sim_board, [m for _, m in parsed_moves], my_color)
+
+        # 建立映射
+        move_to_str = {m: s for s, m in parsed_moves}
+
+        scores: dict[str, float] = {}
         alpha = float("-inf")
         beta = float("inf")
 
         for move in sorted_moves:
+            move_str = move_to_str.get(move)
+            if move_str is None:
+                continue
+
             piece = sim_board.get_piece(move.from_pos)
             if piece is None:
                 continue
@@ -413,18 +416,34 @@ class MinimaxAI(AIStrategy):
             # 吃将直接高分
             if captured and captured.actual_type == PieceType.KING:
                 sim_board.undo_move(move, captured, was_hidden)
-                scores[move] = 50000
+                scores[move_str] = 50000
                 continue
 
             score = -self._minimax(sim_board, depth - 1, -beta, -alpha, my_color.opposite)
             sim_board.undo_move(move, captured, was_hidden)
 
-            scores[move] = score
+            scores[move_str] = score
             alpha = max(alpha, score)
 
         # 按分数降序排列，取前 N 个
         sorted_results = sorted(scores.items(), key=lambda x: -x[1])
-        return sorted_results[:n]
+
+        # 处理同分情况
+        result: list[tuple[str, float]] = []
+        i = 0
+        items = sorted_results
+        while i < len(items) and len(result) < n:
+            current_score = items[i][1]
+            same_score_moves = []
+            while i < len(items) and items[i][1] == current_score:
+                same_score_moves.append(items[i])
+                i += 1
+            self._rng.shuffle(same_score_moves)
+            for move in same_score_moves:
+                if len(result) < n:
+                    result.append(move)
+
+        return result
 
     def _minimax(
         self,
