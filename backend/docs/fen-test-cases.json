@@ -1,0 +1,333 @@
+{
+  "version": "JFN v2",
+  "description": "揭棋 FEN 跨语言测试用例",
+  "format_spec": {
+    "fen_format": "<棋盘> <被吃子> <回合> <视角>",
+    "board_symbols": {
+      "K/k": "将/帅",
+      "R/r": "车",
+      "H/h": "马",
+      "C/c": "炮",
+      "E/e": "象",
+      "A/a": "士",
+      "P/p": "兵/卒",
+      "X/x": "暗子",
+      "1-9": "空格数"
+    },
+    "captured_symbols": {
+      "uppercase": "明子被吃",
+      "lowercase": "暗子被吃（我知道）",
+      "?": "暗子被吃（我不知道）"
+    },
+    "move_format": {
+      "regular": "a0a1",
+      "reveal": "+a0a1",
+      "reveal_result": "+a0a1=R"
+    }
+  },
+  "test_cases": [
+    {
+      "name": "initial_position_red",
+      "description": "初始局面红方视角，全暗子",
+      "fen": "xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXKXXXX -:- r r",
+      "expected_move_count": 44,
+      "expected_moves": [
+        "+a0a1",
+        "+a0a2",
+        "+a3a4",
+        "+b0a2",
+        "+b0c2",
+        "+b2a2",
+        "+b2b1",
+        "+b2b3",
+        "+b2b4",
+        "+b2b5",
+        "+b2b6",
+        "+b2b9",
+        "+b2c2",
+        "+b2d2",
+        "+b2e2",
+        "+b2f2",
+        "+b2g2",
+        "+c0a2",
+        "+c0e2",
+        "+c3c4",
+        "+d0e1",
+        "+e3e4",
+        "+f0e1",
+        "+g0e2",
+        "+g0i2",
+        "+g3g4",
+        "+h0g2",
+        "+h0i2",
+        "+h2c2",
+        "+h2d2",
+        "+h2e2",
+        "+h2f2",
+        "+h2g2",
+        "+h2h1",
+        "+h2h3",
+        "+h2h4",
+        "+h2h5",
+        "+h2h6",
+        "+h2h9",
+        "+h2i2",
+        "+i0i1",
+        "+i0i2",
+        "+i3i4",
+        "e0e1"
+      ],
+      "turn": "r",
+      "viewer": "r"
+    },
+    {
+      "name": "initial_position_black_view",
+      "description": "初始局面黑方视角",
+      "fen": "xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXKXXXX -:- r b",
+      "expected_move_count": 44,
+      "turn": "r",
+      "viewer": "b"
+    },
+    {
+      "name": "two_kings_only",
+      "description": "只有双方将帅",
+      "fen": "4k4/9/9/9/9/9/9/9/9/4K4 -:- r r",
+      "expected_move_count": 3,
+      "expected_moves": [
+        "e0d0",
+        "e0e9",
+        "e0f0"
+      ]
+    },
+    {
+      "name": "check_position",
+      "description": "黑方被将军，只有应将走法合法",
+      "fen": "4k4/4R4/9/9/9/9/9/9/9/4K4 -:- b r",
+      "expected_move_count": 2,
+      "expected_moves": [
+        "e9d9",
+        "e9f9"
+      ],
+      "is_check": true
+    },
+    {
+      "name": "capture_possible",
+      "description": "红车可以吃黑炮",
+      "fen": "4k4/9/9/9/4c4/4R4/9/9/9/4K4 -:- r r",
+      "expected_move_count": 11,
+      "expected_moves": [
+        "e0d0",
+        "e0f0",
+        "e4a4",
+        "e4b4",
+        "e4c4",
+        "e4d4",
+        "e4e5",
+        "e4f4",
+        "e4g4",
+        "e4h4",
+        "e4i4"
+      ],
+      "capture_move": "e4e5",
+      "capture_move_in_list": true
+    },
+    {
+      "name": "after_capture",
+      "description": "红车吃黑炮后的局面",
+      "original_fen": "4k4/9/9/9/4c4/4R4/9/9/9/4K4 -:- r r",
+      "move": "e4e5",
+      "result_fen": "4k4/9/9/9/4R4/9/9/9/9/4K4 -:C b r",
+      "result_move_count": 2,
+      "result_moves": [
+        "e9d9",
+        "e9f9"
+      ]
+    },
+    {
+      "name": "mixed_pieces",
+      "description": "混合明暗子局面",
+      "fen": "4k4/9/1c5x1/x1x1x1x1x/9/9/X1X1X1X1X/1C5X1/9/4K4 -:- r r",
+      "expected_move_count": 32,
+      "expected_moves": [
+        "+a3a4",
+        "+c3c4",
+        "+e3e4",
+        "+g3g4",
+        "+h2c2",
+        "+h2d2",
+        "+h2e2",
+        "+h2f2",
+        "+h2g2",
+        "+h2h0",
+        "+h2h1",
+        "+h2h3",
+        "+h2h4",
+        "+h2h5",
+        "+h2h6",
+        "+h2i2",
+        "+i3i4",
+        "b2a2",
+        "b2b0",
+        "b2b1",
+        "b2b3",
+        "b2b4",
+        "b2b5",
+        "b2b6",
+        "b2c2",
+        "b2d2",
+        "b2e2",
+        "b2f2",
+        "b2g2",
+        "e0d0",
+        "e0e1",
+        "e0f0"
+      ]
+    },
+    {
+      "name": "reveal_moves",
+      "description": "揭子走法（+前缀）",
+      "fen": "xxxxxxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXXXXXX -:- r r",
+      "reveal_move_count": 44,
+      "reveal_moves": [
+        "+a0a1",
+        "+a0a2",
+        "+a3a4",
+        "+b0a2",
+        "+b0c2",
+        "+b2a2",
+        "+b2b1",
+        "+b2b3",
+        "+b2b4",
+        "+b2b5",
+        "+b2b6",
+        "+b2b9",
+        "+b2c2",
+        "+b2d2",
+        "+b2e2",
+        "+b2f2",
+        "+b2g2",
+        "+c0a2",
+        "+c0e2",
+        "+c3c4",
+        "+d0e1",
+        "+e0e1",
+        "+e3e4",
+        "+f0e1",
+        "+g0e2",
+        "+g0i2",
+        "+g3g4",
+        "+h0g2",
+        "+h0i2",
+        "+h2c2",
+        "+h2d2",
+        "+h2e2",
+        "+h2f2",
+        "+h2g2",
+        "+h2h1",
+        "+h2h3",
+        "+h2h4",
+        "+h2h5",
+        "+h2h6",
+        "+h2h9",
+        "+h2i2",
+        "+i0i1",
+        "+i0i2",
+        "+i3i4"
+      ],
+      "total_move_count": 44
+    },
+    {
+      "name": "after_reveal",
+      "description": "揭子后局面（揭出车）",
+      "original_fen": "xxxxxxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXXXXXX -:- r r",
+      "reveal_move": "+a0a1",
+      "revealed_type": "R",
+      "result_fen": "xxxxxxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/R8/1XXXXXXXX -:- b r",
+      "result_move_count": 44
+    },
+    {
+      "name": "captured_info",
+      "description": "被吃子信息格式",
+      "fen": "4K4/9/9/9/9/9/9/9/9/4k4 Rh?:cP? r r",
+      "red_captured": "Rh?",
+      "black_captured": "cP?"
+    },
+    {
+      "name": "rook_moves",
+      "description": "车的走法测试",
+      "fen": "4k4/9/9/9/9/4R4/9/9/9/4K4 -:- r r",
+      "expected_move_count": 11,
+      "expected_moves": [
+        "e0d0",
+        "e0e1",
+        "e0f0",
+        "e4e1",
+        "e4e2",
+        "e4e3",
+        "e4e5",
+        "e4e6",
+        "e4e7",
+        "e4e8",
+        "e4e9"
+      ]
+    },
+    {
+      "name": "horse_moves",
+      "description": "马的走法测试",
+      "fen": "4k4/9/9/9/4H4/9/9/9/9/4K4 -:- r r",
+      "expected_move_count": 3,
+      "expected_moves": [
+        "e0d0",
+        "e0e1",
+        "e0f0"
+      ]
+    },
+    {
+      "name": "cannon_moves",
+      "description": "炮的走法测试（可隔子吃）",
+      "fen": "4k4/9/9/9/4p4/4C4/9/9/9/4K4 -:- r r",
+      "expected_move_count": 15,
+      "expected_moves": [
+        "e0d0",
+        "e0e1",
+        "e0f0",
+        "e4a4",
+        "e4b4",
+        "e4c4",
+        "e4d4",
+        "e4e1",
+        "e4e2",
+        "e4e3",
+        "e4e9",
+        "e4f4",
+        "e4g4",
+        "e4h4",
+        "e4i4"
+      ]
+    },
+    {
+      "name": "pawn_before_river",
+      "description": "兵过河前（只能前进）",
+      "fen": "4k4/9/9/9/9/9/4P4/9/9/4K4 -:- r r",
+      "expected_move_count": 4,
+      "expected_moves": [
+        "e0d0",
+        "e0e1",
+        "e0f0",
+        "e3e4"
+      ]
+    },
+    {
+      "name": "pawn_after_river",
+      "description": "兵过河后（可左右）",
+      "fen": "4k4/9/9/4P4/9/9/9/9/9/4K4 -:- r r",
+      "expected_move_count": 4,
+      "expected_moves": [
+        "e0d0",
+        "e0e1",
+        "e0f0",
+        "e6e7"
+      ]
+    }
+  ]
+}
