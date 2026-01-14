@@ -138,7 +138,23 @@ impl Position {
         Position { row, col }
     }
 
+    /// 转换为数组索引 (0-89)
+    #[inline]
+    pub fn to_index(&self) -> usize {
+        (self.row as usize) * 9 + (self.col as usize)
+    }
+
+    /// 从数组索引创建位置
+    #[inline]
+    pub fn from_index(index: usize) -> Self {
+        Position {
+            row: (index / 9) as i8,
+            col: (index % 9) as i8,
+        }
+    }
+
     /// 检查位置是否在棋盘范围内
+    #[inline]
     pub fn is_valid(&self) -> bool {
         (0..=9).contains(&self.row) && (0..=8).contains(&self.col)
     }
