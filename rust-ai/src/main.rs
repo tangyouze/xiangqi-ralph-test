@@ -4,7 +4,8 @@
 
 use clap::{Parser, Subcommand};
 use serde::{Deserialize, Serialize};
-use xiangqi_ai::{get_legal_moves_from_fen, AIConfig, AIEngine};
+use std::time::Instant;
+use xiangqi_ai::{get_legal_moves_from_fen, get_node_count, reset_node_count, AIConfig, AIEngine};
 
 #[derive(Parser)]
 #[command(name = "xiangqi-ai")]
@@ -29,13 +30,17 @@ enum Commands {
         #[arg(short, long)]
         fen: String,
 
-        /// AI 策略 (random, greedy, minimax)
+        /// AI 策略 (random, greedy, minimax, iterative, mcts, positional, defensive, aggressive)
         #[arg(short, long, default_value = "greedy")]
         strategy: String,
 
         /// 搜索深度
         #[arg(short, long, default_value = "3")]
         depth: u32,
+
+        /// 时间限制（秒）
+        #[arg(short = 't', long)]
+        time_limit: Option<f64>,
 
         /// 返回的走法数量
         #[arg(short, long, default_value = "1")]
@@ -96,6 +101,7 @@ fn main() {
             fen,
             strategy,
             depth,
+            time_limit,
             n,
             json,
         } => {
@@ -103,6 +109,7 @@ fn main() {
                 depth,
                 randomness: 0.0,
                 seed: None,
+                time_limit,
             };
 
             let ai = match AIEngine::from_strategy(&strategy, &config) {
@@ -113,8 +120,20 @@ fn main() {
                 }
             };
 
+            // 重置节点计数器
+            reset_node_count();
+            let start = Instant::now();
+
             match ai.select_moves_fen(&fen, n) {
                 Ok(moves) => {
+                    let elapsed = start.elapsed().as_secs_f64();
+                    let nodes = get_node_count();
+                    let nps = if elapsed > 0.0 {
+                        nodes as f64 / elapsed
+                    } else {
+                        0.0
+                    };
+
                     if json {
                         let response = MovesResponse {
                             total: moves.len(),
@@ -124,11 +143,19 @@ fn main() {
                                 .collect(),
                         };
                         println!("{}", serde_json::to_string_pretty(&response).unwrap());
+                        eprintln!(
+                            "Stats: nodes={}, time={:.3}s, nps={:.0}",
+                            nodes, elapsed, nps
+                        );
                     } else {
                         println!("Best moves (strategy={}, depth={}):", strategy, depth);
                         for (mv, score) in moves {
                             println!("  {} (score: {:.2})", mv, score);
                         }
+                        println!(
+                            "\nStats: nodes={}, time={:.3}s, nps={:.0}",
+                            nodes, elapsed, nps
+                        );
                     }
                 }
                 Err(e) => {

@@ -16,9 +16,19 @@ pub use defensive::DefensiveAI;
 pub use greedy::GreedyAI;
 pub use iterative::IterativeDeepeningAI;
 pub use mcts::MCTSAI;
-pub use minimax::MinimaxAI;
+pub use minimax::{MinimaxAI, NODE_COUNT};
 pub use positional::PositionalAI;
 pub use random::RandomAI;
+
+/// 重置节点计数器
+pub fn reset_node_count() {
+    NODE_COUNT.store(0, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// 获取当前节点计数
+pub fn get_node_count() -> u64 {
+    NODE_COUNT.load(std::sync::atomic::Ordering::Relaxed)
+}
 
 use crate::board::Board;
 use crate::types::JieqiMove;
@@ -33,6 +43,8 @@ pub struct AIConfig {
     pub randomness: f64,
     /// 随机种子
     pub seed: Option<u64>,
+    /// 时间限制（秒）
+    pub time_limit: Option<f64>,
 }
 
 impl Default for AIConfig {
@@ -41,6 +53,7 @@ impl Default for AIConfig {
             depth: 3,
             randomness: 0.0,
             seed: None,
+            time_limit: None,
         }
     }
 }

@@ -42,15 +42,29 @@ PIECE_SYMBOLS = {
     (Color.BLACK, PieceType.PAWN): "卒",
 }
 
-# 预设测试局面
+# 预设测试局面 - 按难度和类型分类
 TEST_POSITIONS = {
+    # === 基础局面 ===
     "初始局面": "xxxxxxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXXXXXX -:- r r",
-    "车炮对决": "4k4/9/9/9/4c4/4R4/9/9/9/4K4 -:- r r",
+    "揭棋中局（双方有暗子）": "xxxx1xxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXX1XXXX -:- r r",
+    # === 杀法练习 ===
     "双车杀王": "4k4/9/9/9/9/9/9/9/4R4/3RK4 -:- r r",
     "马后炮": "3ak4/9/9/9/9/9/9/5C3/4H4/4K4 -:- r r",
+    "铁门栓": "3k5/4a4/4R4/9/9/9/9/9/9/4K4 -:- r r",
+    "闷杀（重炮杀）": "4k4/4C4/4C4/9/9/9/9/9/9/4K4 -:- r r",
+    "车马冷着": "3k5/9/4H4/9/9/9/9/4R4/9/4K4 -:- r r",
+    # === 残局 ===
+    "车炮对决": "4k4/9/9/9/4c4/4R4/9/9/9/4K4 -:- r r",
     "兵临城下": "4k4/9/9/9/9/9/4P4/9/9/4K4 -:- r r",
-    "揭棋中局1": "4k4/4x4/9/4X4/9/9/9/9/9/4K4 -:- r r",
-    "揭棋中局2": "xxxx1xxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXX1XXXX -:- r r",
+    "车兵对车": "4k4/9/4r4/9/9/9/4P4/9/4R4/4K4 -:- r r",
+    "双炮胁士": "3ak4/4a4/9/9/9/9/9/4C4/4C4/4K4 -:- r r",
+    # === 揭棋特殊局面 ===
+    "红方有优势暗子": "4k4/4x4/9/4X4/9/9/9/9/9/4K4 -:- r r",
+    "黑方有优势暗子": "4k4/9/9/9/9/9/4x4/9/9/4K4 -:- r b",
+    "多暗子复杂局面": "x2k2x1x/9/1x2x2x1/9/9/9/1X2X2X1/9/X2K2X1X/9 -:- r r",
+    # === AI 对抗测试 ===
+    "中局对攻": "r2ak4/9/2h1e4/p3p4/9/6P2/P3P4/2H1E4/9/R2AK4 -:- r r",
+    "复杂中局": "r1eak4/4a4/4e1h2/p1h1p3p/4c4/2P6/P3P3P/4E1H2/4A4/R2AK2R1 -:- r r",
 }
 
 # 列号映射
@@ -80,8 +94,8 @@ def render_board_html(fen: str, highlight_moves: list[tuple[str, float]] | None 
     for piece in state.pieces:
         row, col = piece.position.row, piece.position.col
         if piece.is_hidden:
-            # 暗子
-            symbol = "？" if piece.color == Color.RED else "？"
+            # 暗子 - 用不同符号区分红黑
+            symbol = "暗" if piece.color == Color.RED else "暗"
             color_class = "red-hidden" if piece.color == Color.RED else "black-hidden"
         else:
             # 明子
@@ -113,22 +127,24 @@ def render_board_html(fen: str, highlight_moves: list[tuple[str, float]] | None 
     html = """
     <style>
         .board-container {
-            font-family: 'Noto Sans SC', sans-serif;
-            background: #f0d9b5;
-            padding: 10px;
-            border-radius: 8px;
+            font-family: 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #f5e6d3 0%, #e8d4b8 100%);
+            padding: 15px;
+            border-radius: 12px;
             display: inline-block;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
         .board-table {
             border-collapse: collapse;
+            background: #d4b896;
         }
         .board-table td {
-            width: 50px;
-            height: 50px;
+            width: 52px;
+            height: 52px;
             text-align: center;
             vertical-align: middle;
-            border: 1px solid #b58863;
-            font-size: 28px;
+            border: 1px solid #8b6914;
+            font-size: 26px;
             position: relative;
         }
         .board-table .river {
@@ -138,43 +154,50 @@ def render_board_html(fen: str, highlight_moves: list[tuple[str, float]] | None 
         }
         .piece {
             display: inline-block;
-            width: 40px;
-            height: 40px;
-            line-height: 40px;
+            width: 42px;
+            height: 42px;
+            line-height: 42px;
             border-radius: 50%;
             font-weight: bold;
+            font-size: 22px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
         .piece.red {
-            background: #fff;
+            background: linear-gradient(145deg, #fff5f5, #ffe0e0);
             color: #c00;
             border: 2px solid #c00;
         }
         .piece.black {
-            background: #fff;
+            background: linear-gradient(145deg, #f5f5f5, #e0e0e0);
             color: #000;
-            border: 2px solid #000;
+            border: 2px solid #333;
         }
         .piece.red-hidden {
-            background: #ffcccc;
-            color: #c00;
-            border: 2px dashed #c00;
+            background: linear-gradient(145deg, #ffdddd, #ffaaaa);
+            color: #900;
+            border: 3px dashed #c00;
+            font-size: 18px;
         }
         .piece.black-hidden {
-            background: #cccccc;
-            color: #000;
-            border: 2px dashed #000;
+            background: linear-gradient(145deg, #aaaaaa, #777777);
+            color: #fff;
+            border: 3px dashed #333;
+            font-size: 18px;
         }
         .highlight-from {
-            background: #ffeb3b !important;
+            background: #fff59d !important;
+            box-shadow: inset 0 0 8px #ffc107;
         }
         .highlight-to {
-            background: #4caf50 !important;
+            background: #a5d6a7 !important;
+            box-shadow: inset 0 0 8px #4caf50;
         }
         .row-label, .col-label {
             font-size: 12px;
             color: #666;
-            width: 25px;
+            width: 28px;
             border: none !important;
+            background: transparent !important;
         }
     </style>
     <div class="board-container">
@@ -309,8 +332,15 @@ def main():
     ai_moves = st.session_state.get("ai_moves", [])
 
     with col_board:
-        # 渲染棋盘（带高亮）
-        board_html = render_board_html(fen, ai_moves if ai_moves else None)
+        # 渲染棋盘（根据选中的走法高亮）
+        selected_idx = st.session_state.get("selected_move_idx", -1)
+        if ai_moves and selected_idx >= 0 and selected_idx < len(ai_moves):
+            # 只高亮选中的走法
+            highlight = [ai_moves[selected_idx]]
+        else:
+            # 高亮所有走法或无高亮
+            highlight = ai_moves if ai_moves else None
+        board_html = render_board_html(fen, highlight)
         st.markdown(board_html, unsafe_allow_html=True)
 
     with col_analysis:
@@ -318,7 +348,22 @@ def main():
             ai_backend = st.session_state.get("ai_backend", "")
             ai_strategy = st.session_state.get("ai_strategy", "")
 
-            st.success(f"✅ Found {len(ai_moves)} moves (backend={ai_backend}, strategy={ai_strategy})")
+            st.success(
+                f"✅ Found {len(ai_moves)} moves (backend={ai_backend}, strategy={ai_strategy})"
+            )
+
+            # 走法选择器
+            move_options = ["All Moves"] + [
+                f"{i + 1}. {m} ({s:.1f})" for i, (m, s) in enumerate(ai_moves)
+            ]
+            selected = st.selectbox("Highlight Move", move_options, key="move_selector")
+
+            if selected != "All Moves":
+                # 解析选中的走法索引
+                idx = int(selected.split(".")[0]) - 1
+                st.session_state["selected_move_idx"] = idx
+            else:
+                st.session_state["selected_move_idx"] = -1
 
             # 显示走法表格
             st.markdown("### Recommended Moves")
@@ -326,22 +371,36 @@ def main():
             for i, (move, score) in enumerate(ai_moves, 1):
                 # 解析走法
                 is_reveal = move.startswith("+")
-                move_type = "揭子" if is_reveal else "走子"
+                move_type = "🔓 揭子" if is_reveal else "➡️ 走子"
+
+                # 高亮选中的走法
+                selected_idx = st.session_state.get("selected_move_idx", -1)
+                is_selected = selected_idx == i - 1
 
                 col_rank, col_move, col_score, col_type = st.columns([1, 2, 2, 1])
                 with col_rank:
                     if i == 1:
-                        st.markdown(f"**🥇 {i}**")
+                        rank_text = "🥇 1"
                     elif i == 2:
-                        st.markdown(f"**🥈 {i}**")
+                        rank_text = "🥈 2"
                     elif i == 3:
-                        st.markdown(f"**🥉 {i}**")
+                        rank_text = "🥉 3"
                     else:
-                        st.markdown(f"**{i}**")
+                        rank_text = str(i)
+
+                    if is_selected:
+                        st.markdown(f"**→ {rank_text}**")
+                    else:
+                        st.markdown(f"**{rank_text}**")
                 with col_move:
                     st.code(move)
                 with col_score:
-                    st.metric("Score", f"{score:.1f}")
+                    # 格式化分数显示
+                    if abs(score) >= 10000:
+                        score_text = "♚ WIN" if score > 0 else "☠️ LOSE"
+                    else:
+                        score_text = f"{score:.1f}"
+                    st.metric("Score", score_text)
                 with col_type:
                     st.caption(move_type)
         else:
@@ -384,7 +443,9 @@ def main():
                 with col_py:
                     st.markdown("### Python Backend")
                     try:
-                        py_engine = UnifiedAIEngine(backend="python", strategy=strategy, depth=depth)
+                        py_engine = UnifiedAIEngine(
+                            backend="python", strategy=strategy, depth=depth
+                        )
                         py_moves = py_engine.get_best_moves(fen, top_n)
                         for move, score in py_moves:
                             st.write(f"- `{move}` (score: {score:.1f})")
@@ -394,7 +455,9 @@ def main():
                 with col_rust:
                     st.markdown("### Rust Backend")
                     try:
-                        rust_engine = UnifiedAIEngine(backend="rust", strategy=strategy, depth=depth)
+                        rust_engine = UnifiedAIEngine(
+                            backend="rust", strategy=strategy, depth=depth
+                        )
                         rust_moves = rust_engine.get_best_moves(fen, top_n)
                         for move, score in rust_moves:
                             st.write(f"- `{move}` (score: {score:.1f})")

@@ -4,6 +4,10 @@ use super::{sort_and_truncate, AIConfig, AIStrategy, ScoredMove};
 use crate::board::Board;
 use crate::types::{Color, GameResult, PieceType, HIDDEN_PIECE_VALUE};
 use rand::prelude::*;
+use std::sync::atomic::{AtomicU64, Ordering};
+
+/// 全局节点计数器
+pub static NODE_COUNT: AtomicU64 = AtomicU64::new(0);
 
 /// Minimax AI - 使用 Alpha-Beta 剪枝
 pub struct MinimaxAI {
@@ -66,6 +70,9 @@ impl MinimaxAI {
 
     /// Negamax 搜索（带 Alpha-Beta 剪枝）
     fn negamax(&self, board: &mut Board, depth: u32, mut alpha: f64, beta: f64) -> f64 {
+        // 节点计数
+        NODE_COUNT.fetch_add(1, Ordering::Relaxed);
+
         let current_color = board.current_turn();
         let legal_moves = board.get_legal_moves(current_color);
 

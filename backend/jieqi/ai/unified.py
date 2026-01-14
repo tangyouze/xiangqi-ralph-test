@@ -148,36 +148,40 @@ class RustBackend(AIBackend):
         return moves
 
     def get_best_moves(self, fen: str, n: int = 5) -> list[tuple[str, float]]:
-        output = self._run_command(
-            [
-                "best",
-                "--fen",
-                fen,
-                "--strategy",
-                self.strategy_name,
-                "--depth",
-                str(self.config.depth),
-                "--n",
-                str(n),
-                "--json",
-            ]
-        )
+        args = [
+            "best",
+            "--fen",
+            fen,
+            "--strategy",
+            self.strategy_name,
+            "--depth",
+            str(self.config.depth),
+            "--n",
+            str(n),
+            "--json",
+        ]
+
+        # 添加时间限制（如果设置）
+        if self.config.time_limit is not None:
+            args.extend(["--time-limit", str(self.config.time_limit)])
+
+        output = self._run_command(args)
 
         # 解析 JSON 输出
         data = json.loads(output)
         return [(m["move"], m["score"]) for m in data["moves"]]
 
     def list_strategies(self) -> list[str]:
-        # Rust 支持的策略（硬编码，因为 Rust CLI 没有 list 命令）
+        # Rust 支持的策略
         return [
             "random",
             "greedy",
             "minimax",
+            "iterative",
             "mcts",
             "positional",
             "defensive",
             "aggressive",
-            "iterative",
         ]
 
 

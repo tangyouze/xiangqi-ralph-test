@@ -4,13 +4,18 @@ use super::{sort_and_truncate, AIConfig, AIStrategy, ScoredMove};
 use crate::board::Board;
 use crate::types::{Color, GameResult, JieqiMove, PieceType, HIDDEN_PIECE_VALUE};
 use rand::prelude::*;
-use std::cmp::Ordering;
+use std::cmp::Ordering as CmpOrdering;
+use std::sync::atomic::Ordering as AtomicOrdering;
+use std::time::{Duration, Instant};
+
+use super::minimax::NODE_COUNT;
 
 /// Iterative Deepening AI - 迭代加深搜索
 pub struct IterativeDeepeningAI {
     max_depth: u32,
     rng: StdRng,
     randomness: f64,
+    time_limit: Option<Duration>,
 }
 
 impl IterativeDeepeningAI {
@@ -23,6 +28,7 @@ impl IterativeDeepeningAI {
             max_depth: config.depth,
             rng,
             randomness: config.randomness,
+            time_limit: config.time_limit.map(Duration::from_secs_f64),
         }
     }
 
@@ -76,6 +82,9 @@ impl IterativeDeepeningAI {
 
     /// Negamax 搜索
     fn negamax(&self, board: &mut Board, depth: u32, mut alpha: f64, beta: f64) -> f64 {
+        // 节点计数
+        NODE_COUNT.fetch_add(1, AtomicOrdering::Relaxed);
+
         let current_color = board.current_turn();
         let legal_moves = board.get_legal_moves(current_color);
 
@@ -127,12 +136,27 @@ impl IterativeDeepeningAI {
         }
 
         let mut best_moves: Vec<(JieqiMove, f64)> = moves.iter().map(|&mv| (mv, 0.0)).collect();
+        let start_time = Instant::now();
 
         // 从深度 1 开始迭代
         for depth in 1..=self.max_depth {
+            // 检查时间限制
+            if let Some(limit) = self.time_limit {
+                if start_time.elapsed() >= limit {
+                    break;
+                }
+            }
+
             let mut current_scores: Vec<(JieqiMove, f64)> = Vec::new();
 
             for &mv in &moves {
+                // 每个走法也检查时间限制
+                if let Some(limit) = self.time_limit {
+                    if start_time.elapsed() >= limit {
+                        break;
+                    }
+                }
+
                 let mut board_copy = board.clone();
                 board_copy.make_move(&mv);
 
@@ -142,9 +166,12 @@ impl IterativeDeepeningAI {
                 current_scores.push((mv, score));
             }
 
-            // 按分数排序
-            current_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(Ordering::Equal));
-            best_moves = current_scores;
+            // 只有完成整个深度的搜索才更新 best_moves
+            if current_scores.len() == moves.len() {
+                // 按分数排序
+                current_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(CmpOrdering::Equal));
+                best_moves = current_scores;
+            }
         }
 
         best_moves
