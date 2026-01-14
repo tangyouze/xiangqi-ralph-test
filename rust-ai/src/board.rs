@@ -95,6 +95,35 @@ impl Board {
         self.current_turn
     }
 
+    /// 设置当前回合（用于 Null Move Pruning）
+    #[inline]
+    pub fn set_turn(&mut self, color: Color) {
+        self.current_turn = color;
+    }
+
+    /// 获取局面哈希（用于置换表）
+    pub fn get_position_hash(&self) -> u64 {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+
+        let mut hasher = DefaultHasher::new();
+
+        // 哈希所有棋子
+        for (i, square) in self.squares.iter().enumerate() {
+            if let Some(piece) = square {
+                i.hash(&mut hasher);
+                piece.color.hash(&mut hasher);
+                piece.is_hidden.hash(&mut hasher);
+                piece.actual_type.hash(&mut hasher);
+            }
+        }
+
+        // 哈希当前回合
+        self.current_turn.hash(&mut hasher);
+
+        hasher.finish()
+    }
+
     /// 获取某位置的棋子
     #[inline]
     pub fn get_piece(&self, pos: Position) -> Option<&Piece> {

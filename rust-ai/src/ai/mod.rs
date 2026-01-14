@@ -9,6 +9,7 @@ mod iterative;
 mod mcts;
 mod minimax;
 mod positional;
+mod pvs;
 mod random;
 
 pub use aggressive::AggressiveAI;
@@ -18,6 +19,7 @@ pub use iterative::IterativeDeepeningAI;
 pub use mcts::MCTSAI;
 pub use minimax::{MinimaxAI, NODE_COUNT};
 pub use positional::PositionalAI;
+pub use pvs::PVSAI;
 pub use random::RandomAI;
 
 /// 重置节点计数器
@@ -144,6 +146,13 @@ impl AIEngine {
         }
     }
 
+    /// 创建 PVS AI
+    pub fn pvs(config: &AIConfig) -> Self {
+        AIEngine {
+            strategy: Box::new(PVSAI::new(config)),
+        }
+    }
+
     /// 从策略名称创建
     pub fn from_strategy(name: &str, config: &AIConfig) -> Result<Self, String> {
         match name.to_lowercase().as_str() {
@@ -155,8 +164,9 @@ impl AIEngine {
             "positional" | "position" => Ok(Self::positional(config)),
             "defensive" | "defense" => Ok(Self::defensive(config)),
             "aggressive" | "attack" => Ok(Self::aggressive(config)),
+            "pvs" | "advanced" => Ok(Self::pvs(config)),
             _ => Err(format!(
-                "Unknown strategy: {}. Available: random, greedy, minimax, iterative, mcts, positional, defensive, aggressive",
+                "Unknown strategy: {}. Available: random, greedy, minimax, iterative, mcts, positional, defensive, aggressive, pvs",
                 name
             )),
         }

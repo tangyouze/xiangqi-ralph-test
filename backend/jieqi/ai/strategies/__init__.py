@@ -21,6 +21,7 @@
 - v018_mcts: 基础 MCTS (UCT)
 - v019_mcts_rave: MCTS + RAVE 快速收敛
 - v020_mcts_eval: MCTS + 评估函数混合深度搜索
+- v021_pvs: PVS高级搜索 (Null Move + Aspiration + Futility)
 """
 
 # 导入所有策略以触发注册
@@ -43,3 +44,4 @@ from jieqi.ai.strategies.v017_muses2 import strategy as v017  # noqa: F401
 from jieqi.ai.strategies.v018_mcts import strategy as v018  # noqa: F401
 from jieqi.ai.strategies.v019_mcts_rave import strategy as v019  # noqa: F401
 from jieqi.ai.strategies.v020_mcts_eval import strategy as v020  # noqa: F401
+from jieqi.ai.strategies.v021_pvs import strategy as v021  # noqa: F401

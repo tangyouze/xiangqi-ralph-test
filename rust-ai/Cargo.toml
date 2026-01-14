@@ -16,6 +16,8 @@ serde_json = "1.0"
 # 日志
 log = "0.4"
 env_logger = "0.10"
+# 全局静态变量
+lazy_static = "1.4"
 
 [dev-dependencies]
 criterion = "0.5"
