@@ -41,14 +41,30 @@ install:
     cd backend && uv venv && source .venv/bin/activate && uv pip install -e ".[dev]"
     cd frontend && npm install
 
-# Run all tests
+# Run all tests (Rust + Python)
+test-all:
+    @echo "=== Rust Tests ==="
+    cd rust-ai && cargo test
+    @echo "=== Python Tests ==="
+    cd backend && source .venv/bin/activate && pytest tests/unit/ tests/integration/ -v
+    @echo "=== All Tests Passed ==="
+
+# Run old tests (backend + frontend e2e)
 test:
     cd backend && source .venv/bin/activate && pytest tests/ -v
     cd frontend && npm run test:e2e
 
+# Run Rust tests only
+test-rust:
+    cd rust-ai && cargo test
+
 # Run backend tests only
 test-backend:
     cd backend && source .venv/bin/activate && pytest tests/ -v --cov=xiangqi --cov-report=term-missing
+
+# Run jieqi tests only
+test-jieqi:
+    cd backend && source .venv/bin/activate && pytest tests/unit/jieqi/ tests/integration/jieqi/ -v
 
 # Run frontend e2e tests only
 test-e2e:
