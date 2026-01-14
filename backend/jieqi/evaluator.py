@@ -145,6 +145,7 @@ class BoardEvaluator:
         """懒加载 FastMoveGenerator"""
         if self._fast_gen is None:
             from jieqi.bitboard import FastMoveGenerator
+
             self._fast_gen = FastMoveGenerator(self.board)
         return self._fast_gen
 
@@ -182,12 +183,8 @@ class BoardEvaluator:
                 result["hidden"]["black"] += 1
 
         # 计算差值
-        result["material"]["diff"] = (
-            result["material"]["red"] - result["material"]["black"]
-        )
-        result["position"]["diff"] = (
-            result["position"]["red"] - result["position"]["black"]
-        )
+        result["material"]["diff"] = result["material"]["red"] - result["material"]["black"]
+        result["position"]["diff"] = result["position"]["red"] - result["position"]["black"]
 
         # 将军评估
         fast_gen = self._get_fast_gen()
@@ -197,11 +194,7 @@ class BoardEvaluator:
             result["check"] = -500  # 黑方将红方军
 
         # 总分（红方视角）
-        total = (
-            result["material"]["diff"]
-            + result["position"]["diff"]
-            + result["check"]
-        )
+        total = result["material"]["diff"] + result["position"]["diff"] + result["check"]
 
         # 如果视角是黑方，取反
         if perspective == Color.BLACK:

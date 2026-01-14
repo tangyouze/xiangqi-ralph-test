@@ -9,9 +9,7 @@ from jieqi.types import Color, GameResult
 def debug_game(seed: int, red_time: float = 0.15, black_time: float = 5.0):
     """调试单局对战"""
     red_ai = AIEngine.create("advanced", AIConfig(time_limit=red_time, seed=seed * 1000))
-    black_ai = AIEngine.create(
-        "advanced", AIConfig(time_limit=black_time, seed=seed * 1000 + 1)
-    )
+    black_ai = AIEngine.create("advanced", AIConfig(time_limit=black_time, seed=seed * 1000 + 1))
     game = JieqiGame(config=GameConfig(seed=seed))
 
     print(f"=== Debug Game seed={seed} ===")
@@ -35,7 +33,9 @@ def debug_game(seed: int, red_time: float = 0.15, black_time: float = 5.0):
             is_draw = game.result == GameResult.DRAW
             pos_count = game.get_position_count()
             game.undo_move()
-            print(f"  [{i}] {move} score={score:.0f} would_draw={is_draw} pos_count_after={pos_count}")
+            print(
+                f"  [{i}] {move} score={score:.0f} would_draw={is_draw} pos_count_after={pos_count}"
+            )
 
         # 选择第一个不会导致和棋的
         move = None

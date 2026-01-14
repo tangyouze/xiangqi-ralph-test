@@ -8,6 +8,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from jieqi.ai import AIEngine
+from jieqi.ai.unified import RustBackend
 from jieqi.api.game_manager import game_manager
 from jieqi.api.models import (
     AIInfoResponse,
@@ -76,10 +77,15 @@ def create_app() -> FastAPI:
     @app.get("/ai/info", response_model=AIInfoResponse)
     def get_ai_info():
         """获取 AI 信息"""
+        # Rust 支持的策略
+        rust_strategies = RustBackend(strategy="random").list_strategies()
         return AIInfoResponse(
             available_strategies=AIEngine.list_strategies(),
             levels=[level.value for level in AILevel],
             strategy_descriptions=AI_STRATEGY_DESCRIPTIONS,
+            backends=["rust", "python"],
+            default_backend="rust",
+            rust_strategies=rust_strategies,
         )
 
     @app.post("/games", response_model=GameStateResponse)
@@ -90,9 +96,12 @@ def create_app() -> FastAPI:
             ai_level=request.ai_level,
             ai_color=request.ai_color,
             ai_strategy=request.ai_strategy,
+            ai_backend=request.ai_backend,
             seed=request.seed,
             red_ai_strategy=request.red_ai_strategy,
             black_ai_strategy=request.black_ai_strategy,
+            red_ai_backend=request.red_ai_backend,
+            black_ai_backend=request.black_ai_backend,
             delay_reveal=request.delay_reveal,
             ai_time_limit=request.ai_time_limit,
             red_ai_time_limit=request.red_ai_time_limit,

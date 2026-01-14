@@ -64,6 +64,13 @@ class CapturedPiecesModel(BaseModel):
     black: list[CapturedPieceModel] = []  # 黑方吃掉的棋子（红方的棋子）
 
 
+class AIBackend(str, Enum):
+    """AI 后端类型"""
+
+    RUST = "rust"
+    PYTHON = "python"
+
+
 class CreateGameRequest(BaseModel):
     """创建游戏请求"""
 
@@ -71,10 +78,13 @@ class CreateGameRequest(BaseModel):
     ai_level: AILevel | None = AILevel.RANDOM
     ai_color: str | None = "black"  # AI 执黑
     ai_strategy: str | None = None  # AI 策略名称（从 /ai/info 获取可用列表）
+    ai_backend: AIBackend = AIBackend.RUST  # AI 后端，默认 Rust
     seed: int | None = None  # 随机种子，用于复现
     # AI vs AI 模式下指定双方 AI 策略
     red_ai_strategy: str | None = None
     black_ai_strategy: str | None = None
+    red_ai_backend: AIBackend | None = None  # 红方后端
+    black_ai_backend: AIBackend | None = None  # 黑方后端
     # 延迟分配模式：翻棋时决定身份
     delay_reveal: bool = False
     # AI 思考时间限制（秒）
@@ -129,6 +139,10 @@ class AIInfoResponse(BaseModel):
     available_strategies: list[dict[str, str]]
     levels: list[str]
     strategy_descriptions: dict[str, str]
+    # 后端信息
+    backends: list[str] = ["rust", "python"]
+    default_backend: str = "rust"
+    rust_strategies: list[str] = []  # Rust 支持的策略列表
 
 
 class MaterialScore(BaseModel):

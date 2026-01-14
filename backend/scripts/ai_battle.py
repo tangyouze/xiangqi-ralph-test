@@ -233,8 +233,12 @@ def run_battle(
             battle_stats["total_moves"] += moves
             battle_stats["total_red_nodes"] += game_stats["red_nodes"]
             battle_stats["total_black_nodes"] += game_stats["black_nodes"]
-            battle_stats["max_red_depth"] = max(battle_stats["max_red_depth"], game_stats["red_depth"])
-            battle_stats["max_black_depth"] = max(battle_stats["max_black_depth"], game_stats["black_depth"])
+            battle_stats["max_red_depth"] = max(
+                battle_stats["max_red_depth"], game_stats["red_depth"]
+            )
+            battle_stats["max_black_depth"] = max(
+                battle_stats["max_black_depth"], game_stats["black_depth"]
+            )
             battle_stats["games"].append({"result": result, "moves": moves, "stats": game_stats})
 
             if result == GameResult.RED_WIN:
@@ -279,7 +283,9 @@ def battle(
 
     console.print(f"\n[bold]Jieqi AI Battle[/bold]")
     console.print(f"Red: [red]{ai_red}[/red] vs Black: [blue]{ai_black}[/blue]")
-    console.print(f"Games: {num_games}, Max moves: {max_moves}, Time: {time_limit}s, Avoid draw: {avoid_draw}\n")
+    console.print(
+        f"Games: {num_games}, Max moves: {max_moves}, Time: {time_limit}s, Avoid draw: {avoid_draw}\n"
+    )
 
     stats = run_battle(ai_red, ai_black, num_games, max_moves, seed, avoid_draw, time_limit)
 
@@ -350,9 +356,15 @@ def verbose_battle(
     ai_black: str = typer.Option("muses2", "--black", "-b", help="Black AI strategy"),
     max_moves: int = typer.Option(100, "--max-moves", "-m", help="Max moves per game"),
     seed: int | None = typer.Option(42, "--seed", "-s", help="Random seed"),
-    time_limit: float = typer.Option(1.0, "--time", "-t", help="AI thinking time per move (seconds)"),
-    quiet: bool = typer.Option(False, "--quiet", "-q", help="Only output to log file, no console output"),
-    log_dir: str | None = typer.Option(None, "--log-dir", "-l", help="Log directory (default: battle_logs/)"),
+    time_limit: float = typer.Option(
+        1.0, "--time", "-t", help="AI thinking time per move (seconds)"
+    ),
+    quiet: bool = typer.Option(
+        False, "--quiet", "-q", help="Only output to log file, no console output"
+    ),
+    log_dir: str | None = typer.Option(
+        None, "--log-dir", "-l", help="Log directory (default: battle_logs/)"
+    ),
 ):
     """Run a single game with detailed logging to JSONL file"""
     import time
@@ -370,7 +382,9 @@ def verbose_battle(
 
     game = JieqiGame()
     red_ai_instance = AIEngine.create(ai_red, AIConfig(seed=seed, time_limit=time_limit))
-    black_ai_instance = AIEngine.create(ai_black, AIConfig(seed=seed + 1 if seed else None, time_limit=time_limit))
+    black_ai_instance = AIEngine.create(
+        ai_black, AIConfig(seed=seed + 1 if seed else None, time_limit=time_limit)
+    )
 
     if not quiet:
         console.print(f"\n[bold]Battle: {ai_red} vs {ai_black}[/bold]")
@@ -467,7 +481,9 @@ def _run_matchup_games(args: tuple) -> tuple[str, str, list[GameResult], dict]:
 
     for game_idx in range(num_games):
         game_seed = (seed + game_idx * 2) if seed else None
-        result, moves, game_stats = run_single_game(ai_red, ai_black, max_moves, game_seed, True, time_limit)
+        result, moves, game_stats = run_single_game(
+            ai_red, ai_black, max_moves, game_seed, True, time_limit
+        )
         results.append(result)
         total_moves += moves
         total_red_nodes += game_stats.get("red_nodes", 0)
@@ -499,9 +515,7 @@ def compare(
     time_limit: float = typer.Option(
         1.0, "--time", "-t", help="AI thinking time limit per move (seconds)"
     ),
-    workers: int = typer.Option(
-        4, "--workers", "-w", help="Number of parallel workers"
-    ),
+    workers: int = typer.Option(4, "--workers", "-w", help="Number of parallel workers"),
 ):
     """Run round-robin comparison between all AI strategies"""
     import json

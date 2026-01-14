@@ -143,12 +143,16 @@ def main():
         for game_id, winner, elapsed, moves in pool.imap_unordered(run_single_game, configs):
             results[winner] += 1
             color = "Red" if configs[game_id].python_is_red else "Black"
-            print(f"Game {game_id + 1:2d}: Python={color:5s} | Winner: {winner:6s} | {elapsed:5.1f}s | {moves:3d} moves")
+            print(
+                f"Game {game_id + 1:2d}: Python={color:5s} | Winner: {winner:6s} | {elapsed:5.1f}s | {moves:3d} moves"
+            )
 
     total_time = time.time() - start_time
 
     print("=" * 70)
-    print(f"Results: Python {results['python']} - {results['rust']} Rust (Draws: {results['draw']})")
+    print(
+        f"Results: Python {results['python']} - {results['rust']} Rust (Draws: {results['draw']})"
+    )
 
     total_decisive = results["python"] + results["rust"]
     if total_decisive > 0:

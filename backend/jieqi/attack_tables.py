@@ -222,14 +222,14 @@ def _init_horse_reverse_attacks() -> list[list[tuple[Position, Position]]]:
             # 马腿在马向目标方向"先直走一步"的位置
             horse_offsets = [
                 # (马相对于目标的偏移, 马腿相对于马的偏移)
-                ((-2, -1), (1, 0)),   # 马在上方偏左，马腿在马下方（马先向下走）
-                ((-2, 1), (1, 0)),    # 马在上方偏右，马腿在马下方
-                ((2, -1), (-1, 0)),   # 马在下方偏左，马腿在马上方
-                ((2, 1), (-1, 0)),    # 马在下方偏右，马腿在马上方
-                ((-1, -2), (0, 1)),   # 马在左上，马腿在马右边
-                ((1, -2), (0, 1)),    # 马在左下，马腿在马右边
-                ((-1, 2), (0, -1)),   # 马在右上，马腿在马左边
-                ((1, 2), (0, -1)),    # 马在右下，马腿在马左边
+                ((-2, -1), (1, 0)),  # 马在上方偏左，马腿在马下方（马先向下走）
+                ((-2, 1), (1, 0)),  # 马在上方偏右，马腿在马下方
+                ((2, -1), (-1, 0)),  # 马在下方偏左，马腿在马上方
+                ((2, 1), (-1, 0)),  # 马在下方偏右，马腿在马上方
+                ((-1, -2), (0, 1)),  # 马在左上，马腿在马右边
+                ((1, -2), (0, 1)),  # 马在左下，马腿在马右边
+                ((-1, 2), (0, -1)),  # 马在右上，马腿在马左边
+                ((1, 2), (0, -1)),  # 马在右下，马腿在马左边
             ]
             for horse_offset, leg_offset_from_horse in horse_offsets:
                 horse_row = row + horse_offset[0]
@@ -237,8 +237,12 @@ def _init_horse_reverse_attacks() -> list[list[tuple[Position, Position]]]:
                 # 马腿是从马的位置出发计算的
                 leg_row = horse_row + leg_offset_from_horse[0]
                 leg_col = horse_col + leg_offset_from_horse[1]
-                if (0 <= horse_row <= 9 and 0 <= horse_col <= 8 and
-                    0 <= leg_row <= 9 and 0 <= leg_col <= 8):
+                if (
+                    0 <= horse_row <= 9
+                    and 0 <= horse_col <= 8
+                    and 0 <= leg_row <= 9
+                    and 0 <= leg_col <= 8
+                ):
                     positions.append((Position(horse_row, horse_col), Position(leg_row, leg_col)))
             reverse.append(positions)
     return reverse
@@ -326,9 +330,15 @@ def _init_elephant_reverse_attacks() -> list[list[tuple[Position, Position]]]:
                 elephant_col = col + dc
                 eye_row = row + dr // 2
                 eye_col = col + dc // 2
-                if (0 <= elephant_row <= 9 and 0 <= elephant_col <= 8 and
-                    0 <= eye_row <= 9 and 0 <= eye_col <= 8):
-                    positions.append((Position(elephant_row, elephant_col), Position(eye_row, eye_col)))
+                if (
+                    0 <= elephant_row <= 9
+                    and 0 <= elephant_col <= 8
+                    and 0 <= eye_row <= 9
+                    and 0 <= eye_col <= 8
+                ):
+                    positions.append(
+                        (Position(elephant_row, elephant_col), Position(eye_row, eye_col))
+                    )
             reverse.append(positions)
     return reverse
 

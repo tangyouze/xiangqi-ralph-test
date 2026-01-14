@@ -59,7 +59,9 @@ class TestLegalMovesConsistency:
         fen_set = set(fen_moves)
 
         # 验证
-        assert original_count == fen_count, f"走法数量不一致: 原始={original_count}, FEN={fen_count}"
+        assert original_count == fen_count, (
+            f"走法数量不一致: 原始={original_count}, FEN={fen_count}"
+        )
         assert original_set == fen_set, f"走法内容不一致:\n原始: {original_set}\nFEN: {fen_set}"
 
     def test_initial_position_black_view(self):
@@ -91,7 +93,9 @@ class TestLegalMovesConsistency:
             if not view.legal_moves:
                 break
             # 优先选揭子走法
-            reveal_moves = [m for m in view.legal_moves if m.action_type == ActionType.REVEAL_AND_MOVE]
+            reveal_moves = [
+                m for m in view.legal_moves if m.action_type == ActionType.REVEAL_AND_MOVE
+            ]
             move = reveal_moves[0] if reveal_moves else view.legal_moves[0]
             game.make_move(move)
 
@@ -102,7 +106,9 @@ class TestLegalMovesConsistency:
         fen = to_fen(view)
         fen_set = set(get_legal_moves_from_fen(fen))
 
-        assert original_set == fen_set, f"中局走法不一致:\n原始: {len(original_set)}\nFEN: {len(fen_set)}"
+        assert original_set == fen_set, (
+            f"中局走法不一致:\n原始: {len(original_set)}\nFEN: {len(fen_set)}"
+        )
 
     def test_after_many_moves(self):
         """走很多步后的局面"""
@@ -220,9 +226,7 @@ class TestApplyMoveConsistency:
 
             # 找到揭开的棋子
             move, _ = parse_move(reveal_move)
-            revealed_piece = next(
-                (p for p in state.pieces if p.position == move.to_pos), None
-            )
+            revealed_piece = next((p for p in state.pieces if p.position == move.to_pos), None)
 
             # 验证：揭子后变成明子
             assert revealed_piece is not None

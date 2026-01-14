@@ -282,9 +282,7 @@ class BoardSetup:
 
     _pieces: list[BoardPiece] = field(default_factory=list)
 
-    def hidden(
-        self, row: int, col: int, piece_type: str, color: str
-    ) -> BoardSetup:
+    def hidden(self, row: int, col: int, piece_type: str, color: str) -> BoardSetup:
         """放置暗子
 
         Args:
@@ -307,9 +305,7 @@ class BoardSetup:
         )
         return self
 
-    def revealed(
-        self, row: int, col: int, piece_type: str, color: str
-    ) -> BoardSetup:
+    def revealed(self, row: int, col: int, piece_type: str, color: str) -> BoardSetup:
         """放置明子
 
         Args:
@@ -556,9 +552,7 @@ class AIPlayer:
         """AI 策略名称"""
         return self._strategy_name
 
-    def next_move(
-        self, position: GamePosition, as_color: str | Color
-    ) -> JieqiMove | None:
+    def next_move(self, position: GamePosition, as_color: str | Color) -> JieqiMove | None:
         """获取 AI 的下一步
 
         Args:

@@ -120,7 +120,9 @@ class TestJieqiGameState:
     def test_hidden_count_decreases_after_reveal_move(self, game: JieqiGame):
         """测试揭子后暗子数减少"""
         # 找一个揭子走法
-        reveal_moves = [m for m in game.get_legal_moves() if m.action_type == ActionType.REVEAL_AND_MOVE]
+        reveal_moves = [
+            m for m in game.get_legal_moves() if m.action_type == ActionType.REVEAL_AND_MOVE
+        ]
         assert len(reveal_moves) > 0
 
         game.make_move(reveal_moves[0])

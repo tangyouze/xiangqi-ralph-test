@@ -9,9 +9,7 @@ from jieqi.types import Color, GameResult
 def replay_game(seed: int, red_time: float = 1.5, black_time: float = 15.0, max_moves: int = 20):
     """重放一局对战"""
     red_ai = AIEngine.create("advanced", AIConfig(time_limit=red_time, seed=seed * 1000))
-    black_ai = AIEngine.create(
-        "advanced", AIConfig(time_limit=black_time, seed=seed * 1000 + 1)
-    )
+    black_ai = AIEngine.create("advanced", AIConfig(time_limit=black_time, seed=seed * 1000 + 1))
     game = JieqiGame(config=GameConfig(seed=seed))
 
     print(f"=== Replay Game seed={seed} ===")
@@ -55,6 +53,7 @@ def replay_game(seed: int, red_time: float = 1.5, black_time: float = 15.0, max_
                 line = ""
                 for col in range(9):
                     from jieqi.types import Position
+
                     pos = Position(row, col)
                     piece = board.get_piece(pos)
                     if piece:
@@ -70,5 +69,6 @@ def replay_game(seed: int, red_time: float = 1.5, black_time: float = 15.0, max_
 
 if __name__ == "__main__":
     import sys
+
     seed = int(sys.argv[1]) if len(sys.argv) > 1 else 9
     replay_game(seed)

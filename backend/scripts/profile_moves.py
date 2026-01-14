@@ -20,7 +20,7 @@ def profile_legal_moves():
     for _ in range(iterations):
         pieces = board.get_all_pieces(Color.RED)
     elapsed = time.perf_counter() - start
-    print(f"get_all_pieces: {elapsed/iterations*1000:.4f} ms")
+    print(f"get_all_pieces: {elapsed / iterations * 1000:.4f} ms")
 
     # Step 2: 获取潜在走法
     start = time.perf_counter()
@@ -30,7 +30,7 @@ def profile_legal_moves():
             moves = piece.get_potential_moves(board)
             all_moves.extend(moves)
     elapsed = time.perf_counter() - start
-    print(f"get_potential_moves (all pieces): {elapsed/iterations*1000:.4f} ms")
+    print(f"get_potential_moves (all pieces): {elapsed / iterations * 1000:.4f} ms")
 
     # Step 3: 验证每个走法
     pieces = board.get_all_pieces(Color.RED)
@@ -47,8 +47,8 @@ def profile_legal_moves():
         for move in test_moves:
             board.is_valid_move(move, Color.RED)
     elapsed = time.perf_counter() - start
-    print(f"is_valid_move (all moves): {elapsed/iterations*1000:.4f} ms")
-    print(f"is_valid_move (per move): {elapsed/iterations/len(test_moves)*1000:.4f} ms")
+    print(f"is_valid_move (all moves): {elapsed / iterations * 1000:.4f} ms")
+    print(f"is_valid_move (per move): {elapsed / iterations / len(test_moves) * 1000:.4f} ms")
 
     # Step 4: 分解 is_valid_move
     move = test_moves[0]
@@ -61,7 +61,7 @@ def profile_legal_moves():
         captured = board.make_move(move)
         board.undo_move(move, captured, was_hidden)
     elapsed = time.perf_counter() - start
-    print(f"\nmake_move + undo_move: {elapsed/1000*1000:.4f} ms")
+    print(f"\nmake_move + undo_move: {elapsed / 1000 * 1000:.4f} ms")
 
     # 4b: is_in_check 对比
     print("\n=== is_in_check 性能对比 ===")
@@ -70,7 +70,7 @@ def profile_legal_moves():
     for _ in range(1000):
         board.is_in_check(Color.RED)
     elapsed = time.perf_counter() - start
-    print(f"is_in_check (原始): {elapsed/1000*1000:.4f} ms")
+    print(f"is_in_check (原始): {elapsed / 1000 * 1000:.4f} ms")
 
     # 新的快速检查
     fast_gen = FastMoveGenerator(board)
@@ -78,7 +78,7 @@ def profile_legal_moves():
     for _ in range(1000):
         fast_gen.is_in_check_fast(Color.RED)
     elapsed = time.perf_counter() - start
-    print(f"is_in_check_fast (优化): {elapsed/1000*1000:.4f} ms")
+    print(f"is_in_check_fast (优化): {elapsed / 1000 * 1000:.4f} ms")
 
     # 验证结果一致
     old_result = board.is_in_check(Color.RED)

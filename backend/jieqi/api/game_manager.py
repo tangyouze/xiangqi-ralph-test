@@ -4,8 +4,8 @@
 管理多个游戏实例和 AI 配置
 """
 
-from jieqi.ai import AIConfig, AIEngine, AIStrategy
-from jieqi.api.models import AILevel, GameMode
+from jieqi.ai.unified import UnifiedAIEngine
+from jieqi.api.models import AIBackend, AILevel, GameMode
 from jieqi.fen import parse_move, to_fen
 from jieqi.game import GameConfig, JieqiGame
 from jieqi.types import Color, JieqiMove
@@ -28,9 +28,12 @@ class GameManager:
         ai_level: AILevel | None = None,
         ai_color: str | None = "black",
         ai_strategy: str | None = None,
+        ai_backend: AIBackend = AIBackend.RUST,
         seed: int | None = None,
         red_ai_strategy: str | None = None,
         black_ai_strategy: str | None = None,
+        red_ai_backend: AIBackend | None = None,
+        black_ai_backend: AIBackend | None = None,
         delay_reveal: bool = False,
         ai_time_limit: int | None = None,
         red_ai_time_limit: int | None = None,
@@ -43,9 +46,12 @@ class GameManager:
             ai_level: AI 难度等级
             ai_color: AI 执子颜色（人机模式）
             ai_strategy: 指定 AI 策略（覆盖 ai_level）
+            ai_backend: AI 后端（rust 或 python）
             seed: 随机种子
             red_ai_strategy: 红方 AI 策略（AI vs AI 模式）
             black_ai_strategy: 黑方 AI 策略（AI vs AI 模式）
+            red_ai_backend: 红方 AI 后端
+            black_ai_backend: 黑方 AI 后端
             delay_reveal: 延迟分配模式（翻棋时决定身份）
             ai_time_limit: AI 思考时间限制（秒）- Human vs AI 模式
             red_ai_time_limit: 红方 AI 思考时间限制（秒）- AI vs AI 模式
@@ -61,21 +67,34 @@ class GameManager:
         self._modes[game.game_id] = mode
 
         # 配置 AI
-        ai_config_dict = {"mode": mode}
+        ai_config_dict: dict = {"mode": mode}
 
         if mode == GameMode.HUMAN_VS_AI:
             strategy_name = self._get_strategy_name(ai_level, ai_strategy)
-            ai_engine_config = AIConfig(time_limit=ai_time_limit) if ai_time_limit else None
+            backend = ai_backend.value if ai_backend else "rust"
             ai_config_dict["ai_color"] = ai_color
             ai_config_dict["ai_strategy"] = strategy_name
-            ai_config_dict["ai"] = AIEngine.create(strategy_name, ai_engine_config)
+            ai_config_dict["ai_backend"] = backend
+            ai_config_dict["ai"] = UnifiedAIEngine(
+                backend=backend,
+                strategy=strategy_name,
+                time_limit=ai_time_limit,
+            )
         elif mode == GameMode.AI_VS_AI:
             red_strategy = self._get_strategy_name(ai_level, red_ai_strategy)
             black_strategy = self._get_strategy_name(ai_level, black_ai_strategy)
-            red_config = AIConfig(time_limit=red_ai_time_limit) if red_ai_time_limit else None
-            black_config = AIConfig(time_limit=black_ai_time_limit) if black_ai_time_limit else None
-            ai_config_dict["red_ai"] = AIEngine.create(red_strategy, red_config)
-            ai_config_dict["black_ai"] = AIEngine.create(black_strategy, black_config)
+            red_backend = (red_ai_backend or ai_backend).value
+            black_backend = (black_ai_backend or ai_backend).value
+            ai_config_dict["red_ai"] = UnifiedAIEngine(
+                backend=red_backend,
+                strategy=red_strategy,
+                time_limit=red_ai_time_limit,
+            )
+            ai_config_dict["black_ai"] = UnifiedAIEngine(
+                backend=black_backend,
+                strategy=black_strategy,
+                time_limit=black_ai_time_limit,
+            )
             ai_config_dict["red_strategy"] = red_strategy
             ai_config_dict["black_strategy"] = black_strategy
 
@@ -140,7 +159,7 @@ class GameManager:
         config = self._ai_configs.get(game_id, {})
         mode = config.get("mode")
 
-        ai: AIStrategy | None = None
+        ai: UnifiedAIEngine | None = None
 
         if mode == GameMode.HUMAN_VS_AI:
             ai_color = config.get("ai_color", "black")
@@ -157,7 +176,7 @@ class GameManager:
             # 使用统一的 FEN 接口
             view = game.get_view(game.current_turn)
             fen = to_fen(view)
-            moves = ai.select_moves_fen(fen, n=1)
+            moves = ai.get_best_moves(fen, n=1)
             if moves:
                 move_str, _ = moves[0]
                 move, _ = parse_move(move_str)

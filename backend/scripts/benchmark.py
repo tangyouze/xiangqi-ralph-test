@@ -35,6 +35,7 @@ def main():
 
     # 创建测试棋盘
     from jieqi.game import GameConfig
+
     board = JieqiBoard(seed=42)
     game = JieqiGame(config=GameConfig(seed=42))
 

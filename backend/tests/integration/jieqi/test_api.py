@@ -171,8 +171,7 @@ class TestMakeMove:
 
         # 找一个揭子走法
         reveal_moves = [
-            m for m in initial_state["legal_moves"]
-            if m["action_type"] == "reveal_and_move"
+            m for m in initial_state["legal_moves"] if m["action_type"] == "reveal_and_move"
         ]
         assert len(reveal_moves) > 0
 
@@ -191,8 +190,10 @@ class TestMakeMove:
         # 检查移动后的棋子是明子
         moved_piece = None
         for p in data["game_state"]["pieces"]:
-            if p["position"]["row"] == move["to_pos"]["row"] and \
-               p["position"]["col"] == move["to_pos"]["col"]:
+            if (
+                p["position"]["row"] == move["to_pos"]["row"]
+                and p["position"]["col"] == move["to_pos"]["col"]
+            ):
                 moved_piece = p
                 break
 

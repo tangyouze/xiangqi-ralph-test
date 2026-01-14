@@ -479,7 +479,9 @@ class SimulationBoard:
             # 颜色编码
             color_val = 0 if piece.color == Color.RED else 1
             # 类型编码（使用 movement_type 作为暗子的类型）
-            movement_type = piece.get_movement_type() if piece.actual_type or piece.movement_type else None
+            movement_type = (
+                piece.get_movement_type() if piece.actual_type or piece.movement_type else None
+            )
             type_val = self._PIECE_TYPE_INDEX.get(movement_type, 7) if movement_type else 7
             # 暗子标记
             hidden_val = 1 if piece.is_hidden else 0

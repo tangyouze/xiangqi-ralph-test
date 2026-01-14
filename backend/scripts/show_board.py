@@ -37,6 +37,7 @@ def show_board(game: JieqiGame):
         line = f"{row}│"
         for col in range(9):
             from jieqi.types import Position
+
             pos = Position(row, col)
             piece = board.get_piece(pos)
             if piece:
@@ -58,9 +59,7 @@ def show_board(game: JieqiGame):
 def replay_to_move(seed: int, target_move: int, red_time: float = 1.5, black_time: float = 15.0):
     """重放到指定步数"""
     red_ai = AIEngine.create("advanced", AIConfig(time_limit=red_time, seed=seed * 1000))
-    black_ai = AIEngine.create(
-        "advanced", AIConfig(time_limit=black_time, seed=seed * 1000 + 1)
-    )
+    black_ai = AIEngine.create("advanced", AIConfig(time_limit=black_time, seed=seed * 1000 + 1))
     game = JieqiGame(config=GameConfig(seed=seed))
 
     print(f"=== Game seed={seed}, replay to move {target_move} ===")
@@ -101,6 +100,7 @@ def replay_to_move(seed: int, target_move: int, red_time: float = 1.5, black_tim
 
 if __name__ == "__main__":
     import sys
+
     seed = int(sys.argv[1]) if len(sys.argv) > 1 else 9
     target_move = int(sys.argv[2]) if len(sys.argv) > 2 else 11
     replay_to_move(seed, target_move)

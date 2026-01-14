@@ -144,9 +144,7 @@ class GreedyAI(AIStrategy):
 
         return result
 
-    def _evaluate_move(
-        self, board: SimulationBoard, move: "JieqiMove", my_color: Color
-    ) -> float:
+    def _evaluate_move(self, board: SimulationBoard, move: "JieqiMove", my_color: Color) -> float:
         """评估走法得分"""
         score = 0.0
 

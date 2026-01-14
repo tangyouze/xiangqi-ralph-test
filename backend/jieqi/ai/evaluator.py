@@ -523,13 +523,13 @@ class JieqiEvaluator:
         """
         # 每种棋子的机动性权重（近似平均走法数）
         MOBILITY_WEIGHTS = {
-            PieceType.ROOK: 12,     # 车：横竖可走很远
-            PieceType.CANNON: 10,   # 炮：类似车但需要炮架
-            PieceType.HORSE: 6,     # 马：最多8个方向
-            PieceType.PAWN: 2,      # 兵：1-3个方向
+            PieceType.ROOK: 12,  # 车：横竖可走很远
+            PieceType.CANNON: 10,  # 炮：类似车但需要炮架
+            PieceType.HORSE: 6,  # 马：最多8个方向
+            PieceType.PAWN: 2,  # 兵：1-3个方向
             PieceType.ELEPHANT: 2,  # 象：最多4个田字位
-            PieceType.ADVISOR: 2,   # 士：最多4个斜向位
-            PieceType.KING: 2,      # 将：九宫内移动
+            PieceType.ADVISOR: 2,  # 士：最多4个斜向位
+            PieceType.KING: 2,  # 将：九宫内移动
         }
 
         mobility = 0

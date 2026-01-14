@@ -32,9 +32,7 @@ def run_single_game(args):
     """单局对战，返回结果和棋谱"""
     red_time, black_time, seed = args
     red_ai = AIEngine.create("advanced", AIConfig(time_limit=red_time, seed=seed * 1000))
-    black_ai = AIEngine.create(
-        "advanced", AIConfig(time_limit=black_time, seed=seed * 1000 + 1)
-    )
+    black_ai = AIEngine.create("advanced", AIConfig(time_limit=black_time, seed=seed * 1000 + 1))
     # 给棋盘也传入 seed，确保可复现
     game = JieqiGame(config=GameConfig(seed=seed))
     moves = 0
@@ -135,9 +133,7 @@ def battle_with_progress(red_time, black_time, games=100, workers=None, log_file
 
             # 每局输出一行日志
             win_rate = (
-                black_wins / (red_wins + black_wins) * 100
-                if (red_wins + black_wins) > 0
-                else 0
+                black_wins / (red_wins + black_wins) * 100 if (red_wins + black_wins) > 0 else 0
             )
             print(
                 f"[{completed:3d}/{games}] Game {seed:3d}: {symbol} ({moves:3d} moves) | "
@@ -189,9 +185,7 @@ if __name__ == "__main__":
     print("=" * 60)
 
     start = time.time()
-    r, b, d, avg, all_games = battle_with_progress(
-        red_time, black_time, games, workers, log_file
-    )
+    r, b, d, avg, all_games = battle_with_progress(red_time, black_time, games, workers, log_file)
     elapsed = time.time() - start
 
     print("=" * 60)

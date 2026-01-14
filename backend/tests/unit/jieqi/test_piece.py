@@ -13,9 +13,7 @@ class TestJieqiPiece:
 
     def test_create_hidden_piece(self):
         """测试创建暗子"""
-        piece = create_jieqi_piece(
-            Color.RED, PieceType.ROOK, Position(0, 0), revealed=False
-        )
+        piece = create_jieqi_piece(Color.RED, PieceType.ROOK, Position(0, 0), revealed=False)
         assert piece.color == Color.RED
         assert piece.actual_type == PieceType.ROOK
         assert piece.position == Position(0, 0)
@@ -24,17 +22,13 @@ class TestJieqiPiece:
 
     def test_create_revealed_piece(self):
         """测试创建明子"""
-        piece = create_jieqi_piece(
-            Color.RED, PieceType.KING, Position(0, 4), revealed=True
-        )
+        piece = create_jieqi_piece(Color.RED, PieceType.KING, Position(0, 4), revealed=True)
         assert piece.is_revealed
         assert not piece.is_hidden
 
     def test_reveal_piece(self):
         """测试揭开暗子"""
-        piece = create_jieqi_piece(
-            Color.RED, PieceType.HORSE, Position(0, 1), revealed=False
-        )
+        piece = create_jieqi_piece(Color.RED, PieceType.HORSE, Position(0, 1), revealed=False)
         assert piece.is_hidden
         piece.reveal()
         assert piece.is_revealed
@@ -42,30 +36,22 @@ class TestJieqiPiece:
     def test_get_movement_type_hidden(self):
         """测试暗子走法类型（按位置）"""
         # 在车位的暗子按车走法
-        piece = create_jieqi_piece(
-            Color.RED, PieceType.PAWN, Position(0, 0), revealed=False
-        )
+        piece = create_jieqi_piece(Color.RED, PieceType.PAWN, Position(0, 0), revealed=False)
         assert piece.get_movement_type() == PieceType.ROOK
 
         # 在马位的暗子按马走法
-        piece = create_jieqi_piece(
-            Color.RED, PieceType.CANNON, Position(0, 1), revealed=False
-        )
+        piece = create_jieqi_piece(Color.RED, PieceType.CANNON, Position(0, 1), revealed=False)
         assert piece.get_movement_type() == PieceType.HORSE
 
     def test_get_movement_type_revealed(self):
         """测试明子走法类型（按真实身份）"""
         # 明子按真实身份走
-        piece = create_jieqi_piece(
-            Color.RED, PieceType.PAWN, Position(0, 0), revealed=True
-        )
+        piece = create_jieqi_piece(Color.RED, PieceType.PAWN, Position(0, 0), revealed=True)
         assert piece.get_movement_type() == PieceType.PAWN
 
     def test_copy(self):
         """测试棋子复制"""
-        piece = create_jieqi_piece(
-            Color.RED, PieceType.HORSE, Position(0, 1), revealed=False
-        )
+        piece = create_jieqi_piece(Color.RED, PieceType.HORSE, Position(0, 1), revealed=False)
         copy = piece.copy()
         assert copy.color == piece.color
         assert copy.actual_type == piece.actual_type
@@ -77,9 +63,7 @@ class TestJieqiPiece:
 
     def test_to_dict_hidden(self):
         """测试暗子序列化"""
-        piece = create_jieqi_piece(
-            Color.RED, PieceType.HORSE, Position(0, 1), revealed=False
-        )
+        piece = create_jieqi_piece(Color.RED, PieceType.HORSE, Position(0, 1), revealed=False)
         data = piece.to_dict()
         assert data["color"] == "red"
         assert data["state"] == "hidden"
@@ -87,9 +71,7 @@ class TestJieqiPiece:
 
     def test_to_dict_revealed(self):
         """测试明子序列化"""
-        piece = create_jieqi_piece(
-            Color.RED, PieceType.KING, Position(0, 4), revealed=True
-        )
+        piece = create_jieqi_piece(Color.RED, PieceType.KING, Position(0, 4), revealed=True)
         data = piece.to_dict()
         assert data["color"] == "red"
         assert data["state"] == "revealed"
@@ -140,9 +122,7 @@ class TestPieceMoves:
     def test_revealed_advisor_can_cross_river(self, board: JieqiBoard):
         """测试明子士可以过河"""
         # 创建一个在过河位置的明子士
-        advisor = create_jieqi_piece(
-            Color.RED, PieceType.ADVISOR, Position(5, 4), revealed=True
-        )
+        advisor = create_jieqi_piece(Color.RED, PieceType.ADVISOR, Position(5, 4), revealed=True)
         # 清空棋盘并放置
         empty_board = JieqiBoard.__new__(JieqiBoard)
         empty_board._pieces = {}
@@ -160,9 +140,7 @@ class TestPieceMoves:
     def test_revealed_elephant_can_cross_river(self, board: JieqiBoard):
         """测试明子象可以过河"""
         # 创建一个在过河位置的明子象
-        elephant = create_jieqi_piece(
-            Color.RED, PieceType.ELEPHANT, Position(5, 4), revealed=True
-        )
+        elephant = create_jieqi_piece(Color.RED, PieceType.ELEPHANT, Position(5, 4), revealed=True)
         # 清空棋盘并放置
         empty_board = JieqiBoard.__new__(JieqiBoard)
         empty_board._pieces = {}

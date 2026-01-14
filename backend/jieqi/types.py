@@ -112,9 +112,7 @@ class JieqiMove(NamedTuple):
         """从记谱法解析"""
         # 格式: "R:c1r1-c2r2" 或 "M:c1r1-c2r2"
         action_str, positions = notation.split(":")
-        action_type = (
-            ActionType.REVEAL_AND_MOVE if action_str == "R" else ActionType.MOVE
-        )
+        action_type = ActionType.REVEAL_AND_MOVE if action_str == "R" else ActionType.MOVE
         parts = positions.split("-")
         from_col, from_row = int(parts[0][0]), int(parts[0][1])
         to_col, to_row = int(parts[1][0]), int(parts[1][1])

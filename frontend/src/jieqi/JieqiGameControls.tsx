@@ -1,7 +1,7 @@
 // 揭棋游戏控制组件
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import type { AIStrategyInfo, CreateJieqiGameOptions, GameMode, JieqiGameState, AITimeLimit } from './types';
+import type { AIStrategyInfo, CreateJieqiGameOptions, GameMode, JieqiGameState, AITimeLimit, AIBackend, AIInfoResponse } from './types';
 import { AI_TIME_OPTIONS } from './types';
 import { getAIInfo } from './api';
 import './JieqiGameControls.css';
@@ -21,9 +21,12 @@ export function JieqiGameControls({
 }: JieqiGameControlsProps) {
   const [mode, setMode] = useState<GameMode>('human_vs_ai');  // 默认人机对战
   const [aiColor, setAIColor] = useState<string>('black');
-  const [aiStrategy, setAIStrategy] = useState<string>('muses');  // 默认最强 AI
-  const [redAIStrategy, setRedAIStrategy] = useState<string>('muses');
-  const [blackAIStrategy, setBlackAIStrategy] = useState<string>('muses');
+  const [aiStrategy, setAIStrategy] = useState<string>('minimax');  // 默认策略
+  const [aiBackend, setAIBackend] = useState<AIBackend>('rust');  // 默认 Rust
+  const [redAIStrategy, setRedAIStrategy] = useState<string>('minimax');
+  const [blackAIStrategy, setBlackAIStrategy] = useState<string>('minimax');
+  const [redAIBackend, setRedAIBackend] = useState<AIBackend>('rust');
+  const [blackAIBackend, setBlackAIBackend] = useState<AIBackend>('rust');
   const [delayReveal, setDelayReveal] = useState<boolean>(true);  // 默认开启延迟分配模式
 
   // AI 思考时间限制
@@ -33,24 +36,30 @@ export function JieqiGameControls({
 
   // AI 策略列表（从后端获取）
   const [aiStrategies, setAiStrategies] = useState<AIStrategyInfo[]>([]);
+  const [rustStrategies, setRustStrategies] = useState<string[]>([]);
 
   // 获取 AI 信息
   useEffect(() => {
     getAIInfo()
-      .then(info => {
+      .then((info: AIInfoResponse) => {
         setAiStrategies(info.available_strategies);
-        // 设置默认策略为最强的 muses，如果不存在则用 advanced
-        if (info.available_strategies.length > 0) {
-          const strongestStrategy = info.available_strategies.find(s => s.name === 'muses')?.name
-            || info.available_strategies.find(s => s.name === 'advanced')?.name
-            || info.available_strategies[0].name;
-          setAIStrategy(strongestStrategy);
-          setRedAIStrategy(strongestStrategy);
-          setBlackAIStrategy(strongestStrategy);
-        }
+        setRustStrategies(info.rust_strategies || []);
+        // 默认使用 Rust 支持的 minimax 策略
+        const defaultStrategy = info.rust_strategies?.includes('minimax') ? 'minimax' : 'greedy';
+        setAIStrategy(defaultStrategy);
+        setRedAIStrategy(defaultStrategy);
+        setBlackAIStrategy(defaultStrategy);
       })
       .catch(err => console.error('Failed to load AI strategies:', err));
   }, []);
+
+  // 获取当前后端支持的策略
+  const getStrategiesForBackend = (backend: AIBackend) => {
+    if (backend === 'rust') {
+      return aiStrategies.filter(s => rustStrategies.includes(s.name));
+    }
+    return aiStrategies;
+  };
 
   // 自动播放
   const [autoPlay, setAutoPlay] = useState(false);
@@ -86,6 +95,7 @@ export function JieqiGameControls({
       mode,
       ai_color: aiColor,
       delay_reveal: delayReveal,
+      ai_backend: aiBackend,
     };
 
     if (mode === 'human_vs_ai') {
@@ -94,12 +104,14 @@ export function JieqiGameControls({
     } else if (mode === 'ai_vs_ai') {
       options.red_ai_strategy = redAIStrategy;
       options.black_ai_strategy = blackAIStrategy;
+      options.red_ai_backend = redAIBackend;
+      options.black_ai_backend = blackAIBackend;
       options.red_ai_time_limit = redAITimeLimit;
       options.black_ai_time_limit = blackAITimeLimit;
     }
 
     onNewGame(options);
-  }, [mode, aiColor, aiStrategy, redAIStrategy, blackAIStrategy, delayReveal, aiTimeLimit, redAITimeLimit, blackAITimeLimit, onNewGame]);
+  }, [mode, aiColor, aiStrategy, aiBackend, redAIStrategy, blackAIStrategy, redAIBackend, blackAIBackend, delayReveal, aiTimeLimit, redAITimeLimit, blackAITimeLimit, onNewGame]);
 
   const getStatusText = () => {
     if (!gameState) return 'No game in progress';
@@ -175,9 +187,24 @@ export function JieqiGameControls({
               </select>
             </div>
             <div className="control-group">
+              <label htmlFor="aiBackend">AI Backend:</label>
+              <select id="aiBackend" value={aiBackend} onChange={e => {
+                const newBackend = e.target.value as AIBackend;
+                setAIBackend(newBackend);
+                // 切换后端时，选择该后端支持的默认策略
+                const strategies = getStrategiesForBackend(newBackend);
+                if (strategies.length > 0 && !strategies.find(s => s.name === aiStrategy)) {
+                  setAIStrategy(strategies[0].name);
+                }
+              }}>
+                <option value="rust">Rust (Fast)</option>
+                <option value="python">Python (More strategies)</option>
+              </select>
+            </div>
+            <div className="control-group">
               <label htmlFor="aiStrategy">AI Strategy:</label>
               <select id="aiStrategy" value={aiStrategy} onChange={e => setAIStrategy(e.target.value)}>
-                {aiStrategies.map(s => (
+                {getStrategiesForBackend(aiBackend).map(s => (
                   <option key={s.name} value={s.name} title={s.description}>{s.name} - {s.description}</option>
                 ))}
               </select>
@@ -196,9 +223,23 @@ export function JieqiGameControls({
         {mode === 'ai_vs_ai' && (
           <>
             <div className="control-group">
+              <label htmlFor="redBackend">Red Backend:</label>
+              <select id="redBackend" value={redAIBackend} onChange={e => {
+                const newBackend = e.target.value as AIBackend;
+                setRedAIBackend(newBackend);
+                const strategies = getStrategiesForBackend(newBackend);
+                if (strategies.length > 0 && !strategies.find(s => s.name === redAIStrategy)) {
+                  setRedAIStrategy(strategies[0].name);
+                }
+              }}>
+                <option value="rust">Rust</option>
+                <option value="python">Python</option>
+              </select>
+            </div>
+            <div className="control-group">
               <label htmlFor="redAI">Red AI:</label>
               <select id="redAI" value={redAIStrategy} onChange={e => setRedAIStrategy(e.target.value)}>
-                {aiStrategies.map(s => (
+                {getStrategiesForBackend(redAIBackend).map(s => (
                   <option key={s.name} value={s.name} title={s.description}>{s.name} - {s.description}</option>
                 ))}
               </select>
@@ -212,9 +253,23 @@ export function JieqiGameControls({
               </select>
             </div>
             <div className="control-group">
+              <label htmlFor="blackBackend">Black Backend:</label>
+              <select id="blackBackend" value={blackAIBackend} onChange={e => {
+                const newBackend = e.target.value as AIBackend;
+                setBlackAIBackend(newBackend);
+                const strategies = getStrategiesForBackend(newBackend);
+                if (strategies.length > 0 && !strategies.find(s => s.name === blackAIStrategy)) {
+                  setBlackAIStrategy(strategies[0].name);
+                }
+              }}>
+                <option value="rust">Rust</option>
+                <option value="python">Python</option>
+              </select>
+            </div>
+            <div className="control-group">
               <label htmlFor="blackAI">Black AI:</label>
               <select id="blackAI" value={blackAIStrategy} onChange={e => setBlackAIStrategy(e.target.value)}>
-                {aiStrategies.map(s => (
+                {getStrategiesForBackend(blackAIBackend).map(s => (
                   <option key={s.name} value={s.name} title={s.description}>{s.name} - {s.description}</option>
                 ))}
               </select>

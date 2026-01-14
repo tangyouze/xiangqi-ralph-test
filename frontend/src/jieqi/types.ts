@@ -8,6 +8,7 @@ export type GameResult = 'ongoing' | 'red_win' | 'black_win' | 'draw';
 export type GameMode = 'human_vs_human' | 'human_vs_ai' | 'ai_vs_ai';
 export type AILevel = string;
 export type AIStrategy = string;
+export type AIBackend = 'rust' | 'python';
 
 export interface Position {
   row: number;
@@ -77,10 +78,13 @@ export interface CreateJieqiGameOptions {
   ai_level?: AILevel;
   ai_color?: string;
   ai_strategy?: AIStrategy;
+  ai_backend?: AIBackend;  // AI 后端，默认 rust
   seed?: number;
   // AI vs AI 模式下指定双方 AI 策略
   red_ai_strategy?: AIStrategy;
   black_ai_strategy?: AIStrategy;
+  red_ai_backend?: AIBackend;
+  black_ai_backend?: AIBackend;
   // 延迟分配模式：翻棋时决定身份
   delay_reveal?: boolean;
   // AI 思考时间（秒）
@@ -108,6 +112,16 @@ export interface JieqiMoveRequest {
 export interface AIStrategyInfo {
   name: string;
   description: string;
+}
+
+// AI 信息响应
+export interface AIInfoResponse {
+  available_strategies: AIStrategyInfo[];
+  levels: string[];
+  strategy_descriptions: Record<string, string>;
+  backends: AIBackend[];
+  default_backend: AIBackend;
+  rust_strategies: string[];  // Rust 支持的策略
 }
 
 // 棋子显示名称

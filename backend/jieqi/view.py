@@ -25,6 +25,7 @@ class ViewPiece:
 
     actual_type 为 None 表示该棋子的身份对该玩家不可见
     """
+
     color: Color
     position: Position
     is_hidden: bool  # 是否为暗子（棋盘上未翻开的）
@@ -37,6 +38,7 @@ class ViewPiece:
 @dataclass
 class CapturedPiece:
     """被吃掉的棋子信息"""
+
     color: Color  # 被吃棋子的颜色
     was_hidden: bool  # 被吃时是否为暗子
     actual_type: PieceType | None  # 真实身份（如果可见）
@@ -50,6 +52,7 @@ class PlayerView:
 
     表示某个玩家（viewer）能看到的游戏状态
     """
+
     viewer: Color  # 谁在看
     current_turn: Color  # 当前该谁走
     result: GameResult  # 游戏结果
