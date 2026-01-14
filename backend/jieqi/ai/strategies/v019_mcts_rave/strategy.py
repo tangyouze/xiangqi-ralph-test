@@ -197,68 +197,6 @@ class MCTSRaveAI(AIStrategy):
 
         return result
 
-    def select_move(self, view: PlayerView) -> JieqiMove | None:
-        candidates = self.select_moves(view, n=1)
-        return candidates[0][0] if candidates else None
-
-    def select_moves(self, view: PlayerView, n: int = 10) -> list[tuple[JieqiMove, float]]:
-        if not view.legal_moves:
-            return []
-
-        if len(view.legal_moves) == 1:
-            return [(view.legal_moves[0], 0.0)]
-
-        my_color = view.viewer
-        sim_board = SimulationBoard(view)
-
-        # 清空全局 RAVE 表
-        self._global_rave.clear()
-
-        # 创建根节点
-        root = RAVENode(move=None, parent=None, color=my_color)
-        root.untried_moves = view.legal_moves[:]
-
-        start_time = time.time()
-        self._iterations_done = 0
-
-        while self._iterations_done < self.max_iterations:
-            if time.time() - start_time > self.time_limit:
-                break
-
-            board = sim_board.copy()
-
-            # 1. Selection
-            node = self._select(root, board)
-
-            # 2. Expansion
-            if not node.is_terminal() and node.visits > 0:
-                node = self._expand(node, board)
-
-            # 3. Simulation with move tracking
-            result, played_moves = self._simulate(board, node.color, my_color)
-
-            # 4. Backpropagation with RAVE update
-            self._backpropagate(node, result, my_color, played_moves)
-
-            self._iterations_done += 1
-
-        if not root.children:
-            shuffled = view.legal_moves[:]
-            self._rng.shuffle(shuffled)
-            return [(move, 0.0) for move in shuffled[:n]]
-
-        # 选择访问次数最多的
-        sorted_children = sorted(root.children, key=lambda c: c.visits, reverse=True)
-
-        result = []
-        for child in sorted_children[:n]:
-            if child.visits > 0:
-                win_rate = child.wins / child.visits
-                score = (win_rate - 0.5) * 2000
-                result.append((child.move, score))
-
-        return result
-
     def _select(self, node: RAVENode, board: SimulationBoard) -> RAVENode:
         while not node.is_terminal():
             if not node.is_fully_expanded():

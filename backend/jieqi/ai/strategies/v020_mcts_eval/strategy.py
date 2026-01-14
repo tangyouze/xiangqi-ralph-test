@@ -198,68 +198,6 @@ class MCTSEvalAI(AIStrategy):
 
         return result
 
-    def select_move(self, view: PlayerView) -> JieqiMove | None:
-        candidates = self.select_moves(view, n=1)
-        return candidates[0][0] if candidates else None
-
-    def select_moves(self, view: PlayerView, n: int = 10) -> list[tuple[JieqiMove, float]]:
-        if not view.legal_moves:
-            return []
-
-        if len(view.legal_moves) == 1:
-            return [(view.legal_moves[0], 0.0)]
-
-        my_color = view.viewer
-        sim_board = SimulationBoard(view)
-
-        # 创建根节点
-        root = EvalNode(move=None, parent=None, color=my_color)
-
-        # 按优先级排序初始走法
-        prioritized = self._prioritize_moves(sim_board, view.legal_moves, my_color)
-        root.untried_moves = [m for m, _ in prioritized]
-
-        start_time = time.time()
-        self._iterations_done = 0
-
-        while self._iterations_done < self.max_iterations:
-            if time.time() - start_time > self.time_limit:
-                break
-
-            board = sim_board.copy()
-
-            # 1. Selection
-            node, path = self._select(root, board)
-
-            # 2. Expansion (Progressive Widening)
-            if node.should_expand():
-                node = self._expand(node, board)
-
-            # 3. Evaluation (浅层 playout + 评估)
-            value = self._evaluate_node(board, node.color, my_color)
-
-            # 4. Backpropagation
-            self._backpropagate(node, value, my_color)
-
-            self._iterations_done += 1
-
-        if not root.children:
-            shuffled = view.legal_moves[:]
-            self._rng.shuffle(shuffled)
-            return [(move, 0.0) for move in shuffled[:n]]
-
-        # 按访问次数排序
-        sorted_children = sorted(root.children, key=lambda c: c.visits, reverse=True)
-
-        result = []
-        for child in sorted_children[:n]:
-            if child.visits > 0:
-                # 使用平均 value（已归一化到 0-1）
-                score = (child.value - 0.5) * 2000
-                result.append((child.move, score))
-
-        return result
-
     def _prioritize_moves(
         self, board: SimulationBoard, moves: list[JieqiMove], color: Color
     ) -> list[tuple[JieqiMove, float]]:
