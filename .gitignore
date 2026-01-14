@@ -51,6 +51,9 @@ playwright-report/
 .DS_Store
 Thumbs.db
 
+# Rust
+rust-ai/target/
+
 # Project specific
 logs/
 *.log

@@ -1,0 +1,29 @@
+[package]
+name = "xiangqi-ai"
+version = "0.1.0"
+edition = "2021"
+description = "Xiangqi (Jieqi/Banqi) AI engine with FEN interface"
+authors = ["Xiangqi AI Project"]
+
+[dependencies]
+# 命令行参数解析
+clap = { version = "4.4", features = ["derive"] }
+# 随机数生成
+rand = "0.8"
+# JSON 序列化（用于输出）
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+# 日志
+log = "0.4"
+env_logger = "0.10"
+
+[dev-dependencies]
+criterion = "0.5"
+
+[[bin]]
+name = "xiangqi-ai"
+path = "src/main.rs"
+
+[profile.release]
+opt-level = 3
+lto = true
