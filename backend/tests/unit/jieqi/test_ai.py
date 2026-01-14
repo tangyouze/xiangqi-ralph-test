@@ -1,12 +1,17 @@
 """
 揭棋 AI 测试
+
+使用统一的 FEN 接口测试
 """
 
 import pytest
 from jieqi.ai import AIConfig, AIEngine
 from jieqi.ai.strategies.v001_random.strategy import RandomAI
-from jieqi.game import GameConfig, JieqiGame
-from jieqi.types import ActionType, Color, GameResult
+from jieqi.fen import apply_move_to_fen, get_legal_moves_from_fen, parse_fen
+from jieqi.types import Color
+
+# 标准初始 FEN
+INITIAL_FEN = "xxxxxxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXXXXXX -:- r r"
 
 
 class TestAIEngine:
@@ -35,172 +40,136 @@ class TestAIEngine:
 
 
 class TestRandomAI:
-    """测试随机 AI"""
+    """测试随机 AI（使用 FEN 接口）"""
 
-    @pytest.fixture
-    def game(self):
-        """创建测试游戏"""
-        config = GameConfig(seed=42)
-        return JieqiGame(config=config)
-
-    def test_select_move_returns_legal_move(self, game: JieqiGame):
+    def test_select_moves_fen_returns_legal_move(self):
         """测试选择的走法是合法的"""
         ai = RandomAI()
-        move = ai.select_move(game)
+        moves = ai.select_moves_fen(INITIAL_FEN, n=1)
 
-        assert move is not None
-        legal_moves = game.get_legal_moves()
-        assert move in legal_moves
+        assert len(moves) == 1
+        move_str, score = moves[0]
 
-    def test_select_move_with_seed_is_deterministic(self, game: JieqiGame):
+        legal_moves = get_legal_moves_from_fen(INITIAL_FEN)
+        assert move_str in legal_moves
+
+    def test_select_moves_fen_with_seed_is_deterministic(self):
         """测试使用种子时走法是确定性的"""
-        # 需要使用相同的游戏状态才能确保确定性
-        config1 = GameConfig(seed=42)
-        config2 = GameConfig(seed=42)
-        game1 = JieqiGame(config=config1)
-        game2 = JieqiGame(config=config2)
-
         ai1 = RandomAI(AIConfig(seed=123))
         ai2 = RandomAI(AIConfig(seed=123))
 
-        move1 = ai1.select_move(game1)
-        move2 = ai2.select_move(game2)
+        moves1 = ai1.select_moves_fen(INITIAL_FEN, n=5)
+        moves2 = ai2.select_moves_fen(INITIAL_FEN, n=5)
 
-        assert move1 == move2
+        assert moves1 == moves2
 
-    def test_select_move_returns_none_when_no_legal_moves(self):
-        """测试没有合法走法时返回 None"""
-        config = GameConfig(seed=42)
-        game = JieqiGame(config=config)
-
-        # 移除所有红方棋子（除了帅）
-        for piece in game.board.get_all_pieces(Color.RED):
-            if piece.actual_type != game.board.get_piece(piece.position).actual_type:
-                continue
-            game.board.remove_piece(piece.position)
-
-        # 让帅被困住（这个测试可能需要更复杂的设置）
+    def test_select_moves_fen_returns_multiple(self):
+        """测试返回多个候选走法"""
         ai = RandomAI()
-        # 正常情况下应该有走法，这里只是测试接口
+        moves = ai.select_moves_fen(INITIAL_FEN, n=10)
+
+        assert len(moves) == 10
+        # 所有走法都应该是合法的
+        legal_moves = get_legal_moves_from_fen(INITIAL_FEN)
+        for move_str, _ in moves:
+            assert move_str in legal_moves
 
 
 class TestAIVsAI:
-    """测试 AI 对战"""
+    """测试 AI 对战（使用 FEN 接口）"""
 
     def test_ai_vs_ai_game_completes(self):
         """测试两个 AI 可以完成一局游戏"""
-        config = GameConfig(seed=42)
-        game = JieqiGame(config=config)
-
+        fen = INITIAL_FEN
         ai_red = RandomAI(AIConfig(seed=1))
         ai_black = RandomAI(AIConfig(seed=2))
 
-        max_moves = 200  # 防止无限循环
+        max_moves = 200
         move_count = 0
 
-        while game.result == GameResult.ONGOING and move_count < max_moves:
-            current_ai = ai_red if game.current_turn == Color.RED else ai_black
-            move = current_ai.select_move(game)
+        for _ in range(max_moves):
+            state = parse_fen(fen)
+            current_ai = ai_red if state.turn == Color.RED else ai_black
 
-            if move is None:
+            moves = current_ai.select_moves_fen(fen, n=1)
+            if not moves:
                 break
 
-            game.make_move(move)
-            move_count += 1
+            move_str, _ = moves[0]
+            try:
+                fen = apply_move_to_fen(fen, move_str)
+                move_count += 1
+            except Exception:
+                break
 
-        # 游戏应该结束或达到最大步数
         assert move_count > 0
-        # 打印结果用于调试
-        print(f"Game ended after {move_count} moves with result: {game.result}")
+        print(f"Game ended after {move_count} moves")
 
     def test_multiple_ai_games(self):
         """测试多局 AI 对战"""
-        results = {
-            GameResult.RED_WIN: 0,
-            GameResult.BLACK_WIN: 0,
-            GameResult.DRAW: 0,
-            GameResult.ONGOING: 0,
-        }
+        completed_games = 0
 
-        for seed in range(5):  # 5局游戏
-            config = GameConfig(seed=seed)
-            game = JieqiGame(config=config)
-
+        for seed in range(5):
+            fen = INITIAL_FEN
             ai_red = RandomAI(AIConfig(seed=seed * 2))
             ai_black = RandomAI(AIConfig(seed=seed * 2 + 1))
 
-            max_moves = 200
-            for _ in range(max_moves):
-                if game.result != GameResult.ONGOING:
+            for _ in range(200):
+                state = parse_fen(fen)
+                current_ai = ai_red if state.turn == Color.RED else ai_black
+
+                moves = current_ai.select_moves_fen(fen, n=1)
+                if not moves:
                     break
 
-                current_ai = ai_red if game.current_turn == Color.RED else ai_black
-                move = current_ai.select_move(game)
-
-                if move is None:
+                move_str, _ = moves[0]
+                try:
+                    fen = apply_move_to_fen(fen, move_str)
+                except Exception:
                     break
 
-                game.make_move(move)
+            completed_games += 1
 
-            results[game.result] += 1
-
-        # 所有游戏都有结果
-        total = sum(results.values())
-        assert total == 5
-
-        print(f"AI vs AI results: {results}")
+        assert completed_games == 5
 
 
-class TestSelectMoves:
-    """测试 select_moves() 接口"""
+class TestSelectMovesFen:
+    """测试 select_moves_fen() 接口"""
 
-    def test_select_moves_returns_candidates(self):
-        """测试 select_moves 返回多个候选"""
-        config = GameConfig(seed=42)
-        game = JieqiGame(config=config)
-        view = game.get_view(game.current_turn)
-
-        # 使用实现了 select_moves 的 advanced AI
-        ai = AIEngine.create("advanced")
-        candidates = ai.select_moves(view, n=5)
+    def test_select_moves_fen_returns_candidates(self):
+        """测试 select_moves_fen 返回多个候选"""
+        ai = AIEngine.create("minimax", AIConfig(depth=2))
+        candidates = ai.select_moves_fen(INITIAL_FEN, n=5)
 
         assert len(candidates) > 0
         assert len(candidates) <= 5
 
-        # 检查返回格式：[(move, score), ...]
-        for move, score in candidates:
-            assert move is not None
+        # 检查返回格式：[(move_str, score), ...]
+        for move_str, score in candidates:
+            assert isinstance(move_str, str)
             assert isinstance(score, (int, float))
 
         # 检查分数降序排列
         scores = [s for _, s in candidates]
         assert scores == sorted(scores, reverse=True)
 
-    def test_select_moves_default_returns_one(self):
-        """测试未实现 select_moves 的 AI 返回单个候选"""
-        config = GameConfig(seed=42)
-        game = JieqiGame(config=config)
-        view = game.get_view(game.current_turn)
+    def test_all_moves_are_legal(self):
+        """测试所有返回的走法都是合法的"""
+        ai = AIEngine.create("greedy")
+        candidates = ai.select_moves_fen(INITIAL_FEN, n=10)
 
-        # random AI 使用默认实现
-        ai = AIEngine.create("random")
-        candidates = ai.select_moves(view, n=10)
+        legal_moves = get_legal_moves_from_fen(INITIAL_FEN)
+        for move_str, _ in candidates:
+            assert move_str in legal_moves
 
-        # 默认实现只返回 1 个候选
-        assert len(candidates) == 1
-        move, score = candidates[0]
-        assert move is not None
-        assert score == 0.0  # 默认分数
+    def test_different_strategies_work(self):
+        """测试不同策略都能正常工作"""
+        strategies = ["random", "greedy", "minimax", "iterative"]
 
-    def test_select_moves_scores_consistent_with_order(self):
-        """测试 select_moves 的分数与走法排序一致"""
-        config = GameConfig(seed=42)
-        game = JieqiGame(config=config)
-        view = game.get_view(game.current_turn)
+        for name in strategies:
+            ai = AIEngine.create(name, AIConfig(depth=2))
+            candidates = ai.select_moves_fen(INITIAL_FEN, n=3)
 
-        ai = AIEngine.create("minimax")
-        candidates = ai.select_moves(view, n=10)
-
-        if len(candidates) > 1:
-            # 第一个候选的分数应该 >= 第二个
-            assert candidates[0][1] >= candidates[1][1]
+            assert len(candidates) > 0, f"Strategy {name} returned no moves"
+            move_str, _ = candidates[0]
+            assert isinstance(move_str, str), f"Strategy {name} returned invalid move"

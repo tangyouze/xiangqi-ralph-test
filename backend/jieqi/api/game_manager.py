@@ -6,6 +6,7 @@
 
 from jieqi.ai import AIConfig, AIEngine, AIStrategy
 from jieqi.api.models import AILevel, GameMode
+from jieqi.fen import parse_move, to_fen
 from jieqi.game import GameConfig, JieqiGame
 from jieqi.types import Color, JieqiMove
 
@@ -139,24 +140,28 @@ class GameManager:
         config = self._ai_configs.get(game_id, {})
         mode = config.get("mode")
 
+        ai: AIStrategy | None = None
+
         if mode == GameMode.HUMAN_VS_AI:
             ai_color = config.get("ai_color", "black")
             if game.current_turn.value != ai_color:
                 return None
-            ai: AIStrategy = config.get("ai")
-            if ai:
-                # 传递 PlayerView 而不是 JieqiGame，确保 AI 看不到暗子身份
-                view = game.get_view(game.current_turn)
-                return ai.select_move(view)
+            ai = config.get("ai")
         elif mode == GameMode.AI_VS_AI:
             if game.current_turn == Color.RED:
                 ai = config.get("red_ai")
             else:
                 ai = config.get("black_ai")
-            if ai:
-                # 传递 PlayerView 而不是 JieqiGame，确保 AI 看不到暗子身份
-                view = game.get_view(game.current_turn)
-                return ai.select_move(view)
+
+        if ai:
+            # 使用统一的 FEN 接口
+            view = game.get_view(game.current_turn)
+            fen = to_fen(view)
+            moves = ai.select_moves_fen(fen, n=1)
+            if moves:
+                move_str, _ = moves[0]
+                move, _ = parse_move(move_str)
+                return move
 
         return None
 

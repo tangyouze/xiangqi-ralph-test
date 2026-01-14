@@ -20,6 +20,7 @@ import plotly.graph_objects as go
 from jieqi.game import JieqiGame
 from jieqi.types import Color, GameResult
 from jieqi.ai.base import AIEngine, AIConfig
+from jieqi.fen import to_fen, parse_move
 
 # 导入 AI 策略
 from jieqi.ai import strategies  # noqa: F401
@@ -68,21 +69,25 @@ def run_single_game(
     while game.result == GameResult.ONGOING and move_count < max_moves:
         current_ai = red_ai if game.current_turn == Color.RED else black_ai
         view = game.get_view(game.current_turn)
+        fen = to_fen(view)
 
         # 选择走法
         move = None
         if avoid_draw:
             # 使用 Top-N 候选，规避和棋
-            candidates = current_ai.select_moves(view, n=10)
-            for candidate_move, _score in candidates:
+            candidates = current_ai.select_moves_fen(fen, n=10)
+            for move_str, _score in candidates:
+                candidate_move, _ = parse_move(move_str)
                 if not would_cause_draw(game, candidate_move):
                     move = candidate_move
                     break
             # 如果所有候选都会和棋，选第一个
             if move is None and candidates:
-                move = candidates[0][0]
+                move, _ = parse_move(candidates[0][0])
         else:
-            move = current_ai.select_move(view)
+            candidates = current_ai.select_moves_fen(fen, n=1)
+            if candidates:
+                move, _ = parse_move(candidates[0][0])
 
         if move is None:
             if game.current_turn == Color.RED:

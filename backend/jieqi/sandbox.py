@@ -40,6 +40,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from jieqi.ai import AIEngine
+from jieqi.fen import parse_move, to_fen
 from jieqi.simulation import SimulationBoard, SimPiece
 from jieqi.types import (
     ActionType,
@@ -575,8 +576,14 @@ class AIPlayer:
         # 获取该颜色的视角（信息隔离）
         view = position.get_view(color)
 
-        # AI 决策
-        return self._ai.select_move(view)
+        # 使用统一的 FEN 接口
+        fen = to_fen(view)
+        moves = self._ai.select_moves_fen(fen, n=1)
+        if moves:
+            move_str, _ = moves[0]
+            move, _ = parse_move(move_str)
+            return move
+        return None
 
 
 # =============================================================================
@@ -605,7 +612,13 @@ def think(view: PlayerView, strategy: str = "greedy") -> JieqiMove | None:
         >>> move = think(view, "greedy")
     """
     ai = AIEngine.create(strategy)
-    return ai.select_move(view)
+    fen = to_fen(view)
+    moves = ai.select_moves_fen(fen, n=1)
+    if moves:
+        move_str, _ = moves[0]
+        move, _ = parse_move(move_str)
+        return move
+    return None
 
 
 def think_from_jfn(
