@@ -79,26 +79,27 @@ def best(
     fen: str = typer.Option(..., "--fen", "-f", help="FEN 字符串"),
     backend: str = typer.Option("python", "--backend", "-b", help="后端 (python/rust)"),
     strategy: str = typer.Option("greedy", "--strategy", "-s", help="AI 策略"),
-    depth: int = typer.Option(3, "--depth", "-d", help="搜索深度"),
     n: int = typer.Option(1, "--n", "-n", help="返回的走法数量"),
     output_json: bool = typer.Option(False, "--json", help="JSON 输出"),
+    time_limit: float | None = typer.Option(None, "--time", "-t", help="时间限制（秒）"),
 ) -> None:
     """选择最佳走法"""
     try:
-        engine = UnifiedAIEngine(backend=backend, strategy=strategy, depth=depth)  # type: ignore
+        engine = UnifiedAIEngine(backend=backend, strategy=strategy, time_limit=time_limit)  # type: ignore
         moves_with_scores = engine.get_best_moves(fen, n)
 
         if output_json:
             response = {
                 "backend": backend,
                 "strategy": strategy,
-                "depth": depth,
+                "time_limit": time_limit,
                 "total": len(moves_with_scores),
                 "moves": [{"move": mv, "score": score} for mv, score in moves_with_scores],
             }
             print(json.dumps(response, indent=2))
         else:
-            print(f"Best moves (backend={backend}, strategy={strategy}, depth={depth}):")
+            time_str = f", time={time_limit}s" if time_limit else ""
+            print(f"Best moves (backend={backend}, strategy={strategy}{time_str}):")
             for mv, score in moves_with_scores:
                 print(f"  {mv} (score: {score:.2f})")
     except Exception as e:
