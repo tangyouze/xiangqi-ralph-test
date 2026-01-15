@@ -413,10 +413,13 @@ class IterativeAI(AIStrategy):
 
     def __init__(self, config: AIConfig | None = None):
         super().__init__(config)
-        # 最大搜索深度
-        self.max_depth = self.config.depth if self.config.depth > 0 else 4
         # 时间限制（秒）
         self.time_limit = self.config.time_limit or 2.0
+        # 最大搜索深度：如果设置了时间限制，允许无限加深；否则使用配置的深度
+        if self.config.time_limit is not None:
+            self.max_depth = 50  # 会被时间限制打断
+        else:
+            self.max_depth = self.config.depth if self.config.depth > 0 else 4
 
         self._rng = random.Random(self.config.seed)
         self._tt = TranspositionTable()
