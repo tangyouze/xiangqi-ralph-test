@@ -39,7 +39,11 @@ impl MCTSAI {
                     return if start_color == Color::Red { 1.0 } else { 0.0 };
                 }
                 GameResult::BlackWin => {
-                    return if start_color == Color::Black { 1.0 } else { 0.0 };
+                    return if start_color == Color::Black {
+                        1.0
+                    } else {
+                        0.0
+                    };
                 }
                 GameResult::Draw => return 0.5,
                 GameResult::Ongoing => {}

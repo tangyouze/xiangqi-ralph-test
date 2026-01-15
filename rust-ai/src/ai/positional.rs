@@ -79,7 +79,11 @@ impl PositionalAI {
             }
             PieceType::Cannon => {
                 let column_bonus = 8.0 - (col - 4.0).abs() * 1.5;
-                let row_bonus = if (2.0..=7.0).contains(&row) { 10.0 } else { 0.0 };
+                let row_bonus = if (2.0..=7.0).contains(&row) {
+                    10.0
+                } else {
+                    0.0
+                };
                 column_bonus + row_bonus
             }
             PieceType::Horse => {

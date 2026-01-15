@@ -8,6 +8,7 @@ mod greedy;
 mod iterative;
 mod mcts;
 mod minimax;
+mod muses;
 mod positional;
 mod pvs;
 mod random;
@@ -18,6 +19,7 @@ pub use greedy::GreedyAI;
 pub use iterative::IterativeDeepeningAI;
 pub use mcts::MCTSAI;
 pub use minimax::{MinimaxAI, NODE_COUNT};
+pub use muses::MusesAI;
 pub use positional::PositionalAI;
 pub use pvs::PVSAI;
 pub use random::RandomAI;
@@ -153,6 +155,13 @@ impl AIEngine {
         }
     }
 
+    /// 创建 Muses AI
+    pub fn muses(config: &AIConfig) -> Self {
+        AIEngine {
+            strategy: Box::new(MusesAI::new(config)),
+        }
+    }
+
     /// 从策略名称创建
     pub fn from_strategy(name: &str, config: &AIConfig) -> Result<Self, String> {
         match name.to_lowercase().as_str() {
@@ -165,8 +174,9 @@ impl AIEngine {
             "defensive" | "defense" => Ok(Self::defensive(config)),
             "aggressive" | "attack" => Ok(Self::aggressive(config)),
             "pvs" | "advanced" => Ok(Self::pvs(config)),
+            "muses" => Ok(Self::muses(config)),
             _ => Err(format!(
-                "Unknown strategy: {}. Available: random, greedy, minimax, iterative, mcts, positional, defensive, aggressive, pvs",
+                "Unknown strategy: {}. Available: random, greedy, minimax, iterative, mcts, positional, defensive, aggressive, pvs, muses",
                 name
             )),
         }

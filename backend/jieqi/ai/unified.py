@@ -182,6 +182,8 @@ class RustBackend(AIBackend):
             "positional",
             "defensive",
             "aggressive",
+            "pvs",
+            "muses",
         ]
 
 

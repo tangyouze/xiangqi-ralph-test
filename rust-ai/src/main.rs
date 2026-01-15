@@ -82,20 +82,18 @@ fn main() {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Moves { fen } => {
-            match get_legal_moves_from_fen(&fen) {
-                Ok(moves) => {
-                    println!("Legal moves ({}):", moves.len());
-                    for mv in &moves {
-                        println!("  {}", mv);
-                    }
-                }
-                Err(e) => {
-                    eprintln!("Error: {}", e);
-                    std::process::exit(1);
+        Commands::Moves { fen } => match get_legal_moves_from_fen(&fen) {
+            Ok(moves) => {
+                println!("Legal moves ({}):", moves.len());
+                for mv in &moves {
+                    println!("  {}", mv);
                 }
             }
-        }
+            Err(e) => {
+                eprintln!("Error: {}", e);
+                std::process::exit(1);
+            }
+        },
 
         Commands::Best {
             fen,
