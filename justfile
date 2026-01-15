@@ -64,3 +64,13 @@ lint:
 # Run AI battle
 battle *ARGS:
     uv run python scripts/ai_battle.py {{ARGS}}
+
+# === AI 评估命令 ===
+
+# Generate AI evaluation report
+ai-report STRATEGY="muses" BACKEND="rust":
+    uv run python scripts/ai_eval.py report --strategy {{STRATEGY}} --backend {{BACKEND}}
+
+# List evaluation scenarios
+ai-scenarios:
+    uv run python scripts/ai_eval.py list-scenarios

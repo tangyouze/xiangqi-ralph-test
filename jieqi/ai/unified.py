@@ -179,10 +179,6 @@ class RustBackend(AIBackend):
             "minimax",
             "iterative",
             "mcts",
-            "positional",
-            "defensive",
-            "aggressive",
-            "pvs",
             "muses",
         ]
 
