@@ -1,7 +1,7 @@
 #!/usr/bin/env pypy
 # -*- coding: utf-8 -*-
 
-#Updated by Si Miao 2021/05/28
+# Updated by Si Miao 2021/05/28
 from __future__ import print_function
 import re, sys, time
 from itertools import count
@@ -12,12 +12,15 @@ from copy import deepcopy
 import readline
 
 B = board.Board()
-piece = {'P': 44, 'N': 108, 'B': 23, 'R': 233, 'A': 23, 'C': 101, 'K': 2500}
-put = lambda board, i, p: board[:i] + p + board[i+1:]
-r = {'R': 2, 'N': 2, 'B': 2, 'A': 2, 'C': 2, 'P': 5}
-b = {'r': 2, 'n': 2, 'b': 2, 'a': 2, 'c': 2, 'p': 5}
+piece = {"P": 44, "N": 108, "B": 23, "R": 233, "A": 23, "C": 101, "K": 2500}
+put = lambda board, i, p: board[:i] + p + board[i + 1 :]
+r = {"R": 2, "N": 2, "B": 2, "A": 2, "C": 2, "P": 5}
+b = {"r": 2, "n": 2, "b": 2, "a": 2, "c": 2, "p": 5}
 di = {True: deepcopy(r), False: deepcopy(b)}
-sumall = {True: sum(di[True][key] for key in di[True]), False: sum(di[False][key] for key in di[False])}
+sumall = {
+    True: sum(di[True][key] for key in di[True]),
+    False: sum(di[False][key] for key in di[False]),
+}
 # 子力价值表参考“象眼”
 cache = {}
 forbidden_moves = set()
@@ -33,95 +36,109 @@ def setcache(bo):
 
 def resetrbdict():
     global r, b, di
-    r = {'R': 2, 'N': 2, 'B': 2, 'A': 2, 'C': 2, 'P': 5}
-    b = {'r': 2, 'n': 2, 'b': 2, 'a': 2, 'c': 2, 'p': 5}
+    r = {"R": 2, "N": 2, "B": 2, "A": 2, "C": 2, "P": 5}
+    b = {"r": 2, "n": 2, "b": 2, "a": 2, "c": 2, "p": 5}
     di = {True: deepcopy(r), False: deepcopy(b)}
 
 
 pst = deepcopy(common.pst)
 discount_factor = common.discount_factor  # 1.6
 
-A0, I0, A9, I9 = 12 * 16 + 3, 12 * 16 + 11, 3 * 16 + 3,  3 * 16 + 11
+A0, I0, A9, I9 = 12 * 16 + 3, 12 * 16 + 11, 3 * 16 + 3, 3 * 16 + 11
 
-'''
+"""
 D: 暗车
 E: 暗马
 F: 暗相
 G: 暗士
 H: 暗炮
 I: 暗车
-'''
+"""
 
 initial_covered = (
-    '               \n'  # 0
-    '               \n'  # 1
-    '               \n'  # 2
-    '   defgkgfed   \n'  # 3
-    '   .........   \n'  # 4
-    '   .h.....h.   \n'  # 5
-    '   i.i.i.i.i   \n'  # 6
-    '   .........   \n'  # 7
-    '   .........   \n'  # 8
-    '   I.I.I.I.I   \n'  # 9
-    '   .H.....H.   \n'  # 10
-    '   .........   \n'  # 11
-    '   DEFGKGFED   \n'  # 12
-    '               \n'  # 13
-    '               \n'  # 14
-    '                '  # 15
+    "               \n"  # 0
+    "               \n"  # 1
+    "               \n"  # 2
+    "   defgkgfed   \n"  # 3
+    "   .........   \n"  # 4
+    "   .h.....h.   \n"  # 5
+    "   i.i.i.i.i   \n"  # 6
+    "   .........   \n"  # 7
+    "   .........   \n"  # 8
+    "   I.I.I.I.I   \n"  # 9
+    "   .H.....H.   \n"  # 10
+    "   .........   \n"  # 11
+    "   DEFGKGFED   \n"  # 12
+    "               \n"  # 13
+    "               \n"  # 14
+    "                "  # 15
 )
 
 
 # Lists of possible moves for each piece type.
 N, E, S, W = -16, 1, 16, -1
 directions = {
-    'P': (N, W, E),
-    'I': (N, ), #暗兵
-    'N': (N+N+E, E+N+E, E+S+E, S+S+E, S+S+W, W+S+W, W+N+W, N+N+W),
-    'E': (N+N+E, E+N+E, W+N+W, N+N+W), #暗马
-    'B': (2 * N + 2 * E, 2 * S + 2 * E, 2 * S + 2 * W, 2 * N + 2 * W),
-    'F': (2 * N + 2 * E, 2 * N + 2 * W), #暗相
-    'R': (N, E, S, W),
-    'D': (N, E, W), #暗车
-    'C': (N, E, S, W),
-    'H': (N, E, S, W), #暗炮
-    'A': (N+E, S+E, S+W, N+W),
-    'G': (N+E, N+W), #暗士
-    'K': (N, E, S, W)
+    "P": (N, W, E),
+    "I": (N,),  # 暗兵
+    "N": (N + N + E, E + N + E, E + S + E, S + S + E, S + S + W, W + S + W, W + N + W, N + N + W),
+    "E": (N + N + E, E + N + E, W + N + W, N + N + W),  # 暗马
+    "B": (2 * N + 2 * E, 2 * S + 2 * E, 2 * S + 2 * W, 2 * N + 2 * W),
+    "F": (2 * N + 2 * E, 2 * N + 2 * W),  # 暗相
+    "R": (N, E, S, W),
+    "D": (N, E, W),  # 暗车
+    "C": (N, E, S, W),
+    "H": (N, E, S, W),  # 暗炮
+    "A": (N + E, S + E, S + W, N + W),
+    "G": (N + E, N + W),  # 暗士
+    "K": (N, E, S, W),
 }
 
 uni_pieces = {
-    '.': '．',
-    'R': '\033[31m俥\033[0m',
-    'N': '\033[31m傌\033[0m',
-    'B': '\033[31m相\033[0m',
-    'A': '\033[31m仕\033[0m',
-    'K': '\033[31m帅\033[0m',
-    'P': '\033[31m兵\033[0m',
-    'C': '\033[31m炮\033[0m',
-    'D': '\033[31m暗\033[0m',
-    'E': '\033[31m暗\033[0m',
-    'F': '\033[31m暗\033[0m',
-    'G': '\033[31m暗\033[0m',
-    'H': '\033[31m暗\033[0m',
-    'I': '\033[31m暗\033[0m',
-    'r': '车',
-    'n': '马',
-    'b': '象',
-    'a': '士',
-    'k': '将',
-    'p': '卒',
-    'c': '炮',
-    'd': '暗',
-    'e': '暗',
-    'f': '暗',
-    'g': '暗',
-    'h': '暗',
-    'i': '暗'
+    ".": "．",
+    "R": "\033[31m俥\033[0m",
+    "N": "\033[31m傌\033[0m",
+    "B": "\033[31m相\033[0m",
+    "A": "\033[31m仕\033[0m",
+    "K": "\033[31m帅\033[0m",
+    "P": "\033[31m兵\033[0m",
+    "C": "\033[31m炮\033[0m",
+    "D": "\033[31m暗\033[0m",
+    "E": "\033[31m暗\033[0m",
+    "F": "\033[31m暗\033[0m",
+    "G": "\033[31m暗\033[0m",
+    "H": "\033[31m暗\033[0m",
+    "I": "\033[31m暗\033[0m",
+    "r": "车",
+    "n": "马",
+    "b": "象",
+    "a": "士",
+    "k": "将",
+    "p": "卒",
+    "c": "炮",
+    "d": "暗",
+    "e": "暗",
+    "f": "暗",
+    "g": "暗",
+    "h": "暗",
+    "i": "暗",
 }
 
-MATE_LOWER = piece['K'] - (2*piece['R'] + 2*piece['N'] + 2*piece['B'] + 2*piece['A'] + 2*piece['C'] + 5*piece['P'])
-MATE_UPPER = piece['K'] + (2*piece['R'] + 2*piece['N'] + 2*piece['B'] + 2*piece['A'] + 2*piece['C'] + 5*piece['P'])
+MATE_LOWER = piece["K"] - (
+    2 * piece["R"]
+    + 2 * piece["N"]
+    + 2 * piece["B"]
+    + 2 * piece["A"]
+    + 2 * piece["C"]
+    + 5 * piece["P"]
+)
+MATE_UPPER = piece["K"] + (
+    2 * piece["R"]
+    + 2 * piece["N"]
+    + 2 * piece["B"]
+    + 2 * piece["A"]
+    + 2 * piece["C"]
+    + 5 * piece["P"]
+)
 
 # The table size is the maximum number of elements in the transposition table.
 TABLE_SIZE = 1e7
@@ -145,8 +162,9 @@ average = {}
 # Chess logic
 ###############################################################################
 
-class Position(namedtuple('Position', 'board score turn')):
-    """ A state of a chess game
+
+class Position(namedtuple("Position", "board score turn")):
+    """A state of a chess game
     board -- a 256 char representation of the board
     score -- the board evaluation
     """
@@ -163,80 +181,93 @@ class Position(namedtuple('Position', 'board score turn')):
         # as defined in the 'directions' map. The rays are broken e.g. by
         # captures or immediately in case of pieces such as knights.
         for i in range(51, 204):
-
             p = self.board[i]
-            if not p.isupper() or p == 'U': continue
+            if not p.isupper() or p == "U":
+                continue
 
-            if p == 'K': 
+            if p == "K":
                 for scanpos in range(i - 16, A9, -16):
-                    if self.board[scanpos] == 'k':
-                        yield (i,scanpos)
-                    elif self.board[scanpos] != '.':
+                    if self.board[scanpos] == "k":
+                        yield (i, scanpos)
+                    elif self.board[scanpos] != ".":
                         break
 
-            if p == 'R':
+            if p == "R":
                 self.che += 1
 
-            if p == 'r':
+            if p == "r":
                 self.che_opponent += 1
 
-            if p == 'P':
+            if p == "P":
                 self.zu += 1
 
-            if p in ('C', 'H'): #明暗炮
+            if p in ("C", "H"):  # 明暗炮
                 for d in directions[p]:
                     cfoot = 0
-                    for j in count(i+d, d):
+                    for j in count(i + d, d):
                         q = self.board[j]
-                        if q.isspace():break
-                        if cfoot == 0 and q == '.':yield (i,j)
-                        elif cfoot == 0 and q != '.':cfoot += 1
-                        elif cfoot == 1 and q.islower(): yield (i,j);break
-                        elif cfoot == 1 and q.isupper(): break;
+                        if q.isspace():
+                            break
+                        if cfoot == 0 and q == ".":
+                            yield (i, j)
+                        elif cfoot == 0 and q != ".":
+                            cfoot += 1
+                        elif cfoot == 1 and q.islower():
+                            yield (i, j)
+                            break
+                        elif cfoot == 1 and q.isupper():
+                            break
                 continue
 
             for d in directions[p]:
-                for j in count(i+d, d):
+                for j in count(i + d, d):
                     q = self.board[j]
                     # Stay inside the board, and off friendly pieces
-                    if q.isspace() or q.isupper(): break
+                    if q.isspace() or q.isupper():
+                        break
                     # 过河的卒/兵才能横着走
-                    if p == 'P' and d in (E, W) and i > 128: break
+                    if p == "P" and d in (E, W) and i > 128:
+                        break
                     # j & 15 等价于 j % 16但是更快
-                    elif p == 'K' and (j < 160 or j & 15 > 8 or j & 15 < 6): break
-                    elif p == 'G' and j != 183: break #暗士, 花心坐标: (11, 7), 11 * 16 + 7 = 183
-                    elif p in ('N', 'E'): #暗马
+                    elif p == "K" and (j < 160 or j & 15 > 8 or j & 15 < 6):
+                        break
+                    elif p == "G" and j != 183:
+                        break  # 暗士, 花心坐标: (11, 7), 11 * 16 + 7 = 183
+                    elif p in ("N", "E"):  # 暗马
                         n_diff_x = (j - i) & 15
                         if n_diff_x == 14 or n_diff_x == 2:
-                            if self.board[i + (1 if n_diff_x == 2 else -1)] != '.': break
+                            if self.board[i + (1 if n_diff_x == 2 else -1)] != ".":
+                                break
                         else:
-                            if j > i and self.board[i + 16] != '.': break
-                            elif j < i and self.board[i - 16] != '.': break
-                    elif p in ('B', 'F') and self.board[i + d // 2] != '.':break
+                            if j > i and self.board[i + 16] != ".":
+                                break
+                            elif j < i and self.board[i - 16] != ".":
+                                break
+                    elif p in ("B", "F") and self.board[i + d // 2] != ".":
+                        break
                     # Move it
                     yield (i, j)
                     # Stop crawlers from sliding, and sliding after captures
-                    if p in 'PNBAKIEFG' or q.islower(): break
+                    if p in "PNBAKIEFG" or q.islower():
+                        break
 
-            if p in 'DEFGHI':
+            if p in "DEFGHI":
                 self.covered += 1
 
     def rotate(self):
-        ''' Rotates the board, preserving enpassant '''
-        p = Position(
-            self.board[-2::-1].swapcase() + " ", -self.score, not self.turn)
+        """Rotates the board, preserving enpassant"""
+        p = Position(self.board[-2::-1].swapcase() + " ", -self.score, not self.turn)
         p.set()
         return p
 
     @staticmethod
     def rotate_new(board, score, turn):
-        p = Position(
-            board[-2::-1].swapcase() + " ", -score, not turn)
+        p = Position(board[-2::-1].swapcase() + " ", -score, not turn)
         p.set()
         return p
 
     def nullmove(self):
-        ''' Like rotate, but clears ep and kp '''
+        """Like rotate, but clears ep and kp"""
         return self.rotate()
 
     def move(self, move):
@@ -244,11 +275,11 @@ class Position(namedtuple('Position', 'board score turn')):
         # Copy variables and reset ep and kp
         score = self.score + self.value(move)
         # Actual move
-        if self.board[i] in 'RNBAKCP':
+        if self.board[i] in "RNBAKCP":
             board = put(self.board, j, self.board[i])
         else:
-            board = put(self.board, j, 'U')
-        board = put(board, i, '.')
+            board = put(self.board, j, "U")
+        board = put(board, i, ".")
         return Position.rotate_new(board, score, self.turn)
 
     def mymove_check(self, move, discount_red=True, discount_black=False):
@@ -265,7 +296,7 @@ class Position(namedtuple('Position', 'board score turn')):
         dst = None
 
         checkmate = False
-        if self.board[j] == 'k':
+        if self.board[j] == "k":
             checkmate = True
 
         if self.board[j] in "defghi":
@@ -273,18 +304,18 @@ class Position(namedtuple('Position', 'board score turn')):
             if self.turn:
                 dst = mapping[j]
             else:
-                dst = mapping[254-j]
+                dst = mapping[254 - j]
             # 这里是吃暗子的逻辑
             # 在这个简易程序中，假设AI执黑，玩家执红。
             # 那么AI其实是不知道玩家吃了自己什么暗子的
             # 因此在玩家执红吃黑暗子时，黑方的暗子集合并不会更新。
             # 本程序设置了discount_red/black开关处理这一逻辑。
             if self.turn:
-               if discount_black:
-                   dst2 = dst.lower()
-                   di[False][dst2] -= 1
+                if discount_black:
+                    dst2 = dst.lower()
+                    di[False][dst2] -= 1
             else:
-               if discount_red:
+                if discount_red:
                     dst2 = dst.upper()
                     di[True][dst2] -= 1
 
@@ -299,7 +330,7 @@ class Position(namedtuple('Position', 'board score turn')):
                 board = put(self.board, j, mapping[254 - i].upper())
                 dst2 = mapping[254 - i].lower()
                 di[False][dst2] -= 1
-        board = put(board, i, '.')
+        board = put(board, i, ".")
         sumall[True] = sum(di[True][key] for key in di[True])
         sumall[False] = sum(di[False][key] for key in di[False])
         return Position.rotate_new(board, self.score, self.turn), checkmate, eat, dst
@@ -310,23 +341,25 @@ class Position(namedtuple('Position', 'board score turn')):
         # Actual move
         # 这里有一个隐藏的很深的BUG。如果对手走出将帅对饮的一步棋，score应该很高(因为直接赢棋)。但由于减了pst[p][i], 减了自己的皇上，所以代码中的score是接近0的。
         # 因此，当对方是老将时应直接返回最大值，不能考虑己方。
-        if q == 'K':
+        if q == "K":
             return 3500
-        if p in 'RNBAKCP':
+        if p in "RNBAKCP":
             score = pst[p][j] - pst[p][i]
-            if p == 'C':
+            if p == "C":
                 # 以下为沉底炮逻辑
                 if (i >> 4) != 3 and (j >> 4) == 3:
                     covered_counter = 0
                     for cnt in range(51, 60):
-                        if self.board[cnt] == 'defghi':
+                        if self.board[cnt] == "defghi":
                             covered_counter += 1
                             if covered_counter > 2:
                                 break
                     if covered_counter <= 2:
-                        if (j == 51 or j == 52) and self.board[53] == 'f' and self.board[54] == 'g':
+                        if (j == 51 or j == 52) and self.board[53] == "f" and self.board[54] == "g":
                             pass
-                        elif (j == 59 or j == 58) and self.board[57] == 'f' and self.board[56] == 'g':
+                        elif (
+                            (j == 59 or j == 58) and self.board[57] == "f" and self.board[56] == "g"
+                        ):
                             pass
                         else:
                             score -= 30
@@ -342,7 +375,7 @@ class Position(namedtuple('Position', 'board score turn')):
                     #  如果走子撤走了空头炮，扣分！
                     cnt = 0
                     for scanpos in range(i - 16, A9, -16):
-                        if self.board[scanpos] == 'k':
+                        if self.board[scanpos] == "k":
                             if cnt == 2:
                                 score -= 20  # 空头炮奖励
                             elif cnt == 3:
@@ -350,7 +383,7 @@ class Position(namedtuple('Position', 'board score turn')):
                             if cnt >= 4 or (self.che >= self.che_opponent and self.che > 0):
                                 score -= 30
                             break
-                        elif self.board[scanpos] != '.':
+                        elif self.board[scanpos] != ".":
                             break
                         cnt += 1
 
@@ -359,7 +392,7 @@ class Position(namedtuple('Position', 'board score turn')):
                     cnt = 0
                     # i & 15 ！= 7很重要，如果没有这句话，AI就不停地直线走来走去赚空头炮积分
                     for scanpos in range(j - 16, A9, -16):
-                        if self.board[scanpos] == 'k':
+                        if self.board[scanpos] == "k":
                             if cnt == 2:
                                 score += 20  # 空头炮奖励91 Clones
                             elif cnt == 3:
@@ -367,7 +400,7 @@ class Position(namedtuple('Position', 'board score turn')):
                             if cnt >= 4 or (self.che >= self.che_opponent and self.che > 0):
                                 score += 30
                             break
-                        elif self.board[scanpos] != '.':
+                        elif self.board[scanpos] != ".":
                             break
                         cnt += 1
 
@@ -375,13 +408,13 @@ class Position(namedtuple('Position', 'board score turn')):
                     if i < j:  # 炮往后撤, 可能空头变非空头哦!
                         kongtou = True
                         for scanpos in range(j - 16, i, -16):
-                            if self.board[scanpos] != '.':
+                            if self.board[scanpos] != ".":
                                 kongtou = False
                                 break
 
                         cnt = 0
                         for scanpos in range(i - 16, A9, -16):
-                            if self.board[scanpos] == 'k':
+                            if self.board[scanpos] == "k":
                                 if not kongtou:
                                     if cnt == 2:
                                         score -= 20  # 空头炮奖励
@@ -390,23 +423,23 @@ class Position(namedtuple('Position', 'board score turn')):
                                     if cnt >= 4 or (self.che >= self.che_opponent and self.che > 0):
                                         score -= 30
                                 else:
-                                    if cnt < 4 and (cnt + abs(i - j)//16) >= 4:
+                                    if cnt < 4 and (cnt + abs(i - j) // 16) >= 4:
                                         score += 30
                                 break
-                            elif self.board[scanpos] != '.':
+                            elif self.board[scanpos] != ".":
                                 break
                             cnt += 1
 
                     else:  # 炮往前走, 可能非空头变空头!
                         kongtou = True
                         for scanpos in range(i - 16, j, -16):
-                            if self.board[scanpos] != '.':
+                            if self.board[scanpos] != ".":
                                 kongtou = False
                                 break
 
                         cnt = 0
                         for scanpos in range(j - 16, A9, -16):
-                            if self.board[scanpos] == 'k':
+                            if self.board[scanpos] == "k":
                                 if not kongtou:
                                     if cnt == 2:
                                         score += 20  # 空头炮奖励
@@ -418,18 +451,27 @@ class Position(namedtuple('Position', 'board score turn')):
                                     if cnt < 4 and (cnt + abs(i - j) // 16) >= 4:
                                         score -= 30
                                 break
-                            elif self.board[scanpos] != '.':
+                            elif self.board[scanpos] != ".":
                                 break
                             cnt += 1
 
-
-            if p == 'R' and self.board[51] not in 'dr' and self.board[54] != 'a' and self.board[71] != 'a':
+            if (
+                p == "R"
+                and self.board[51] not in "dr"
+                and self.board[54] != "a"
+                and self.board[71] != "a"
+            ):
                 if j & 15 == 6 and i & 15 != 6:
                     score += 30  # 如果对方暗车出动，相应侧又没有士的防守，抓紧抢占肋道
                 if j & 15 != 6 and i & 15 == 6:
                     score -= 20
 
-            if p == 'R' and self.board[59] not in 'dr' and self.board[56] != 'a' and self.board[71] != 'a':
+            if (
+                p == "R"
+                and self.board[59] not in "dr"
+                and self.board[56] != "a"
+                and self.board[71] != "a"
+            ):
                 if j & 15 == 8 and i & 15 != 8:
                     score += 30  # 如果对方暗车出动，相应侧又没有士的防守，抓紧抢占肋道
                 if j & 15 != 8 and i & 15 == 8:
@@ -440,10 +482,12 @@ class Position(namedtuple('Position', 'board score turn')):
             # 假设某一方可能的暗子是 两车一炮。
             # 则在某位置处不确定明子的价值为 (车在该处的价值*2 + 炮在该处的价值)/(2+1)。
             # 为了加速计算，这一数值已经被封装到了average这一字典中并预先计算(Pre-compute)。
-            score = average[self.turn][True][j] - average[self.turn][False] + 20  # 相应位置不确定明子的平均价值 - 暗子
+            score = (
+                average[self.turn][True][j] - average[self.turn][False] + 20
+            )  # 相应位置不确定明子的平均价值 - 暗子
 
-            if p == 'D':
-                key = 'R' if not self.turn else 'r'  # 对方车
+            if p == "D":
+                key = "R" if not self.turn else "r"  # 对方车
                 minus = 30 * (di[not self.turn][key] // 2 + self.che_opponent)
                 score -= 10  # 暗车溜出，扣分! 扣的分数和对方剩余车的个数有关
                 if self.che < self.che_opponent:
@@ -451,17 +495,17 @@ class Position(namedtuple('Position', 'board score turn')):
                 if self.che == 0:
                     score -= minus // 2
                 if i == 203 and j == 202:
-                    if self.board[j] in 'rnc':
+                    if self.board[j] in "rnc":
                         score += pst[self.board[j].upper()][52]  # 254-202=52
-                    elif self.board[j] == 'p':
+                    elif self.board[j] == "p":
                         score += minus // 2
                 if i == 195 and j == 196:
-                    if self.board[j] in 'rnc':
+                    if self.board[j] in "rnc":
                         score += pst[self.board[j].upper()][58]  # 254-196=58
-                    elif self.board[j] == 'p':
+                    elif self.board[j] == "p":
                         score += minus // 2
 
-            elif p == 'G':
+            elif p == "G":
                 # 1 2 3 4 5 6 7 8 9
                 # i
                 # h
@@ -476,117 +520,150 @@ class Position(namedtuple('Position', 'board score turn')):
                 # 195 - 16x + y
 
                 # 对手9路暗车出动， 己方可以考虑出将/出帅助攻。翻开四路暗士， 查看四路肋道车的数量。如果己方车数量大于对方车，鼓励翻动士助攻
-                if i == 200 and self.board[59] not in 'dr':
+                if i == 200 and self.board[59] not in "dr":
                     cheonleidao = 0
                     che_opponent_onleidao = 0
                     for scanpos in range(184, 51, -16):
-                        if self.board[scanpos] == 'R':
+                        if self.board[scanpos] == "R":
                             cheonleidao += 1
-                        elif self.board[scanpos] == 'r':
+                        elif self.board[scanpos] == "r":
                             che_opponent_onleidao += 1
                     if cheonleidao > che_opponent_onleidao:
                         score += 20
 
                 # 对手1路暗车出动， 己方可以考虑出将/出帅助攻。翻开六路暗士， 查看六路肋道车的数量。如果己方车数量大于对方车，鼓励翻动士助攻
-                if i == 198 and self.board[51] not in 'dr':
+                if i == 198 and self.board[51] not in "dr":
                     cheonleidao = 0
                     che_opponent_onleidao = 0
                     for scanpos in range(182, 51, -16):
-                        if self.board[scanpos] == 'R':
+                        if self.board[scanpos] == "R":
                             cheonleidao += 1
-                        elif self.board[scanpos] == 'r':
+                        elif self.board[scanpos] == "r":
                             che_opponent_onleidao += 1
                     if cheonleidao > che_opponent_onleidao:
                         score += 20
 
-                elif sumall[self.turn] > 0 and di[self.turn]['P' if self.turn else 'p'] * self.covered/sumall[self.turn] <= 2:
+                elif (
+                    sumall[self.turn] > 0
+                    and di[self.turn]["P" if self.turn else "p"] * self.covered / sumall[self.turn]
+                    <= 2
+                ):
                     score -= 20  # 如果当前暗子中兵过多，翻士容易翻出窝心兵，不利于防守!
 
-            elif p == 'E':
-                if i == 196 and j == 165 and self.board[149] == 'I':  # 对方车从3,7线杀出，翻动暗马保住暗兵
+            elif p == "E":
+                if (
+                    i == 196 and j == 165 and self.board[149] == "I"
+                ):  # 对方车从3,7线杀出，翻动暗马保住暗兵
                     for scanpos in range(133, 51, -16):
-                        if self.board[scanpos] == 'r':
-                            score += average[self.turn][False]//2
-                        elif self.board[scanpos] != '.':
+                        if self.board[scanpos] == "r":
+                            score += average[self.turn][False] // 2
+                        elif self.board[scanpos] != ".":
                             break
 
-                if i == 202 and j == 169 and self.board[153] == 'I':
+                if i == 202 and j == 169 and self.board[153] == "I":
                     for scanpos in range(137, 51, -16):
-                        if self.board[scanpos] == 'r':
-                            score += average[self.turn][False]//2
-                        elif self.board[scanpos] != '.':
+                        if self.board[scanpos] == "r":
+                            score += average[self.turn][False] // 2
+                        elif self.board[scanpos] != ".":
                             break
 
-            elif p == 'H':
+            elif p == "H":
                 # 暗炮进四
                 if i == 164 and j == 100:
-                    if self.board[83] == 'a' or self.board[85] == 'a' or self.board[115] == 'a' or self.board[117] == 'a':
+                    if (
+                        self.board[83] == "a"
+                        or self.board[85] == "a"
+                        or self.board[115] == "a"
+                        or self.board[117] == "a"
+                    ):
                         score -= average[self.turn][False] // 2
                     else:
                         count = 0
-                        if self.board[84] in 'hcn':
+                        if self.board[84] in "hcn":
                             count += 1
-                        if self.board[99] in 'icn':
+                        if self.board[99] in "icn":
                             count += 1
-                        if self.board[101] in 'icn':
+                        if self.board[101] in "icn":
                             count += 1
-                        if count >= 2 and self.board[86] != 'h':
+                        if count >= 2 and self.board[86] != "h":
                             score += average[not self.turn][False] // 2
                         else:
                             score += average[not self.turn][False] // 4
 
                 if i == 170 and j == 106:
-                    if self.board[89] == 'a' or self.board[91] == 'a' or self.board[121] == 'a' or self.board[123] == 'a':
+                    if (
+                        self.board[89] == "a"
+                        or self.board[91] == "a"
+                        or self.board[121] == "a"
+                        or self.board[123] == "a"
+                    ):
                         score -= average[self.turn][False] // 2
                     else:
                         count = 0
-                        if self.board[90] == 'h':
+                        if self.board[90] == "h":
                             count += 1
-                        if self.board[105] == 'i':
+                        if self.board[105] == "i":
                             count += 1
-                        if self.board[107] == 'i':
+                        if self.board[107] == "i":
                             count += 1
-                        if count == 3 or (count == 2 and self.board[90] != 'h') or (self.board[107] == 'i' and self.board[139] in 'rp'):
+                        if (
+                            count == 3
+                            or (count == 2 and self.board[90] != "h")
+                            or (self.board[107] == "i" and self.board[139] in "rp")
+                        ):
                             score += average[not self.turn][False] // 2
                         else:
                             score += average[not self.turn][False] // 4
 
                 # 炮压暗马
-                if i == 164 and j == 68 and self.board[52] == 'e':
-                    prob = 0 if sumall[self.turn] == 0 else (di[self.turn]['P' if self.turn else 'p']/sumall[self.turn])  # 平均可能卒的个数
-                    coeff = average[not self.turn][False]
-                    bonus = round(prob * coeff/2)
-                    score += bonus//2
-                    if self.board[53] != '':
-                        score += bonus
-                    if self.board[51] == 'd':
-                        score += bonus
-
-                if i == 170 and j == 74 and self.board[58] == 'e':
-                    prob = 0 if sumall[self.turn] == 0 else (di[self.turn]['P' if self.turn else 'p'] / sumall[self.turn])  # 平均可能卒的个数
+                if i == 164 and j == 68 and self.board[52] == "e":
+                    prob = (
+                        0
+                        if sumall[self.turn] == 0
+                        else (di[self.turn]["P" if self.turn else "p"] / sumall[self.turn])
+                    )  # 平均可能卒的个数
                     coeff = average[not self.turn][False]
                     bonus = round(prob * coeff / 2)
                     score += bonus // 2
-                    if self.board[57] != '':
+                    if self.board[53] != "":
                         score += bonus
-                    if self.board[59] == 'd':
+                    if self.board[51] == "d":
+                        score += bonus
+
+                if i == 170 and j == 74 and self.board[58] == "e":
+                    prob = (
+                        0
+                        if sumall[self.turn] == 0
+                        else (di[self.turn]["P" if self.turn else "p"] / sumall[self.turn])
+                    )  # 平均可能卒的个数
+                    coeff = average[not self.turn][False]
+                    bonus = round(prob * coeff / 2)
+                    score += bonus // 2
+                    if self.board[57] != "":
+                        score += bonus
+                    if self.board[59] == "d":
                         score += bonus
 
                 # 暗炮搏马
-                if ((i == 164 and j == 52 and self.board[51] == 'd') or (
-                        i == 170 and j == 58 and self.board[59] == 'd')):  # TODO: 使用更智能的方式处理博子
+                if (i == 164 and j == 52 and self.board[51] == "d") or (
+                    i == 170 and j == 58 and self.board[59] == "d"
+                ):  # TODO: 使用更智能的方式处理博子
                     if self.che < self.che_opponent:
                         score -= 50
                     elif self.che == self.che_opponent:
-                        if (i == 164 and self.board[148] == 'p') or (i == 170 and self.board[154] == 'p'):
+                        if (i == 164 and self.board[148] == "p") or (
+                            i == 170 and self.board[154] == "p"
+                        ):
                             pass
-                        elif (i == 164 and (self.board[151] != 'N' or self.board[135] != 'p')) and (i == 170 and (self.board[159] != 'N' or self.board[143] != 'p')):
+                        elif (i == 164 and (self.board[151] != "N" or self.board[135] != "p")) and (
+                            i == 170 and (self.board[159] != "N" or self.board[143] != "p")
+                        ):
                             score -= 30
 
-            elif p == 'I':
-                if self.board[i - 32] in 'rp':  # 原先是RP, 这是个BUG!现解决
-                    score -= average[self.turn][False]//2
-                elif self.board[i - 32] == 'n':  # 之前是N, 不正确，已更正!
+            elif p == "I":
+                if self.board[i - 32] in "rp":  # 原先是RP, 这是个BUG!现解决
+                    score -= average[self.turn][False] // 2
+                elif self.board[i - 32] == "n":  # 之前是N, 不正确，已更正!
                     score += 20
                 else:
                     score += 5
@@ -594,27 +671,29 @@ class Position(namedtuple('Position', 'board score turn')):
         # Capture
         if q.isupper():
             k = 254 - j
-            if q in 'RNBAKCP':
+            if q in "RNBAKCP":
                 score += pst[q][k]
             else:
                 score += average[not self.turn][False]
-                if q == 'D':
-                    key = 'R' if self.turn else 'r'  # 己方暗车
-                    addition = 30*(di[self.turn][key]//2+self.che)
+                if q == "D":
+                    key = "R" if self.turn else "r"  # 己方暗车
+                    addition = 30 * (di[self.turn][key] // 2 + self.che)
                     score += 10  # 吃对方暗车，加分! 加的分数和己方剩余车的个数相关，如果本方没有车了，那吃个暗车不算太大的收益
                     if self.che > self.che_opponent:
-                        score += addition//2
+                        score += addition // 2
                     if self.che_opponent == 0:
-                        score += addition//2
+                        score += addition // 2
 
         return score
+
 
 ###############################################################################
 # Search logic
 ###############################################################################
 
 # lower <= s(pos) <= upper
-Entry = namedtuple('Entry', 'lower upper')
+Entry = namedtuple("Entry", "lower upper")
+
 
 class Searcher:
     def __init__(self):
@@ -625,10 +704,10 @@ class Searcher:
         self.average = {}
 
     def alphabeta(self, pos, alpha, beta, depth, root=True):
-        """ returns r where
-                s(pos) <= r < gamma    if gamma > s(pos)
-                gamma <= r <= s(pos)   if gamma <= s(pos)"""
-        #print(self.tp_score)
+        """returns r where
+        s(pos) <= r < gamma    if gamma > s(pos)
+        gamma <= r <= s(pos)   if gamma <= s(pos)"""
+        # print(self.tp_score)
         if root:
             self.tp_score = {}
             self.tp_move = {}
@@ -671,13 +750,13 @@ class Searcher:
 
         # Generator of moves to search in order.
         # This allows us to define the moves, but only calculate them if needed.
-            # First try not moving at all. We only do this if there is at least one major
-            # piece left on the board, since otherwise zugzwangs are too dangerous.
+        # First try not moving at all. We only do this if there is at least one major
+        # piece left on the board, since otherwise zugzwangs are too dangerous.
 
-        if depth > 0 and not root and any(c in pos.board for c in 'RNC'):
-            val = -self.alphabeta(pos.nullmove(), -beta, 1-beta, depth-3, root=False)
+        if depth > 0 and not root and any(c in pos.board for c in "RNC"):
+            val = -self.alphabeta(pos.nullmove(), -beta, 1 - beta, depth - 3, root=False)
             if val >= beta and self.alphabeta(pos, alpha, beta, depth - 3, root=False):
-               return val
+                return val
 
         # For QSearch we have a different kind of null-move, namely we can just stop
         # and not capture anything else.
@@ -693,10 +772,10 @@ class Searcher:
         # Then all the other moves
         mvBest = None
         for move in [killer] + sorted(pos.gen_moves(), key=pos.value, reverse=True):
-        #for val, move in sorted(((pos.value(move), move) for move in pos.gen_moves()), reverse=True):
+            # for val, move in sorted(((pos.value(move), move) for move in pos.gen_moves()), reverse=True):
             # If depth == 0 we only try moves with high intrinsic score (captures and
             # promotions). Otherwise we do all moves.
-            #print(depth, move)
+            # print(depth, move)
             if root and move in forbidden_moves:
                 continue
             if (move is not None) and (depth > 0):
@@ -717,7 +796,8 @@ class Searcher:
         if mvBest is not None:
             # Clear before setting, so we always have a value
             # Save the move for pv construction and killer heuristic
-            if len(self.tp_move) > TABLE_SIZE: self.tp_move.clear()
+            if len(self.tp_move) > TABLE_SIZE:
+                self.tp_move.clear()
             self.tp_move[pos] = mvBest
 
         # Stalemate checking is a bit tricky: Say we failed low, because
@@ -737,7 +817,8 @@ class Searcher:
                 best = -MATE_UPPER if in_check else 0
 
         # Clear before setting, so we always have a value
-        if len(self.tp_score) > TABLE_SIZE: self.tp_score.clear()
+        if len(self.tp_score) > TABLE_SIZE:
+            self.tp_score.clear()
         # Table part 2
         if best >= beta:
             self.tp_score[pos, depth, root] = Entry(best, entry.upper)
@@ -747,7 +828,7 @@ class Searcher:
         return best
 
     def search(self, pos, history=()):
-        """ Iterative deepening MTD-bi search """
+        """Iterative deepening MTD-bi search"""
         self.nodes = 0
         self.calc_average()
         if DRAW_TEST:
@@ -764,7 +845,11 @@ class Searcher:
             # better.
             lower, upper = -MATE_UPPER, MATE_UPPER
             self.alphabeta(pos, lower, upper, depth)
-            yield depth, self.tp_move.get(pos), self.tp_score.get((pos, depth, True), Entry(-MATE_UPPER, MATE_UPPER)).lower
+            yield (
+                depth,
+                self.tp_move.get(pos),
+                self.tp_score.get((pos, depth, True), Entry(-MATE_UPPER, MATE_UPPER)).lower,
+            )
 
     def calc_average(self):
         global average
@@ -782,13 +867,13 @@ class Searcher:
             sumr = 0
             for key in r.keys():
                 sumr += pst["1"][key] * r[key] / discount_factor
-            averagecoveredr = int(sumr//numr)
+            averagecoveredr = int(sumr // numr)
 
             for i in range(51, 204):
                 sumr = 0
                 for key in r.keys():
                     sumr += pst[key][i] * r[key]
-                averager[i] = sumr//numr
+                averager[i] = sumr // numr
 
         if numb == 0:
             averagecoveredb = 0
@@ -799,17 +884,21 @@ class Searcher:
             sumb = 0
             for key in b.keys():
                 sumb += pst["1"][key.swapcase()] * b[key] / discount_factor
-            averagecoveredb = int(sumb//numb)
+            averagecoveredb = int(sumb // numb)
 
             for i in range(51, 204):
                 sumb = 0
                 for key in b.keys():
                     sumb += pst[key.swapcase()][i] * b[key]
-                averageb[i] = sumb//numb
+                averageb[i] = sumb // numb
 
-        self.average = {True: {False: averagecoveredr, True: averager}, False: {False: averagecoveredb, True: averageb}}
+        self.average = {
+            True: {False: averagecoveredr, True: averager},
+            False: {False: averagecoveredb, True: averageb},
+        }
         average = deepcopy(self.average)
         return self.average
+
 
 ###############################################################################
 # User interface
@@ -817,13 +906,13 @@ class Searcher:
 
 
 def parse(c):
-    fil, rank = ord(c[0]) - ord('a'), int(c[1])
-    return A0 + fil - 16*rank
+    fil, rank = ord(c[0]) - ord("a"), int(c[1])
+    return A0 + fil - 16 * rank
 
 
 def render(i):
     rank, fil = divmod(i - A0, 16)
-    return chr(fil + ord('a')) + str(-rank)
+    return chr(fil + ord("a")) + str(-rank)
 
 
 def render_tuple(t):
@@ -831,40 +920,40 @@ def render_tuple(t):
 
 
 def print_pos(pos):
-    chessstr = ''
+    chessstr = ""
     for i, row in enumerate(pos.board.split()):
-        joinstr = ''.join(uni_pieces.get(p, p) for p in row)
-        print(' ', 9 - i, joinstr)
-        chessstr += (' ' + str(9 - i) + joinstr)
-    print('    ａｂｃｄｅｆｇｈｉ\n\n')
-    chessstr += '    ａｂｃｄｅｆｇｈｉ\n\n\n'
+        joinstr = "".join(uni_pieces.get(p, p) for p in row)
+        print(" ", 9 - i, joinstr)
+        chessstr += " " + str(9 - i) + joinstr
+    print("    ａｂｃｄｅｆｇｈｉ\n\n")
+    chessstr += "    ａｂｃｄｅｆｇｈｉ\n\n\n"
     return chessstr
 
 
 def random_policy(pos):
-    '''
+    """
     A test function that generates a random policy
-    '''
+    """
     all_moves = list(pos.gen_moves())
     stupid_AI_move = random.choice(all_moves)
     return stupid_AI_move
 
 
 def translate_eat(eat, dst, turn, type):
-    assert turn in {'RED', 'BLACK'} and type in {'CLEARMODE', 'DARKMODE'}
-    print("translate_eat: turn = %s, type = %s, eat = %s, dst = %s"%(turn, type, eat, dst))
-    if eat == '.':
+    assert turn in {"RED", "BLACK"} and type in {"CLEARMODE", "DARKMODE"}
+    print("translate_eat: turn = %s, type = %s, eat = %s, dst = %s" % (turn, type, eat, dst))
+    if eat == ".":
         return None
-    if turn == 'BLACK':
+    if turn == "BLACK":
         eat = eat.swapcase()
-    if type == 'DARKMODE':
+    if type == "DARKMODE":
         return uni_pieces[eat]
     else:
         if dst is None:  # 吃明子
             return uni_pieces[eat]
         else:  # 吃暗子
             dst = uni_pieces[dst]
-            if turn == 'RED':
+            if turn == "RED":
                 dst += "(暗)"
             else:
                 dst += "\033[31m(暗)\033[0m"
@@ -887,18 +976,21 @@ def generate_forbiddenmoves(pos, check_bozi=True):
             i, j = move
             p, q = pos.board[i], pos.board[j].upper()
             # Actual move
-            if p == 'H' and ((i == 164 and j == 52 and pos.board[51] in 'dr') or (
-                    i == 170 and j == 58 and pos.board[59] in 'dr')):  # TODO: 使用更智能的方式处理博子
-                if (pos.board[151] == 'N' and pos.board[135] == 'p') or (
-                        pos.board[159] == 'N' and pos.board[143] == 'p'):  # 兵顶马
+            if p == "H" and (
+                (i == 164 and j == 52 and pos.board[51] in "dr")
+                or (i == 170 and j == 58 and pos.board[59] in "dr")
+            ):  # TODO: 使用更智能的方式处理博子
+                if (pos.board[151] == "N" and pos.board[135] == "p") or (
+                    pos.board[159] == "N" and pos.board[143] == "p"
+                ):  # 兵顶马
                     continue
-                if (i == 164 and pos.board[148] == 'p') or (i == 170 and pos.board[154] == 'p'):
+                if (i == 164 and pos.board[148] == "p") or (i == 170 and pos.board[154] == "p"):
                     continue
-                #print("move = %s"%render_tuple(move), pos.che, pos.che_opponent)
-                #if pos.che <= pos.che_opponent:
+                # print("move = %s"%render_tuple(move), pos.che, pos.che_opponent)
+                # if pos.che <= pos.che_opponent:
                 if pos.che != 2:
                     forbidden_moves.add(move)
-                    #print("ADD %s"%render_tuple(move))
+                    # print("ADD %s"%render_tuple(move))
     pos.set()
     return forbidden_moves
 
@@ -914,7 +1006,7 @@ def print_cache():
 
 def printmapping():
     for k, v in mapping.items():
-        print(render(k), ':', v)
+        print(render(k), ":", v)
 
 
 def main(random_move=False, AI=True):
@@ -943,14 +1035,14 @@ def main(random_move=False, AI=True):
         move = None
         genmoves = set(hist[-1].gen_moves())
         while move not in genmoves:
-            inp = input('Your move: ').strip()
-            if inp.upper() == 'R':
+            inp = input("Your move: ").strip()
+            if inp.upper() == "R":
                 print("You resign!")
                 exit(0)
-            match = re.match('([a-i][0-9])'*2, inp)
+            match = re.match("([a-i][0-9])" * 2, inp)
             if match:
                 move = parse(match.group(1)), parse(match.group(2))
-                if inp.upper() == 'R':
+                if inp.upper() == "R":
                     print("You RESIGNED!")
                     break
 
@@ -1000,7 +1092,7 @@ def main(random_move=False, AI=True):
         else:
             genmoves = set(hist[-1].gen_moves())
             while move not in genmoves:
-                match = re.match('([a-i][0-9])' * 2, input('Your move: '))
+                match = re.match("([a-i][0-9])" * 2, input("Your move: "))
                 if match:
                     move = parse(match.group(1)), parse(match.group(2))
                     move = (254 - move[0], 254 - move[1])
@@ -1017,7 +1109,11 @@ def main(random_move=False, AI=True):
             print("You win!")
             break
 
-        print("Think depth: {} My move: {} (score {})".format(_depth, render(254 - move[0]) + render(254 - move[1]), score))
+        print(
+            "Think depth: {} My move: {} (score {})".format(
+                _depth, render(254 - move[0]) + render(254 - move[1]), score
+            )
+        )
         pos, win, eat, dst = hist[-1].mymove_check(move)
 
         if win:
@@ -1033,5 +1129,5 @@ def main(random_move=False, AI=True):
         # print_cache()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main(random_move=False, AI=True)

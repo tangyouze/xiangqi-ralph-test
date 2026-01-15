@@ -1,6 +1,8 @@
 """Python vs Rust Muses 对战测试"""
+
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import multiprocessing as mp
@@ -11,6 +13,7 @@ from jieqi.fen import apply_move_to_fen, parse_fen
 from jieqi.types import Color, GameResult
 
 INITIAL_FEN = "xxxxxxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXXXXXX -:- r r"
+
 
 def run_single_game(args):
     """运行单场对战"""
@@ -43,6 +46,7 @@ def run_single_game(args):
             return game_id, winner, move_count, red_backend, black_backend
 
     return game_id, "draw", move_count, red_backend, black_backend
+
 
 def main():
     num_games = 10
@@ -82,14 +86,19 @@ def main():
             else:
                 stats["draw"] += 1
 
-            winner_backend = red_be if winner == "red" else (black_be if winner == "black" else "draw")
-            print(f"Game {game_id+1:2d}: {winner.upper():5s} wins | Red={red_be:6s} Black={black_be:6s} | {moves:3d} moves | Winner: {winner_backend}")
+            winner_backend = (
+                red_be if winner == "red" else (black_be if winner == "black" else "draw")
+            )
+            print(
+                f"Game {game_id + 1:2d}: {winner.upper():5s} wins | Red={red_be:6s} Black={black_be:6s} | {moves:3d} moves | Winner: {winner_backend}"
+            )
 
     elapsed = time.time() - start
     print("-" * 60)
     print(f"Results: Python {stats['python']} - Rust {stats['rust']} - Draw {stats['draw']}")
-    print(f"Total time: {elapsed:.1f}s, Avg moves: {total_moves/num_games:.1f}")
+    print(f"Total time: {elapsed:.1f}s, Avg moves: {total_moves / num_games:.1f}")
+
 
 if __name__ == "__main__":
-    mp.set_start_method('spawn', force=True)
+    mp.set_start_method("spawn", force=True)
     main()

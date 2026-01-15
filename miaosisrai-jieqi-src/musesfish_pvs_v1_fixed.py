@@ -1,7 +1,7 @@
 #!/usr/bin/env pypy
 # -*- coding: utf-8 -*-
 
-#Updated by Si Miao 2021/05/20
+# Updated by Si Miao 2021/05/20
 from __future__ import print_function
 import re, sys, time
 from itertools import count
@@ -11,207 +11,1421 @@ from board import board
 import readline
 
 B = board.Board()
-piece = {'P': 44, 'N': 108, 'B': 23, 'R': 233, 'A': 23, 'C': 101, 'K': 2500}
-put = lambda board, i, p: board[:i] + p + board[i+1:]
+piece = {"P": 44, "N": 108, "B": 23, "R": 233, "A": 23, "C": 101, "K": 2500}
+put = lambda board, i, p: board[:i] + p + board[i + 1 :]
 # 子力价值表参考“象眼”
 
 pst = {
     "P": (
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-      0,  0,  0,  9,  9,  9, 11, 13, 11,  9,  9,  9,  0,  0,  0,  0,
-      0,  0,  0, 19, 24, 34, 42, 44, 42, 34, 24, 19,  0,  0,  0,  0,
-      0,  0,  0, 19, 24, 32, 37, 37, 37, 32, 24, 19,  0,  0,  0,  0,
-      0,  0,  0, 19, 23, 27, 29, 30, 29, 27, 23, 19,  0,  0,  0,  0,
-      0,  0,  0, 14, 18, 20, 27, 29, 27, 20, 18, 14,  0,  0,  0,  0,
-      0,  0,  0,  7,  0, 13,  0, 16,  0, 13,  0,  7,  0,  0,  0,  0,
-      0,  0,  0,  7,  0,  7,  0, 15,  0,  7,  0,  7,  0,  0,  0,  0,
-      0,  0,  0,  0,  0,  0,  1,  1,  1,  0,  0,  0,  0,  0,  0,  0,
-      0,  0,  0,  0,  0,  0,  2,  2,  2,  0,  0,  0,  0,  0,  0,  0,
-      0,  0,  0,  0,  0,  0, 11, 15, 11,  0,  0,  0,  0,  0,  0,  0,
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        9,
+        9,
+        9,
+        11,
+        13,
+        11,
+        9,
+        9,
+        9,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        19,
+        24,
+        34,
+        42,
+        44,
+        42,
+        34,
+        24,
+        19,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        19,
+        24,
+        32,
+        37,
+        37,
+        37,
+        32,
+        24,
+        19,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        19,
+        23,
+        27,
+        29,
+        30,
+        29,
+        27,
+        23,
+        19,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        14,
+        18,
+        20,
+        27,
+        29,
+        27,
+        20,
+        18,
+        14,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        7,
+        0,
+        13,
+        0,
+        16,
+        0,
+        13,
+        0,
+        7,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        7,
+        0,
+        7,
+        0,
+        15,
+        0,
+        7,
+        0,
+        7,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        2,
+        2,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        11,
+        15,
+        11,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
     ),
-    "B":(
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-      0,  0,  0,  0,  0, 40,  0,  0,  0, 40,  0,  0,  0,  0,  0,  0,
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-      0,  0,  0, 38,  0,  0, 40, 43, 40,  0,  0, 38,  0,  0,  0,  0,
-      0,  0,  0,  0,  0,  0,  0, 43,  0,  0,  0,  0,  0,  0,  0,  0,
-      0,  0,  0,  0,  0, 40, 40,  0, 40, 40,  0,  0,  0,  0,  0,  0,
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0
+    "B": (
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        40,
+        0,
+        0,
+        0,
+        40,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        38,
+        0,
+        0,
+        40,
+        43,
+        40,
+        0,
+        0,
+        38,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        43,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        40,
+        40,
+        0,
+        40,
+        40,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
     ),
     "N": (
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-      0,  0,  0, 90, 90, 90, 96, 90, 96, 90, 90, 90,  0,  0,  0,  0,
-      0,  0,  0, 90, 96,103, 97, 94, 97,103, 96, 90,  0,  0,  0,  0,
-      0,  0,  0, 92, 98, 99,103, 99,103, 99, 98, 92,  0,  0,  0,  0,
-      0,  0,  0, 93,108,100,107,100,107,100,108, 93,  0,  0,  0,  0,
-      0,  0,  0, 90,100, 99,103,104,103, 99,100, 90,  0,  0,  0,  0,
-      0,  0,  0, 90, 98,101,102,103,102,101, 98, 90,  0,  0,  0,  0,
-      0,  0,  0, 92, 94, 98, 95, 98, 95, 98, 94, 92,  0,  0,  0,  0,
-      0,  0,  0, 93, 92, 94, 95, 92, 95, 94, 92, 93,  0,  0,  0,  0,
-      0,  0,  0, 85, 90, 92, 93, 78, 93, 92, 90, 85,  0,  0,  0,  0,
-      0,  0,  0, 88, 85, 90, 88, 90, 88, 90, 85, 88,  0,  0,  0,  0,
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        90,
+        90,
+        90,
+        96,
+        90,
+        96,
+        90,
+        90,
+        90,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        90,
+        96,
+        103,
+        97,
+        94,
+        97,
+        103,
+        96,
+        90,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        92,
+        98,
+        99,
+        103,
+        99,
+        103,
+        99,
+        98,
+        92,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        93,
+        108,
+        100,
+        107,
+        100,
+        107,
+        100,
+        108,
+        93,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        90,
+        100,
+        99,
+        103,
+        104,
+        103,
+        99,
+        100,
+        90,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        90,
+        98,
+        101,
+        102,
+        103,
+        102,
+        101,
+        98,
+        90,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        92,
+        94,
+        98,
+        95,
+        98,
+        95,
+        98,
+        94,
+        92,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        93,
+        92,
+        94,
+        95,
+        92,
+        95,
+        94,
+        92,
+        93,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        85,
+        90,
+        92,
+        93,
+        78,
+        93,
+        92,
+        90,
+        85,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        88,
+        85,
+        90,
+        88,
+        90,
+        88,
+        90,
+        85,
+        88,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
     ),
     "R": (
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-      0,  0,  0,206,208,207,213,214,213,207,208,206,  0,  0,  0,  0,
-      0,  0,  0,206,212,209,216,233,216,209,212,206,  0,  0,  0,  0,
-      0,  0,  0,206,208,207,214,216,214,207,208,206,  0,  0,  0,  0,
-      0,  0,  0,206,213,213,216,216,216,213,213,206,  0,  0,  0,  0,
-      0,  0,  0,208,211,211,214,215,214,211,211,208,  0,  0,  0,  0,
-      0,  0,  0,208,212,212,214,215,214,212,212,208,  0,  0,  0,  0,
-      0,  0,  0,204,209,204,212,214,212,204,209,204,  0,  0,  0,  0,
-      0,  0,  0,198,208,204,212,212,212,204,208,198,  0,  0,  0,  0,
-      0,  0,  0,200,208,206,212,200,212,206,208,200,  0,  0,  0,  0,
-      0,  0,  0,194,206,204,212,200,212,204,206,194,  0,  0,  0,  0,
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        206,
+        208,
+        207,
+        213,
+        214,
+        213,
+        207,
+        208,
+        206,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        206,
+        212,
+        209,
+        216,
+        233,
+        216,
+        209,
+        212,
+        206,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        206,
+        208,
+        207,
+        214,
+        216,
+        214,
+        207,
+        208,
+        206,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        206,
+        213,
+        213,
+        216,
+        216,
+        216,
+        213,
+        213,
+        206,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        208,
+        211,
+        211,
+        214,
+        215,
+        214,
+        211,
+        211,
+        208,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        208,
+        212,
+        212,
+        214,
+        215,
+        214,
+        212,
+        212,
+        208,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        204,
+        209,
+        204,
+        212,
+        214,
+        212,
+        204,
+        209,
+        204,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        198,
+        208,
+        204,
+        212,
+        212,
+        212,
+        204,
+        208,
+        198,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        200,
+        208,
+        206,
+        212,
+        200,
+        212,
+        206,
+        208,
+        200,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        194,
+        206,
+        204,
+        212,
+        200,
+        212,
+        204,
+        206,
+        194,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
     ),
     "C": (
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-      0,  0,  0,100,100, 96, 91, 90, 91, 96,100,100,  0,  0,  0,  0,
-      0,  0,  0, 98, 98, 96, 92, 89, 92, 96, 98, 98,  0,  0,  0,  0,
-      0,  0,  0, 97, 97, 96, 91, 92, 91, 96, 97, 97,  0,  0,  0,  0,
-      0,  0,  0, 96, 99, 99, 98,100, 98, 99, 99, 96,  0,  0,  0,  0,
-      0,  0,  0, 96, 96, 96, 96,100, 96, 96, 96, 96,  0,  0,  0,  0,
-      0,  0,  0, 95, 96, 99, 96,100, 96, 99, 96, 95,  0,  0,  0,  0,
-      0,  0,  0, 96, 96, 96, 96, 96, 96, 96, 96, 96,  0,  0,  0,  0,
-      0,  0,  0, 97, 96,100, 99,101, 99,100, 96, 97,  0,  0,  0,  0,
-      0,  0,  0, 96, 97, 98, 98, 98, 98, 98, 97, 96,  0,  0,  0,  0,
-      0,  0,  0, 96, 96, 97, 99, 99, 99, 97, 96, 96,  0,  0,  0,  0,
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0
-    )
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        100,
+        100,
+        96,
+        91,
+        90,
+        91,
+        96,
+        100,
+        100,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        98,
+        98,
+        96,
+        92,
+        89,
+        92,
+        96,
+        98,
+        98,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        97,
+        97,
+        96,
+        91,
+        92,
+        91,
+        96,
+        97,
+        97,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        96,
+        99,
+        99,
+        98,
+        100,
+        98,
+        99,
+        99,
+        96,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        96,
+        96,
+        96,
+        96,
+        100,
+        96,
+        96,
+        96,
+        96,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        95,
+        96,
+        99,
+        96,
+        100,
+        96,
+        99,
+        96,
+        95,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        96,
+        96,
+        96,
+        96,
+        96,
+        96,
+        96,
+        96,
+        96,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        97,
+        96,
+        100,
+        99,
+        101,
+        99,
+        100,
+        96,
+        97,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        96,
+        97,
+        98,
+        98,
+        98,
+        98,
+        98,
+        97,
+        96,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        96,
+        96,
+        97,
+        99,
+        99,
+        99,
+        97,
+        96,
+        96,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ),
 }
 
 pst["A"] = pst["B"]
 pst["K"] = pst["P"]
 pst["K"] = [i + piece["K"] if i > 0 else 0 for i in pst["K"]]
 
-A0, I0, A9, I9 = 12 * 16 + 3, 12 * 16 + 11, 3 * 16 + 3,  3 * 16 + 11
+A0, I0, A9, I9 = 12 * 16 + 3, 12 * 16 + 11, 3 * 16 + 3, 3 * 16 + 11
 
-'''
+"""
 D: 暗车
 E: 暗马
 F: 暗相
 G: 暗士
 H: 暗炮
 I: 暗车
-'''
+"""
 
 initial = (
-    '               \n'  # 0
-    '               \n'  # 1
-    '               \n'  # 2
-    '   rnbakabnr   \n'  # 3
-    '   .........   \n'  # 4
-    '   .c.....c.   \n'  # 5
-    '   p.p.p.p.p   \n'  # 6
-    '   .........   \n'  # 7
-    '   .........   \n'  # 8
-    '   P.P.P.P.P   \n'  # 9
-    '   .C.....C.   \n'  # 10
-    '   .........   \n'  # 11
-    '   RNBAKABNR   \n'  # 12
-    '               \n'  # 13
-    '               \n'  # 14
-    '               \n'  # 15
+    "               \n"  # 0
+    "               \n"  # 1
+    "               \n"  # 2
+    "   rnbakabnr   \n"  # 3
+    "   .........   \n"  # 4
+    "   .c.....c.   \n"  # 5
+    "   p.p.p.p.p   \n"  # 6
+    "   .........   \n"  # 7
+    "   .........   \n"  # 8
+    "   P.P.P.P.P   \n"  # 9
+    "   .C.....C.   \n"  # 10
+    "   .........   \n"  # 11
+    "   RNBAKABNR   \n"  # 12
+    "               \n"  # 13
+    "               \n"  # 14
+    "               \n"  # 15
 )
 
 initial_covered = (
-    '               \n'  # 0
-    '               \n'  # 1
-    '               \n'  # 2
-    '   defgkgfed   \n'  # 3
-    '   .........   \n'  # 4
-    '   .h.....h.   \n'  # 5
-    '   i.i.i.i.i   \n'  # 6
-    '   .........   \n'  # 7
-    '   .........   \n'  # 8
-    '   I.I.I.I.I   \n'  # 9
-    '   .H.....H.   \n'  # 10
-    '   .........   \n'  # 11
-    '   DEFGKGFED   \n'  # 12
-    '               \n'  # 13
-    '               \n'  # 14
-    '               \n'  # 15
+    "               \n"  # 0
+    "               \n"  # 1
+    "               \n"  # 2
+    "   defgkgfed   \n"  # 3
+    "   .........   \n"  # 4
+    "   .h.....h.   \n"  # 5
+    "   i.i.i.i.i   \n"  # 6
+    "   .........   \n"  # 7
+    "   .........   \n"  # 8
+    "   I.I.I.I.I   \n"  # 9
+    "   .H.....H.   \n"  # 10
+    "   .........   \n"  # 11
+    "   DEFGKGFED   \n"  # 12
+    "               \n"  # 13
+    "               \n"  # 14
+    "               \n"  # 15
 )
 
 
 # Lists of possible moves for each piece type.
 N, E, S, W = -16, 1, 16, -1
 directions = {
-    'P': (N, W, E),
-    'I': (N, ), #暗兵
-    'N': (N+N+E, E+N+E, E+S+E, S+S+E, S+S+W, W+S+W, W+N+W, N+N+W),
-    'E': (N+N+E, E+N+E, W+N+W, N+N+W), #暗马
-    'B': (2 * N + 2 * E, 2 * S + 2 * E, 2 * S + 2 * W, 2 * N + 2 * W),
-    'F': (2 * N + 2 * E, 2 * N + 2 * W), #暗相
-    'R': (N, E, S, W),
-    'D': (N, E, W), #暗车
-    'C': (N, E, S, W),
-    'H': (N, E, S, W), #暗炮
-    'A': (N+E, S+E, S+W, N+W),
-    'G': (N+E, N+W), #暗士
-    'K': (N, E, S, W)
+    "P": (N, W, E),
+    "I": (N,),  # 暗兵
+    "N": (N + N + E, E + N + E, E + S + E, S + S + E, S + S + W, W + S + W, W + N + W, N + N + W),
+    "E": (N + N + E, E + N + E, W + N + W, N + N + W),  # 暗马
+    "B": (2 * N + 2 * E, 2 * S + 2 * E, 2 * S + 2 * W, 2 * N + 2 * W),
+    "F": (2 * N + 2 * E, 2 * N + 2 * W),  # 暗相
+    "R": (N, E, S, W),
+    "D": (N, E, W),  # 暗车
+    "C": (N, E, S, W),
+    "H": (N, E, S, W),  # 暗炮
+    "A": (N + E, S + E, S + W, N + W),
+    "G": (N + E, N + W),  # 暗士
+    "K": (N, E, S, W),
 }
 
 uni_pieces = {
-    '.': '．',
-    'R': '\033[31m俥\033[0m',
-    'N': '\033[31m傌\033[0m',
-    'B': '\033[31m相\033[0m',
-    'A': '\033[31m仕\033[0m',
-    'K': '\033[31m帅\033[0m',
-    'P': '\033[31m兵\033[0m',
-    'C': '\033[31m炮\033[0m',
-    'D': '\033[31m暗\033[0m',
-    'E': '\033[31m暗\033[0m',
-    'F': '\033[31m暗\033[0m',
-    'G': '\033[31m暗\033[0m',
-    'H': '\033[31m暗\033[0m',
-    'I': '\033[31m暗\033[0m',
-    'r': '车',
-    'n': '马',
-    'b': '象',
-    'a': '士',
-    'k': '将',
-    'p': '卒',
-    'c': '炮',
-    'd': '暗',
-    'e': '暗',
-    'f': '暗',
-    'g': '暗',
-    'h': '暗',
-    'i': '暗'
+    ".": "．",
+    "R": "\033[31m俥\033[0m",
+    "N": "\033[31m傌\033[0m",
+    "B": "\033[31m相\033[0m",
+    "A": "\033[31m仕\033[0m",
+    "K": "\033[31m帅\033[0m",
+    "P": "\033[31m兵\033[0m",
+    "C": "\033[31m炮\033[0m",
+    "D": "\033[31m暗\033[0m",
+    "E": "\033[31m暗\033[0m",
+    "F": "\033[31m暗\033[0m",
+    "G": "\033[31m暗\033[0m",
+    "H": "\033[31m暗\033[0m",
+    "I": "\033[31m暗\033[0m",
+    "r": "车",
+    "n": "马",
+    "b": "象",
+    "a": "士",
+    "k": "将",
+    "p": "卒",
+    "c": "炮",
+    "d": "暗",
+    "e": "暗",
+    "f": "暗",
+    "g": "暗",
+    "h": "暗",
+    "i": "暗",
 }
 
-MATE_LOWER = piece['K'] - (2*piece['R'] + 2*piece['N'] + 2*piece['B'] + 2*piece['A'] + 2*piece['C'] + 5*piece['P'])
-MATE_UPPER = piece['K'] + (2*piece['R'] + 2*piece['N'] + 2*piece['B'] + 2*piece['A'] + 2*piece['C'] + 5*piece['P'])
+MATE_LOWER = piece["K"] - (
+    2 * piece["R"]
+    + 2 * piece["N"]
+    + 2 * piece["B"]
+    + 2 * piece["A"]
+    + 2 * piece["C"]
+    + 5 * piece["P"]
+)
+MATE_UPPER = piece["K"] + (
+    2 * piece["R"]
+    + 2 * piece["N"]
+    + 2 * piece["B"]
+    + 2 * piece["A"]
+    + 2 * piece["C"]
+    + 5 * piece["P"]
+)
 
 # The table size is the maximum number of elements in the transposition table.
 TABLE_SIZE = 1e7
@@ -234,67 +1448,84 @@ mapping = {}
 # Chess logic
 ###############################################################################
 
-class Position(namedtuple('Position', 'board score')):
-    """ A state of a chess game
+
+class Position(namedtuple("Position", "board score")):
+    """A state of a chess game
     board -- a 256 char representation of the board
     score -- the board evaluation
     """
+
     def gen_moves(self):
         # For each of our pieces, iterate through each possible 'ray' of moves,
         # as defined in the 'directions' map. The rays are broken e.g. by
         # captures or immediately in case of pieces such as knights.
         for i, p in enumerate(self.board):
-            if p == 'K': 
+            if p == "K":
                 for scanpos in range(i - 16, A9, -16):
-                    if self.board[scanpos] == 'k':
-                        yield (i,scanpos)
-                    elif self.board[scanpos] != '.':
+                    if self.board[scanpos] == "k":
+                        yield (i, scanpos)
+                    elif self.board[scanpos] != ".":
                         break
 
-            if not p.isupper(): continue
+            if not p.isupper():
+                continue
 
-            if p in ('C', 'H'): #明暗炮
+            if p in ("C", "H"):  # 明暗炮
                 for d in directions[p]:
                     cfoot = 0
-                    for j in count(i+d, d):
+                    for j in count(i + d, d):
                         q = self.board[j]
-                        if q.isspace():break
-                        if cfoot == 0 and q == '.':yield (i,j)
-                        elif cfoot == 0 and q != '.':cfoot += 1
-                        elif cfoot == 1 and q.islower(): yield (i,j);break
-                        elif cfoot == 1 and q.isupper(): break;
+                        if q.isspace():
+                            break
+                        if cfoot == 0 and q == ".":
+                            yield (i, j)
+                        elif cfoot == 0 and q != ".":
+                            cfoot += 1
+                        elif cfoot == 1 and q.islower():
+                            yield (i, j)
+                            break
+                        elif cfoot == 1 and q.isupper():
+                            break
                 continue
 
             for d in directions[p]:
-                for j in count(i+d, d):
+                for j in count(i + d, d):
                     q = self.board[j]
                     # Stay inside the board, and off friendly pieces
-                    if q.isspace() or q.isupper(): break
+                    if q.isspace() or q.isupper():
+                        break
                     # 过河的卒/兵才能横着走
-                    if p == 'P' and d in (E, W) and i > 128: break
+                    if p == "P" and d in (E, W) and i > 128:
+                        break
                     # j & 15 等价于 j % 16但是更快
-                    elif p == 'K' and (j < 160 or j & 15 > 8 or j & 15 < 6): break
-                    elif p == 'G' and j != 183: break #暗士, 花心坐标: (11, 7), 11 * 16 + 7 = 183
-                    elif p in ('N', 'E'): #暗马
+                    elif p == "K" and (j < 160 or j & 15 > 8 or j & 15 < 6):
+                        break
+                    elif p == "G" and j != 183:
+                        break  # 暗士, 花心坐标: (11, 7), 11 * 16 + 7 = 183
+                    elif p in ("N", "E"):  # 暗马
                         n_diff_x = (j - i) & 15
                         if n_diff_x == 14 or n_diff_x == 2:
-                            if self.board[i + (1 if n_diff_x == 2 else -1)] != '.': break
+                            if self.board[i + (1 if n_diff_x == 2 else -1)] != ".":
+                                break
                         else:
-                            if j > i and self.board[i + 16] != '.': break
-                            elif j < i and self.board[i - 16] != '.': break
-                    elif p in ('B', 'F') and self.board[i + d // 2] != '.':break
+                            if j > i and self.board[i + 16] != ".":
+                                break
+                            elif j < i and self.board[i - 16] != ".":
+                                break
+                    elif p in ("B", "F") and self.board[i + d // 2] != ".":
+                        break
                     # Move it
                     yield (i, j)
                     # Stop crawlers from sliding, and sliding after captures
-                    if p in 'PNBAKIEFG' or q.islower(): break
+                    if p in "PNBAKIEFG" or q.islower():
+                        break
 
     def rotate(self):
-        ''' Rotates the board, preserving enpassant '''
-        return Position(
-            self.board[-2::-1].swapcase() + " ", -self.score)
+        """Rotates the board, preserving enpassant"""
+        return Position(self.board[-2::-1].swapcase() + " ", -self.score)
 
     def nullmove(self):
-        ''' Like rotate, but clears ep and kp '''
+        """Like rotate, but clears ep and kp"""
         return self.rotate()
 
     def move(self, move):
@@ -304,12 +1535,12 @@ class Position(namedtuple('Position', 'board score')):
         score = self.score + self.value(move)
         # Actual move
         board = put(board, j, board[i])
-        board = put(board, i, '.')
+        board = put(board, i, ".")
         return Position(board, score).rotate()
 
     def mymove(self, move):
         i, j = move
-        put = lambda board, i, p: board[:i] + p + board[i+1:]
+        put = lambda board, i, p: board[:i] + p + board[i + 1 :]
         # Copy variables and reset ep and kp
         board = self.board
         ############################################################################
@@ -323,12 +1554,12 @@ class Position(namedtuple('Position', 'board score')):
             board = put(board, j, board[i])
         else:
             board = put(board, j, mapping[i])
-        board = put(board, i, '.')
+        board = put(board, i, ".")
         return Position(board, self.score).rotate()
 
     def mymove_check(self, move):
         i, j = move
-        put = lambda board, i, p: board[:i] + p + board[i+1:]
+        put = lambda board, i, p: board[:i] + p + board[i + 1 :]
         # Copy variables and reset ep and kp
         board = self.board
         ############################################################################
@@ -342,7 +1573,7 @@ class Position(namedtuple('Position', 'board score')):
         dst = None
 
         checkmate = False
-        if board[j] == 'k':
+        if board[j] == "k":
             checkmate = True
 
         if board[j] in "defghi":
@@ -351,7 +1582,7 @@ class Position(namedtuple('Position', 'board score')):
             board = put(board, j, board[i])
         else:
             board = put(board, j, mapping[i])
-        board = put(board, i, '.')
+        board = put(board, i, ".")
 
         return Position(board, self.score).rotate(), checkmate, eat, dst
 
@@ -362,15 +1593,17 @@ class Position(namedtuple('Position', 'board score')):
         score = pst[p][j] - pst[p][i]
         # Capture
         if q.islower():
-            score += pst[q.upper()][255-j-1]
+            score += pst[q.upper()][255 - j - 1]
         return score
+
 
 ###############################################################################
 # Search logic
 ###############################################################################
 
 # lower <= s(pos) <= upper
-Entry = namedtuple('Entry', 'lower upper')
+Entry = namedtuple("Entry", "lower upper")
+
 
 class Searcher:
     def __init__(self):
@@ -380,9 +1613,9 @@ class Searcher:
         self.nodes = 0
 
     def alphabeta(self, pos, alpha, beta, depth, root=True):
-        """ returns r where
-                s(pos) <= r < gamma    if gamma > s(pos)
-                gamma <= r <= s(pos)   if gamma <= s(pos)"""
+        """returns r where
+        s(pos) <= r < gamma    if gamma > s(pos)
+        gamma <= r <= s(pos)   if gamma <= s(pos)"""
         self.nodes += 1
 
         # Depth <= 0 is QSearch. Here any position is searched as deeply as is needed for
@@ -422,11 +1655,12 @@ class Searcher:
 
         # Generator of moves to search in order.
         # This allows us to define the moves, but only calculate them if needed.
-            # First try not moving at all. We only do this if there is at least one major
-            # piece left on the board, since otherwise zugzwangs are too dangerous.
-        if depth > 0 and not root and any(c in pos.board for c in 'RNC'):
-            val = -self.alphabet(pos.nullmove(), -beta,1-beta, depth-3, root=False)
-            if val >= beta and self.alphabet(pos,alpha,beta,depth - 3,root=False): return val
+        # First try not moving at all. We only do this if there is at least one major
+        # piece left on the board, since otherwise zugzwangs are too dangerous.
+        if depth > 0 and not root and any(c in pos.board for c in "RNC"):
+            val = -self.alphabet(pos.nullmove(), -beta, 1 - beta, depth - 3, root=False)
+            if val >= beta and self.alphabet(pos, alpha, beta, depth - 3, root=False):
+                return val
         # For QSearch we have a different kind of null-move, namely we can just stop
         # and not capture anythign else.
         if depth == 0:
@@ -441,7 +1675,7 @@ class Searcher:
         # Then all the other moves
         mvBest = None
         for move in [killer] + sorted(pos.gen_moves(), key=pos.value, reverse=True):
-        #for val, move in sorted(((pos.value(move), move) for move in pos.gen_moves()), reverse=True):
+            # for val, move in sorted(((pos.value(move), move) for move in pos.gen_moves()), reverse=True):
             # If depth == 0 we only try moves with high intrinsic score (captures and
             # promotions). Otherwise we do all moves.
             if (move is not None) and (depth > 0):
@@ -462,7 +1696,8 @@ class Searcher:
         if mvBest is not None:
             # Clear before setting, so we always have a value
             # Save the move for pv construction and killer heuristic
-            if len(self.tp_move) > TABLE_SIZE: self.tp_move.clear()
+            if len(self.tp_move) > TABLE_SIZE:
+                self.tp_move.clear()
             self.tp_move[pos] = mvBest
 
         # Stalemate checking is a bit tricky: Say we failed low, because
@@ -482,7 +1717,8 @@ class Searcher:
                 best = -MATE_UPPER if in_check else 0
 
         # Clear before setting, so we always have a value
-        if len(self.tp_score) > TABLE_SIZE: self.tp_score.clear()
+        if len(self.tp_score) > TABLE_SIZE:
+            self.tp_score.clear()
         # Table part 2
         if best >= beta:
             self.tp_score[pos, depth, root] = Entry(best, entry.upper)
@@ -492,7 +1728,7 @@ class Searcher:
         return best
 
     def search(self, pos, history=()):
-        """ Iterative deepening MTD-bi search """
+        """Iterative deepening MTD-bi search"""
         self.nodes = 0
         if DRAW_TEST:
             self.history = set(history)
@@ -507,21 +1743,27 @@ class Searcher:
             # 'while lower != upper' would work, but play tests show a margin of 20 plays
             # better.
             lower, upper = -MATE_UPPER, MATE_UPPER
-            self.alphabeta(pos, lower,upper, depth)
-            yield depth, self.tp_move.get(pos), self.tp_score.get((pos, depth, True),Entry(-MATE_UPPER, MATE_UPPER)).lower
+            self.alphabeta(pos, lower, upper, depth)
+            yield (
+                depth,
+                self.tp_move.get(pos),
+                self.tp_score.get((pos, depth, True), Entry(-MATE_UPPER, MATE_UPPER)).lower,
+            )
+
 
 ###############################################################################
 # User interface
 ###############################################################################
 
+
 def parse(c):
-    fil, rank = ord(c[0]) - ord('a'), int(c[1])
-    return A0 + fil - 16*rank
+    fil, rank = ord(c[0]) - ord("a"), int(c[1])
+    return A0 + fil - 16 * rank
 
 
 def render(i):
     rank, fil = divmod(i - A0, 16)
-    return chr(fil + ord('a')) + str(-rank)
+    return chr(fil + ord("a")) + str(-rank)
 
 
 def render_tuple(t):
@@ -529,41 +1771,41 @@ def render_tuple(t):
 
 
 def print_pos(pos):
-    chessstr = ''
+    chessstr = ""
     for i, row in enumerate(pos.board.split()):
-        joinstr = ''.join(uni_pieces.get(p, p) for p in row)
-        print(' ', 9 - i, joinstr)
-        chessstr += (' ' + str(9 - i) + joinstr)
-    print('    ａｂｃｄｅｆｇｈｉ\n\n')
-    chessstr += '    ａｂｃｄｅｆｇｈｉ\n\n\n'
+        joinstr = "".join(uni_pieces.get(p, p) for p in row)
+        print(" ", 9 - i, joinstr)
+        chessstr += " " + str(9 - i) + joinstr
+    print("    ａｂｃｄｅｆｇｈｉ\n\n")
+    chessstr += "    ａｂｃｄｅｆｇｈｉ\n\n\n"
     return chessstr
 
 
 def random_policy(pos):
-    '''
+    """
     A test function that generates a random policy
-    '''
+    """
     all_moves = list(pos.gen_moves())
     stupid_AI_move = random.choice(all_moves)
     return stupid_AI_move
 
 
 def translate_eat(eat, dst, turn, type):
-    assert turn in {'RED', 'BLACK'} and type in {'CLEARMODE', 'DARKMODE'}
-    if eat == '.':
+    assert turn in {"RED", "BLACK"} and type in {"CLEARMODE", "DARKMODE"}
+    if eat == ".":
         return None
-    if turn == 'BLACK':
+    if turn == "BLACK":
         eat = eat.swapcase()
         if dst:
             dst = dst.swapcase()
-    if type == 'DARKMODE':
+    if type == "DARKMODE":
         return uni_pieces[eat]
     else:
-        if dst is None: #吃明子
+        if dst is None:  # 吃明子
             return uni_pieces[eat]
-        else: #吃暗子
+        else:  # 吃暗子
             dst = uni_pieces[dst]
-            if turn == 'RED':
+            if turn == "RED":
                 dst += "(暗)"
             else:
                 dst += "\033[31m(暗)\033[0m"
@@ -591,7 +1833,7 @@ def main(random_move=False, AI=True):
         move = None
         genmoves = set(hist[-1].gen_moves())
         while move not in genmoves:
-            match = re.match('([a-i][0-9])'*2, input('Your move: '))
+            match = re.match("([a-i][0-9])" * 2, input("Your move: "))
             if match:
                 move = parse(match.group(1)), parse(match.group(2))
             else:
@@ -608,7 +1850,7 @@ def main(random_move=False, AI=True):
         if rendered_eat:
             myeatlist.append(rendered_eat)
 
-        hist.append(pos) #move的过程Rotate了一次
+        hist.append(pos)  # move的过程Rotate了一次
 
         # After our move we rotate the board and print it again.
         # This allows us to see the effect of our move.
@@ -636,7 +1878,7 @@ def main(random_move=False, AI=True):
         else:
             genmoves = set(hist[-1].gen_moves())
             while move not in genmoves:
-                match = re.match('([a-i][0-9])' * 2, input('Your move: '))
+                match = re.match("([a-i][0-9])" * 2, input("Your move: "))
                 if match:
                     move = parse(match.group(1)), parse(match.group(2))
                     move = (254 - move[0], 254 - move[1])
@@ -649,7 +1891,11 @@ def main(random_move=False, AI=True):
 
         # The black player moves from a rotated position, so we have to
         # 'back rotate' the move before printing it.
-        print("Think depth: {} My move: {}".format(_depth, render(254 - move[0]) + render(254 - move[1])))
+        print(
+            "Think depth: {} My move: {}".format(
+                _depth, render(254 - move[0]) + render(254 - move[1])
+            )
+        )
         pos, win, eat, dst = hist[-1].mymove_check(move)
 
         if win:
@@ -663,5 +1909,5 @@ def main(random_move=False, AI=True):
         hist.append(pos)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main(True, True)

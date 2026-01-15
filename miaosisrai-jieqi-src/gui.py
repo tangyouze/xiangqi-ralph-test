@@ -12,17 +12,17 @@ from pygame.locals import QUIT, KEYDOWN, MOUSEBUTTONDOWN, MOUSEBUTTONUP
 
 RED_CHESS_COLOR = [255, 255, 255]
 BLACK_CHESS_COLOR = [0, 0, 0]
-CHESS_NAMES = {'车', '马', '炮', '象', '士', '兵', '帅',
-               '俥', '傌', '相', '仕', '卒', '将', '暗'}
-if sys.platform == 'linux':
-    font_path = '/usr/share/fonts/truetype/arphic/ukai.ttc'
+CHESS_NAMES = {"车", "马", "炮", "象", "士", "兵", "帅", "俥", "傌", "相", "仕", "卒", "将", "暗"}
+if sys.platform == "linux":
+    font_path = "/usr/share/fonts/truetype/arphic/ukai.ttc"
 else:
-    font_path = 'C:/Windows/Fonts/simkai.ttf'
+    font_path = "C:/Windows/Fonts/simkai.ttf"
 
 play_process = subprocess.Popen(
-    ['python',
-     'C:\\Users\\anpro\\Desktop\\Jieqi-main\\musesfish_pvs_20210815.py'],
-    stdin=PIPE, stdout=PIPE)
+    ["python", "C:\\Users\\anpro\\Desktop\\Jieqi-main\\musesfish_pvs_20210815.py"],
+    stdin=PIPE,
+    stdout=PIPE,
+)
 
 
 class ChessInfo:
@@ -33,8 +33,7 @@ class ChessInfo:
 
 
 class Board:
-    def __init__(self, stdout, font, screen, screen_color, line_color,
-                 width=500):
+    def __init__(self, stdout, font, screen, screen_color, line_color, width=500):
         self.stdout = stdout
         self.font = font
         self.screen = screen
@@ -53,26 +52,24 @@ class Board:
     def draw_board(self):
         x, y = self.start_point
         for i in range(10):
-            pygame.draw.line(self.screen, self.line_color, [x, y],
-                             [x + self.width, y])
+            pygame.draw.line(self.screen, self.line_color, [x, y], [x + self.width, y])
             y += self.row_spacing
 
         x, y = self.start_point
         for i in range(9):
-            pygame.draw.line(self.screen, self.line_color, [x, y],
-                             [x, y + self.row_spacing * 9])
+            pygame.draw.line(self.screen, self.line_color, [x, y], [x, y + self.row_spacing * 9])
             x += self.col_spacing
 
-        x, y = self.start_point_x + self.col_spacing, \
-               self.start_point_y + self.row_spacing * 4
+        x, y = self.start_point_x + self.col_spacing, self.start_point_y + self.row_spacing * 4
         for i in range(7):
-            pygame.draw.line(self.screen, self.screen_color, [x, y],
-                             [x, y + self.row_spacing])
+            pygame.draw.line(self.screen, self.screen_color, [x, y], [x, y + self.row_spacing])
             x += self.col_spacing
 
     def get_chess_pos(self, row, col):
-        center = [self.start_point_x + self.col_spacing * (col - 1),
-                  self.start_point_y + self.row_spacing * (row - 1)]
+        center = [
+            self.start_point_x + self.col_spacing * (col - 1),
+            self.start_point_y + self.row_spacing * (row - 1),
+        ]
         radius = self.row_spacing / 2
         return center, radius
 
@@ -86,40 +83,39 @@ class Board:
             font_color = [255, 0, 0]
         else:
             font_color = [0, 0, 0]
-        self.font.render_to(self.screen, [center[0]-5,center[1]-5], chess_name, font_color)
+        self.font.render_to(self.screen, [center[0] - 5, center[1] - 5], chess_name, font_color)
         return rect
 
     def draw(self):
-
         while 1:
             line = self.stdout.get().decode().strip()
             print(line)
 
-            if line == '电脑吃子:':
+            if line == "电脑吃子:":
                 self.screen.fill(self.screen_color)
                 self.draw_board()
                 self.chesses = []
                 self.empty_chess_rects = []
                 self.current_select_chess = None
 
-            if not line or line[0] not in {
-                '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'}:
+            if not line or line[0] not in {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}:
                 continue
 
-            chess_color = RED_CHESS_COLOR if '\033[31m' in line else BLACK_CHESS_COLOR
+            chess_color = RED_CHESS_COLOR if "\033[31m" in line else BLACK_CHESS_COLOR
             row = 10 - int(line[0])
             col = 1
             for name in line:
-                if name == '．':
+                if name == "．":
                     center, radius = self.get_chess_pos(row, col)
                     self.empty_chess_rects.append(
                         ChessInfo(
-                            pygame.Rect(center[0] - radius,
-                                        center[1] - radius,
-                                        radius * 2,
-                                        radius * 2),
+                            pygame.Rect(
+                                center[0] - radius, center[1] - radius, radius * 2, radius * 2
+                            ),
                             None,
-                            f'{chr(col + 96)}{line[0]}'))
+                            f"{chr(col + 96)}{line[0]}",
+                        )
+                    )
                     col += 1
                     continue
 
@@ -128,8 +124,7 @@ class Board:
 
                 params = row, col, chess_color, name
                 chess_rect = self.draw_a_chess(*params)
-                self.chesses.append(
-                    ChessInfo(chess_rect, params, f'{chr(col + 96)}{line[0]}'))
+                self.chesses.append(ChessInfo(chess_rect, params, f"{chr(col + 96)}{line[0]}"))
                 col += 1
 
             pygame.display.update()
@@ -143,14 +138,14 @@ class Board:
     def move(self, pos):
         global play_process
 
-        play_process.stdin.write((pos + '\n').encode())
+        play_process.stdin.write((pos + "\n").encode())
         play_process.stdin.flush()
 
 
 def read_stdout(result: Queue, play_process):
     while 1:
         if play_process.poll():
-            print('Read_stdout quit')
+            print("Read_stdout quit")
             return
 
         result.put(play_process.stdout.readline(), timeout=3)
@@ -158,8 +153,7 @@ def read_stdout(result: Queue, play_process):
 
 def main():
     stdout = Queue(1024)
-    Thread(target=read_stdout, args=(stdout, play_process),
-           daemon=True).start()
+    Thread(target=read_stdout, args=(stdout, play_process), daemon=True).start()
 
     # 初始化pygame
     pygame.init()
@@ -196,21 +190,17 @@ def main():
                             # board.draw_a_chess(
                             #     *board.current_select_chess.draw_metadata)
                             # board.select(chess)
-                            board.move(
-                                f'{board.current_select_chess.cmd_pos}'
-                                f'{chess.cmd_pos}')
+                            board.move(f"{board.current_select_chess.cmd_pos}{chess.cmd_pos}")
                         break
                 else:
                     # 鼠标不在棋子上
                     if board.current_select_chess:
                         for chess in board.empty_chess_rects:
                             if chess.rect.collidepoint(event.pos):
-                                board.move(
-                                    f'{board.current_select_chess.cmd_pos}'
-                                    f'{chess.cmd_pos}')
+                                board.move(f"{board.current_select_chess.cmd_pos}{chess.cmd_pos}")
 
             pygame.display.update()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

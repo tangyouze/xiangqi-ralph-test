@@ -128,9 +128,7 @@ def get_legal_moves_for_piece(pos: Position) -> list[tuple[Position, ActionType]
         return []
 
     legal_moves = game.get_legal_moves()
-    return [
-        (m.to_pos, m.action_type) for m in legal_moves if m.from_pos == pos
-    ]
+    return [(m.to_pos, m.action_type) for m in legal_moves if m.from_pos == pos]
 
 
 def handle_cell_click(row: int, col: int):
@@ -390,9 +388,7 @@ def render_board():
                     btn_text = "暗" if piece["color"] == Color.RED else "暗"
                 else:
                     # 明子
-                    btn_text = PIECE_SYMBOLS.get(
-                        (piece["color"], piece["actual_type"]), "?"
-                    )
+                    btn_text = PIECE_SYMBOLS.get((piece["color"], piece["actual_type"]), "?")
             else:
                 btn_text = "·" if is_target else ""
 
