@@ -9,6 +9,8 @@ dependencies = [
     "websockets>=14.0",
     "pydantic>=2.10.0",
     "loguru>=0.7.0",
+    "streamlit>=1.53.0",
+    "plotly>=6.5.2",
 ]
 
 [project.optional-dependencies]
