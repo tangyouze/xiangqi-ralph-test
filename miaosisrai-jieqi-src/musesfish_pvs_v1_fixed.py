@@ -1,18 +1,18 @@
 #!/usr/bin/env pypy
-# -*- coding: utf-8 -*-
 
 # Updated by Si Miao 2021/05/20
-from __future__ import print_function
-import re, sys, time
-from itertools import count
-from collections import namedtuple
 import random
+import re
+import time
+from collections import namedtuple
+from itertools import count
+
 from board import board
-import readline
 
 B = board.Board()
 piece = {"P": 44, "N": 108, "B": 23, "R": 233, "A": 23, "C": 101, "K": 2500}
-put = lambda board, i, p: board[:i] + p + board[i + 1 :]
+def put(board, i, p):
+    return board[:i] + p + board[i + 1 :]
 # 子力价值表参考“象眼”
 
 pst = {
@@ -1540,7 +1540,8 @@ class Position(namedtuple("Position", "board score")):
 
     def mymove(self, move):
         i, j = move
-        put = lambda board, i, p: board[:i] + p + board[i + 1 :]
+        def put(board, i, p):
+            return board[:i] + p + board[i + 1 :]
         # Copy variables and reset ep and kp
         board = self.board
         ############################################################################
@@ -1559,7 +1560,8 @@ class Position(namedtuple("Position", "board score")):
 
     def mymove_check(self, move):
         i, j = move
-        put = lambda board, i, p: board[:i] + p + board[i + 1 :]
+        def put(board, i, p):
+            return board[:i] + p + board[i + 1 :]
         # Copy variables and reset ep and kp
         board = self.board
         ############################################################################
@@ -1711,7 +1713,8 @@ class Searcher:
         # but only if depth == 1, so that's probably fair enough.
         # (Btw, at depth 1 we can also mate without realizing.)
         if best < alpha and best < 0 and depth > 0:
-            is_dead = lambda pos: any(pos.value(m) >= MATE_LOWER for m in pos.gen_moves())
+            def is_dead(pos):
+                return any(pos.value(m) >= MATE_LOWER for m in pos.gen_moves())
             if all(is_dead(pos.move(m)) for m in pos.gen_moves()):
                 in_check = is_dead(pos.nullmove())
                 best = -MATE_UPPER if in_check else 0
@@ -1892,9 +1895,7 @@ def main(random_move=False, AI=True):
         # The black player moves from a rotated position, so we have to
         # 'back rotate' the move before printing it.
         print(
-            "Think depth: {} My move: {}".format(
-                _depth, render(254 - move[0]) + render(254 - move[1])
-            )
+            f"Think depth: {_depth} My move: {render(254 - move[0]) + render(254 - move[1])}"
         )
         pos, win, eat, dst = hist[-1].mymove_check(move)
 

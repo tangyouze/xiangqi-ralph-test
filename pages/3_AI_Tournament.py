@@ -16,14 +16,12 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
+# 导入 AI 策略
+from jieqi.ai import strategies  # noqa: F401
 from jieqi.ai.base import AIConfig, AIEngine
 from jieqi.fen import parse_move, to_fen
 from jieqi.game import JieqiGame
 from jieqi.types import Color, GameResult
-
-# 导入 AI 策略
-from jieqi.ai import strategies  # noqa: F401
-
 
 # 数据目录
 DATA_DIR = Path(__file__).parent.parent / "data"
@@ -109,7 +107,7 @@ def run_single_game(
 def calculate_elo(results: dict, k: float = 32, initial_elo: float = 1500) -> dict[str, float]:
     """计算 Elo 评分"""
     strategies_list = list(results.keys())
-    elo = {s: initial_elo for s in strategies_list}
+    elo = dict.fromkeys(strategies_list, initial_elo)
 
     # 多轮迭代以稳定 Elo
     for _ in range(10):

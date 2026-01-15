@@ -1,20 +1,20 @@
 #!/usr/bin/env pypy
-# -*- coding: utf-8 -*-
 
 # Updated by Si Miao 2021/05/20
-from __future__ import print_function
-import re, sys, time
-from itertools import count
-from collections import namedtuple
 import random
+import re
+import time
+from collections import namedtuple
+from copy import deepcopy
+from itertools import count
+
 from board import board
 from board import common_v2_fixed as common
-from copy import deepcopy
-import readline
 
 B = board.Board()
 piece = {"P": 44, "N": 108, "B": 23, "R": 233, "A": 23, "C": 101, "K": 2500}
-put = lambda board, i, p: board[:i] + p + board[i + 1 :]
+def put(board, i, p):
+    return board[:i] + p + board[i + 1 :]
 r = {"R": 2, "N": 2, "B": 2, "A": 2, "C": 2, "P": 5}
 b = {"r": 2, "n": 2, "b": 2, "a": 2, "c": 2, "p": 5}
 di = {True: deepcopy(r), False: deepcopy(b)}
@@ -536,7 +536,8 @@ class Searcher:
         # but only if depth == 1, so that's probably fair enough.
         # (Btw, at depth 1 we can also mate without realizing.)
         if best < alpha and best < 0 and depth > 0:
-            is_dead = lambda pos: any(pos.value(m) >= MATE_LOWER for m in pos.gen_moves())
+            def is_dead(pos):
+                return any(pos.value(m) >= MATE_LOWER for m in pos.gen_moves())
             if all(is_dead(pos.move(m)) for m in pos.gen_moves()):
                 in_check = is_dead(pos.nullmove())
                 best = -MATE_UPPER if in_check else 0
@@ -804,9 +805,7 @@ def main(random_move=False, AI=True):
             break
 
         print(
-            "Think depth: {} My move: {} (score {})".format(
-                _depth, render(254 - move[0]) + render(254 - move[1]), score
-            )
+            f"Think depth: {_depth} My move: {render(254 - move[0]) + render(254 - move[1])} (score {score})"
         )
         pos, win, eat, dst = hist[-1].mymove_check(move)
 

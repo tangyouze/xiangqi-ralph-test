@@ -26,8 +26,8 @@ from typing import TYPE_CHECKING
 
 from jieqi.ai.base import AIConfig, AIEngine, AIStrategy
 from jieqi.fen import create_board_from_fen, get_legal_moves_from_fen, parse_fen, parse_move
-from jieqi.simulation import SimulationBoard, SimPiece
-from jieqi.types import Color, GameResult, PieceType, Position
+from jieqi.simulation import SimPiece, SimulationBoard
+from jieqi.types import Color, PieceType, Position
 
 if TYPE_CHECKING:
     from jieqi.types import JieqiMove
@@ -154,7 +154,7 @@ class AggressiveAI(AIStrategy):
         return result
 
     def _evaluate_move_with_lookahead(
-        self, board: SimulationBoard, move: "JieqiMove", my_color: Color
+        self, board: SimulationBoard, move: JieqiMove, my_color: Color
     ) -> float:
         """评估走法，考虑对方最佳回应"""
         piece = board.get_piece(move.from_pos)

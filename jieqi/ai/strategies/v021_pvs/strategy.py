@@ -28,7 +28,7 @@ from typing import TYPE_CHECKING
 
 from jieqi.ai.base import AIConfig, AIEngine, AIStrategy
 from jieqi.fen import create_board_from_fen, get_legal_moves_from_fen, parse_fen, parse_move
-from jieqi.simulation import SimulationBoard, SimPiece
+from jieqi.simulation import SimPiece, SimulationBoard
 from jieqi.types import ActionType, Color, JieqiMove, PieceType, Position
 
 if TYPE_CHECKING:
@@ -524,7 +524,7 @@ class PVSAI(AIStrategy):
         best_move = None
         moves_searched = 0
 
-        for i, move in enumerate(sorted_moves):
+        for _i, move in enumerate(sorted_moves):
             piece = board.get_piece(move.from_pos)
             if piece is None:
                 continue

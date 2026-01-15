@@ -3,14 +3,12 @@
 """
 
 import pytest
+
 from jieqi.board import JieqiBoard
-from jieqi.piece import create_jieqi_piece
 from jieqi.types import (
-    ActionType,
     Color,
     GameResult,
     JieqiMove,
-    PieceState,
     PieceType,
     Position,
 )
@@ -154,7 +152,7 @@ class TestJieqiBoardMoves:
         board.remove_piece(to_pos)
 
         move = JieqiMove.regular_move(from_pos, to_pos)
-        captured = board.make_move(move)
+        board.make_move(move)
 
         assert board.get_piece(from_pos) is None
         king = board.get_piece(to_pos)

@@ -122,7 +122,7 @@ class RustBackend(AIBackend):
 
         if not self._binary.exists():
             raise FileNotFoundError(
-                f"Rust AI binary not found. Please build with: cd rust-ai && cargo build --release"
+                "Rust AI binary not found. Please build with: cd rust-ai && cargo build --release"
             )
 
     def _run_command(self, args: list[str]) -> str:

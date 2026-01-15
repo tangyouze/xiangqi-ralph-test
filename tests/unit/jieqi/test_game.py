@@ -3,7 +3,8 @@
 """
 
 import pytest
-from jieqi.game import JieqiGame, GameConfig
+
+from jieqi.game import GameConfig, JieqiGame
 from jieqi.types import ActionType, Color, GameResult, JieqiMove, Position
 
 

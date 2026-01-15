@@ -3,9 +3,10 @@
 """
 
 import pytest
+
 from jieqi.board import JieqiBoard
-from jieqi.piece import JieqiPiece, create_jieqi_piece
-from jieqi.types import Color, PieceState, PieceType, Position
+from jieqi.piece import create_jieqi_piece
+from jieqi.types import Color, PieceType, Position
 
 
 class TestJieqiPiece:

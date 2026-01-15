@@ -5,26 +5,19 @@ AI 策略比较仪表板
 """
 
 import json
-import math
-import sys
 from pathlib import Path
 
-# 添加 backend 路径
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-
-from jieqi.game import JieqiGame
-from jieqi.types import Color, GameResult
-from jieqi.ai.base import AIEngine, AIConfig
-from jieqi.fen import to_fen, parse_move
+import streamlit as st
 
 # 导入 AI 策略
 from jieqi.ai import strategies  # noqa: F401
-
+from jieqi.ai.base import AIConfig, AIEngine
+from jieqi.fen import parse_move, to_fen
+from jieqi.game import JieqiGame
+from jieqi.types import Color, GameResult
 
 # 数据目录
 DATA_DIR = Path(__file__).parent.parent / "data"
@@ -110,7 +103,7 @@ def run_single_game(
 def calculate_elo(results: dict, k: float = 32, initial_elo: float = 1500) -> dict[str, float]:
     """计算 Elo 评分"""
     strategies_list = list(results.keys())
-    elo = {s: initial_elo for s in strategies_list}
+    elo = dict.fromkeys(strategies_list, initial_elo)
 
     # 多轮迭代以稳定 Elo
     for _ in range(10):
@@ -285,7 +278,7 @@ def display_results(data: dict):
     results = data["results"]
     scores = data["scores"]
     elo = data.get("elo", {})
-    num_games = data["num_games"]
+    data["num_games"]
 
     # 按得分排序
     sorted_strategies = sorted(strategies_list, key=lambda s: scores.get(s, 0), reverse=True)

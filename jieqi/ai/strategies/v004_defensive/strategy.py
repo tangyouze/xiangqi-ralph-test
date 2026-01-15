@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING
 
 from jieqi.ai.base import AIConfig, AIEngine, AIStrategy
 from jieqi.fen import create_board_from_fen, get_legal_moves_from_fen, parse_fen, parse_move
-from jieqi.simulation import SimulationBoard, SimPiece
+from jieqi.simulation import SimPiece, SimulationBoard
 from jieqi.types import Color, GameResult, PieceType, Position
 
 if TYPE_CHECKING:
@@ -133,7 +133,7 @@ class DefensiveAI(AIStrategy):
 
         return result
 
-    def _evaluate_move(self, board: SimulationBoard, move: "JieqiMove", my_color: Color) -> float:
+    def _evaluate_move(self, board: SimulationBoard, move: JieqiMove, my_color: Color) -> float:
         """评估走法得分"""
         score = 0.0
 

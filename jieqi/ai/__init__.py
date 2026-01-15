@@ -8,10 +8,9 @@
 - v002_greedy: 贪心 AI（只看一步）
 """
 
-from jieqi.ai.base import AIEngine, AIStrategy, AIConfig
-
 # 导入所有策略以触发注册
 from jieqi.ai import strategies  # noqa: F401
+from jieqi.ai.base import AIConfig, AIEngine, AIStrategy
 
 __all__ = [
     "AIEngine",

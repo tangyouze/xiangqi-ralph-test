@@ -5,6 +5,7 @@
 """
 
 import pytest
+
 from jieqi.ai import AIConfig, AIEngine
 from jieqi.ai.strategies.v001_random.strategy import RandomAI
 from jieqi.fen import apply_move_to_fen, get_legal_moves_from_fen, parse_fen

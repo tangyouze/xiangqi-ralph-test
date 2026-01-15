@@ -48,7 +48,7 @@ def replay_game(seed: int, red_time: float = 1.5, black_time: float = 15.0, max_
             # 打印简单的棋盘表示
             board = game.board
             print("\nFinal board (viewer: RED):")
-            red_view = game.get_view(Color.RED)
+            game.get_view(Color.RED)
             for row in range(10):
                 line = ""
                 for col in range(9):

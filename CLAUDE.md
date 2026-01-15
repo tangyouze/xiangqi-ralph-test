@@ -1,4 +1,4 @@
-# Xiangqi Project
+# Jieqi Project
 
 ## Current Focus
 
@@ -10,18 +10,16 @@
 2. 构建完善的测试框架用于 AI 对战和评估
 3. 最终目标：创建世界顶级的揭棋 AI
 
-### Ports
+### Port
 
-- Frontend: 6701
-- Backend (普通象棋): 6702
-- Backend (揭棋): 6703
+- Streamlit: 6704
 
 ### Commands
 
 ```bash
-# 启动所有服务
-just overmind-start
+# 启动 streamlit
+just start
 
 # AI 对战
-cd backend && source .venv/bin/activate && python scripts/ai_battle.py --help
+uv run python scripts/ai_battle.py --help
 ```

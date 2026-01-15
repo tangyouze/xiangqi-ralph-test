@@ -4,17 +4,16 @@
 """
 
 import time
-from typing import Callable
+from collections.abc import Callable
 
-from jieqi.board import JieqiBoard
-from jieqi.game import JieqiGame
-from jieqi.types import Color
 from jieqi.bitboard import (
     BitBoard,
     FastEvaluator,
-    evaluate_board_fast,
     quick_material_eval,
 )
+from jieqi.board import JieqiBoard
+from jieqi.game import JieqiGame
+from jieqi.types import Color
 
 
 def benchmark(func: Callable, iterations: int = 1000, name: str = "") -> float:
@@ -55,9 +54,9 @@ def main():
     # 老的评估方式（遍历棋子）
     def old_eval():
         score = 0
-        for piece in board.get_all_pieces(Color.RED):
+        for _piece in board.get_all_pieces(Color.RED):
             score += 100
-        for piece in board.get_all_pieces(Color.BLACK):
+        for _piece in board.get_all_pieces(Color.BLACK):
             score -= 100
         return score
 

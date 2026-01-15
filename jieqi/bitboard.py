@@ -13,7 +13,8 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from jieqi.types import Color, PieceType, Position, PieceState
+
+from jieqi.types import Color, PieceType, Position
 
 if TYPE_CHECKING:
     from jieqi.board import JieqiBoard

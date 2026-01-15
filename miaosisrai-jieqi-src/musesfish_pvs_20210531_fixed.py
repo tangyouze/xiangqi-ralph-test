@@ -1,20 +1,21 @@
 #!/usr/bin/env pypy
-# -*- coding: utf-8 -*-
 
 # Updated by Si Miao 2021/05/20
-from __future__ import print_function
-import re, sys, time
-from itertools import count
-from collections import namedtuple
 import random
-from board import board, common_20210531_fixed as common, library
+import re
+import time
+from collections import namedtuple
 from copy import deepcopy
-import readline
+from itertools import count
+
+from board import board, library
+from board import common_20210531_fixed as common
 
 NULLMOVE = False
 B = board.Board()
 piece = {"P": 44, "N": 108, "B": 23, "R": 233, "A": 23, "C": 101, "K": 2500}
-put = lambda board, i, p: board[:i] + p + board[i + 1 :]
+def put(board, i, p):
+    return board[:i] + p + board[i + 1 :]
 r = {"R": 2, "N": 2, "B": 2, "A": 2, "C": 2, "P": 5}
 b = {"r": 2, "n": 2, "b": 2, "a": 2, "c": 2, "p": 5}
 di = {0: {True: deepcopy(r), False: deepcopy(b)}}
@@ -873,7 +874,7 @@ class Searcher:
         # the remaining code has to be comfortable with being mated, stalemated
         # or able to capture the opponent king.
         if pos.score <= -MATE_LOWER:
-            print("depth=%s" % depth, " return from pos.score <= -MATE_LOWER")
+            print(f"depth={depth}", " return from pos.score <= -MATE_LOWER")
             return -MATE_UPPER
 
         # Look in the table if we have already searched this position before.
@@ -949,7 +950,7 @@ class Searcher:
                 if val >= MATE_UPPER:
                     mvBest = move
                     best = val
-                    print("depth=%s Early return hits!" % depth)
+                    print(f"depth={depth} Early return hits!")
                     break
 
         if not mvBest and moves:
@@ -973,7 +974,8 @@ class Searcher:
         # but only if depth == 1, so that's probably fair enough.
         # (Btw, at depth 1 we can also mate without realizing.)
         if best < alpha and best < 0 and depth > 0:
-            is_dead = lambda pos: any(pos.value(m) >= MATE_LOWER for m in pos.gen_moves())
+            def is_dead(pos):
+                return any(pos.value(m) >= MATE_LOWER for m in pos.gen_moves())
             if all(is_dead(pos.move(m)) for m in pos.gen_moves()):
                 in_check = is_dead(pos.nullmove())
                 best = -MATE_UPPER if in_check else 0
@@ -1136,7 +1138,7 @@ def generate_forbiddenmoves(pos, check_bozi=True):
             forbidden_moves.add(move)
         if check_bozi:
             i, j = move
-            p, q = pos.board[i], pos.board[j].upper()
+            p, _q = pos.board[i], pos.board[j].upper()
             # Actual move
             if p == "H" and (
                 (i == 164 and j == 52 and pos.board[51] in "dr")
@@ -1269,9 +1271,7 @@ def main(random_move=False, AI=True):
             break
 
         print(
-            "Think depth: {} My move: {} (score {})".format(
-                _depth, render(254 - move[0]) + render(254 - move[1]), score
-            )
+            f"Think depth: {_depth} My move: {render(254 - move[0]) + render(254 - move[1])} (score {score})"
         )
         pos, win, eat, dst = hist[-1].mymove_check(move)
 

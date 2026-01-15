@@ -5,7 +5,6 @@ from jieqi.ai.base import AIConfig
 from jieqi.game import GameConfig, JieqiGame
 from jieqi.types import Color, GameResult, PieceType
 
-
 # 棋子符号映射
 PIECE_SYMBOLS = {
     # 红方

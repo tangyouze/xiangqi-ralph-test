@@ -15,14 +15,13 @@ from jieqi.fen import (
     CapturedInfo,
     CapturedPieceInfo,
     FenPiece,
-    FenState,
     fen_from_pieces,
     move_to_str,
     parse_fen,
     parse_move,
     to_fen,
 )
-from jieqi.types import ActionType, Color, GameResult, JieqiMove, PieceType, Position
+from jieqi.types import Color, GameResult, JieqiMove, PieceType, Position
 from jieqi.view import CapturedPiece, PlayerView, ViewPiece
 
 
@@ -323,8 +322,8 @@ class TestInformationAsymmetry:
         black_fen = fen_from_pieces(pieces, black_view_captured, Color.RED, Color.BLACK)
 
         # 解析并比较
-        red_state = parse_fen(red_fen)
-        black_state = parse_fen(black_fen)
+        parse_fen(red_fen)
+        parse_fen(black_fen)
 
         # 棋盘部分应该相同
         red_board = red_fen.split()[0]

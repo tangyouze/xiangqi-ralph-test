@@ -1,16 +1,12 @@
 """Python vs Rust Muses 对战测试"""
 
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 import multiprocessing as mp
-from concurrent.futures import ProcessPoolExecutor, as_completed
 import time
+from concurrent.futures import ProcessPoolExecutor, as_completed
+
 from jieqi.ai.unified import UnifiedAIEngine
 from jieqi.fen import apply_move_to_fen, parse_fen
-from jieqi.types import Color, GameResult
+from jieqi.types import Color
 
 INITIAL_FEN = "xxxxxxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXXXXXX -:- r r"
 
@@ -40,7 +36,7 @@ def run_single_game(args):
             move_str, _ = moves[0]
             fen = apply_move_to_fen(fen, move_str)
             move_count += 1
-        except Exception as e:
+        except Exception:
             # 出错，对方胜
             winner = "black" if state.turn == Color.RED else "red"
             return game_id, winner, move_count, red_backend, black_backend
@@ -90,7 +86,9 @@ def main():
                 red_be if winner == "red" else (black_be if winner == "black" else "draw")
             )
             print(
-                f"Game {game_id + 1:2d}: {winner.upper():5s} wins | Red={red_be:6s} Black={black_be:6s} | {moves:3d} moves | Winner: {winner_backend}"
+                f"Game {game_id + 1:2d}: {winner.upper():5s} wins | "
+                f"Red={red_be:6s} Black={black_be:6s} | "
+                f"{moves:3d} moves | Winner: {winner_backend}"
             )
 
     elapsed = time.time() - start

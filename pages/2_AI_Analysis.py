@@ -14,7 +14,7 @@ import streamlit as st
 
 from jieqi.ai.unified import UnifiedAIEngine
 from jieqi.fen import parse_fen
-from jieqi.types import Color, PieceType, Position
+from jieqi.types import Color, PieceType
 
 # =============================================================================
 # 常量和配置

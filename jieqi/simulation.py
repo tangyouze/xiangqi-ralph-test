@@ -10,32 +10,30 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from jieqi.attack_tables import (
+    get_advisor_attacks,
+    get_advisor_reverse_attacks,
+    get_elephant_attacks,
+    get_elephant_reverse_attacks,
+    get_horse_attacks,
+    get_horse_reverse_attacks,
+    get_king_attacks,
+    get_king_reverse_attacks,
+    get_line_attacks,
+    get_pawn_attacks,
+    get_pawn_reverse_attacks,
+)
 from jieqi.types import (
     ActionType,
     Color,
     GameResult,
     JieqiMove,
-    PieceState,
     PieceType,
     Position,
-    get_position_piece_type,
-)
-from jieqi.attack_tables import (
-    get_king_attacks,
-    get_advisor_attacks,
-    get_elephant_attacks,
-    get_horse_attacks,
-    get_pawn_attacks,
-    get_line_attacks,
-    get_horse_reverse_attacks,
-    get_pawn_reverse_attacks,
-    get_elephant_reverse_attacks,
-    get_advisor_reverse_attacks,
-    get_king_reverse_attacks,
 )
 
 if TYPE_CHECKING:
-    from jieqi.view import PlayerView, ViewPiece
+    from jieqi.view import PlayerView
 
 
 @dataclass(slots=True)

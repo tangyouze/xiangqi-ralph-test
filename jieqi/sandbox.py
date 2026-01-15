@@ -30,20 +30,19 @@
 - 最后 r/b = 当前回合方
 
 示例 (标准开局):
-(r)(h)(e)(a)(k)(a)(e)(h)(r)/9/1(c)5(c)1/(p)1(p)1(p)1(p)1(p)/9/9/(P)1(P)1(P)1(P)1(P)/1(C)5(C)1/9/(R)(H)(E)(A)(K)(A)(E)(H)(R) r
+(r)(h)(e)(a)(k)(a)(e)(h)(r)/9/1(c)5(c)1/(p)1(p)1(p)1(p)1(p)/9/9/
+(P)1(P)1(P)1(P)1(P)/1(C)5(C)1/9/(R)(H)(E)(A)(K)(A)(E)(H)(R) r
 """
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from jieqi.ai import AIEngine
 from jieqi.fen import parse_move, to_fen
-from jieqi.simulation import SimulationBoard, SimPiece
+from jieqi.simulation import SimulationBoard
 from jieqi.types import (
-    ActionType,
     Color,
     JieqiMove,
     PieceType,

@@ -7,8 +7,9 @@ Streamlit 多页面应用，包含：
 - AI Tournament: AI 策略对战比较
 
 运行方式：
-    cd backend && source .venv/bin/activate
-    streamlit run streamlit_app.py --server.port 6710
+    just start
+    # 或
+    uv run streamlit run streamlit_app.py --server.port 6704
 """
 
 import streamlit as st

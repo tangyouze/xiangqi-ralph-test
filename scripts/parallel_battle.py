@@ -7,7 +7,6 @@ Python vs Rust AI Parallel Battle
 import multiprocessing as mp
 import time
 from dataclasses import dataclass
-from typing import Literal
 
 from jieqi.ai.unified import UnifiedAIEngine
 from jieqi.fen import apply_move_to_fen, create_board_from_fen, parse_fen
@@ -70,7 +69,7 @@ def run_single_game(config: GameConfig) -> tuple[int, str, float, int]:
                 return (config.game_id, winner, time.time() - start_time, moves)
 
             move_str, score = best_moves[0]
-        except Exception as e:
+        except Exception:
             # 出错判负
             winner = "rust" if engine_name == "python" else "python"
             return (config.game_id, winner, time.time() - start_time, moves)
@@ -78,7 +77,7 @@ def run_single_game(config: GameConfig) -> tuple[int, str, float, int]:
         # 应用走法
         try:
             fen = apply_move_to_fen(fen, move_str)
-        except Exception as e:
+        except Exception:
             winner = "rust" if engine_name == "python" else "python"
             return (config.game_id, winner, time.time() - start_time, moves)
 
@@ -144,7 +143,8 @@ def main():
             results[winner] += 1
             color = "Red" if configs[game_id].python_is_red else "Black"
             print(
-                f"Game {game_id + 1:2d}: Python={color:5s} | Winner: {winner:6s} | {elapsed:5.1f}s | {moves:3d} moves"
+                f"Game {game_id + 1:2d}: Python={color:5s} | Winner: {winner:6s} | "
+                f"{elapsed:5.1f}s | {moves:3d} moves"
             )
 
     total_time = time.time() - start_time

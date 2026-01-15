@@ -20,7 +20,6 @@ from jieqi.fen import parse_move, to_fen
 from jieqi.game import GameConfig, JieqiGame
 from jieqi.types import ActionType, Color, GameResult, JieqiMove, PieceType, Position
 
-
 # =============================================================================
 # 常量
 # =============================================================================

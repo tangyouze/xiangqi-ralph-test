@@ -1,4 +1,5 @@
 import random
+
 # 参考代码
 # https://github.com/NeymarL/ChineseChess-AlphaZero/
 # https://github.com/bupticybee/icyChessZero

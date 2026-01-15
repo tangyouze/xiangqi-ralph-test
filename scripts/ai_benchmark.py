@@ -7,20 +7,15 @@ Python vs Rust AI 性能对比测试
 3. ELO 评分
 """
 
-import sys
 import time
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import typer
 from rich.console import Console
+from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn
 from rich.table import Table
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
 
 from jieqi.ai.unified import UnifiedAIEngine
-from jieqi.fen import get_legal_moves_from_fen, apply_move_to_fen
-from jieqi.types import PieceType
+from jieqi.fen import apply_move_to_fen
 
 console = Console()
 app = typer.Typer()
@@ -164,7 +159,7 @@ def run_game(
             # 残局无暗子，不需要处理揭子
             new_fen = apply_move_to_fen(fen, best_move, None)
             fen = new_fen
-        except Exception as e:
+        except Exception:
             # 出错时结束游戏
             result = "error"
             break
@@ -352,7 +347,7 @@ def battle(
     ) as progress:
         task = progress.add_task("Python vs Rust...", total=games)
 
-        for i in range(games):
+        for _i in range(games):
             result = run_game("python", strategy, "rust", strategy, max_moves, time_limit)
 
             if result["result"] == "red_win":
@@ -385,7 +380,7 @@ def battle(
     ) as progress:
         task = progress.add_task("Rust vs Python...", total=games)
 
-        for i in range(games):
+        for _i in range(games):
             result = run_game("rust", strategy, "python", strategy, max_moves, time_limit)
 
             if result["result"] == "red_win":
@@ -465,7 +460,7 @@ def full_compare(
     nps_data = {}
 
     # 为每个策略组合测试
-    total_matchups = len(common) * 2  # Python vs Rust + Rust vs Python for each strategy
+    len(common) * 2  # Python vs Rust + Rust vs Python for each strategy
     current = 0
 
     for strategy in common:
@@ -511,7 +506,7 @@ def full_compare(
             )
 
         current += 2
-        console.print(f"    Completed battles")
+        console.print("    Completed battles")
 
     # 计算 ELO
     elo = calculate_elo(all_results)

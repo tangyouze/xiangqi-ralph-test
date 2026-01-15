@@ -71,6 +71,7 @@ from typing import TYPE_CHECKING
 from jieqi.types import ActionType, Color, JieqiMove, PieceType, Position
 
 if TYPE_CHECKING:
+    from jieqi.simulation import SimulationBoard
     from jieqi.view import CapturedPiece, PlayerView, ViewPiece
 
 
@@ -151,7 +152,7 @@ class FenState:
 # =============================================================================
 
 
-def to_fen(view: "PlayerView") -> str:
+def to_fen(view: PlayerView) -> str:
     """从 PlayerView 生成 FEN 字符串
 
     Args:
@@ -173,10 +174,10 @@ def to_fen(view: "PlayerView") -> str:
     return f"{board_str} {captured_str} {turn_str} {viewer_str}"
 
 
-def _board_to_fen(pieces: list["ViewPiece"]) -> str:
+def _board_to_fen(pieces: list[ViewPiece]) -> str:
     """棋盘转 FEN 字符串"""
     # 构建 10x9 的棋盘
-    board: list[list["ViewPiece | None"]] = [[None] * 9 for _ in range(10)]
+    board: list[list[ViewPiece | None]] = [[None] * 9 for _ in range(10)]
     for piece in pieces:
         board[piece.position.row][piece.position.col] = piece
 
@@ -212,7 +213,7 @@ def _board_to_fen(pieces: list["ViewPiece"]) -> str:
     return "/".join(rows)
 
 
-def _captured_to_fen(captured_pieces: list["CapturedPiece"], viewer: Color) -> str:
+def _captured_to_fen(captured_pieces: list[CapturedPiece], viewer: Color) -> str:
     """被吃子转 FEN 字符串
 
     规则（用大小写区分明子/暗子）：
@@ -226,7 +227,6 @@ def _captured_to_fen(captured_pieces: list["CapturedPiece"], viewer: Color) -> s
     for cap in captured_pieces:
         # 确定这个被吃的子，从 viewer 视角能看到什么
         is_my_piece = cap.color == viewer
-        i_captured_it = cap.captured_by == viewer
 
         if cap.color == Color.RED:
             # 红方棋子被吃
@@ -609,7 +609,7 @@ def fen_from_pieces(
 # =============================================================================
 
 
-def create_board_from_fen(fen: str) -> "SimulationBoard":
+def create_board_from_fen(fen: str) -> SimulationBoard:
     """从 FEN 字符串创建 SimulationBoard
 
     用于 AI 基于 FEN 进行决策。
@@ -620,7 +620,7 @@ def create_board_from_fen(fen: str) -> "SimulationBoard":
     Returns:
         SimulationBoard 实例
     """
-    from jieqi.simulation import SimPiece, SimulationBoard
+    from jieqi.simulation import SimulationBoard
     from jieqi.types import GameResult, get_position_piece_type
     from jieqi.view import PlayerView, ViewPiece
 

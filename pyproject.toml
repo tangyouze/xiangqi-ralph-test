@@ -35,9 +35,11 @@ addopts = "-v --cov=jieqi --cov-report=term-missing"
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+exclude = ["miaosisrai-jieqi-src"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "N", "B", "A", "C4", "UP"]
+ignore = ["N806"]  # Allow UPPER_CASE constants inside functions
 
 [tool.coverage.run]
 source = ["jieqi"]

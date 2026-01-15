@@ -6,10 +6,6 @@
 - 可视化棋盘
 - 选择 AI 后端（Python/Rust）
 - 查看 AI 推荐走法
-
-运行方式：
-    cd backend && source .venv/bin/activate
-    streamlit run jieqi/ai_dashboard.py --server.port 6710
 """
 
 from __future__ import annotations
@@ -18,7 +14,7 @@ import streamlit as st
 
 from jieqi.ai.unified import UnifiedAIEngine
 from jieqi.fen import parse_fen
-from jieqi.types import Color, PieceType, Position
+from jieqi.types import Color, PieceType
 
 # =============================================================================
 # 常量和配置

@@ -11,7 +11,7 @@ test:
     @echo "=== Rust Tests ==="
     cd rust-ai && cargo test
     @echo "=== Python Tests ==="
-    uv run pytest tests/unit/ tests/integration/ -v
+    uv run pytest tests/ -v
     @echo "=== All Tests Passed ==="
 
 # Run Rust tests only
@@ -22,61 +22,32 @@ test-rust:
 test-py:
     uv run pytest tests/ -v
 
-# Run jieqi tests only
-test-jieqi:
-    uv run pytest tests/unit/jieqi/ tests/integration/jieqi/ -v
-
-# Run frontend e2e tests only
-test-e2e:
-    cd frontend && npm run test:e2e
-
 # === 服务命令 ===
 
-# Start all services with overmind
+# Start streamlit dashboard
 start:
-    overmind start
+    uv run streamlit run streamlit_app.py --server.port 6704
 
-# Restart overmind in daemon mode
+# Restart with overmind
 restart:
     -overmind quit 2>/dev/null
-    -pkill -f "uvicorn jieqi_main:app" 2>/dev/null
-    -pkill -f "npm run dev -- --port 6701" 2>/dev/null
     -pkill -f "streamlit" 2>/dev/null
-    -lsof -ti:6701 | xargs kill -9 2>/dev/null
-    -lsof -ti:6703 | xargs kill -9 2>/dev/null
     -lsof -ti:6704 | xargs kill -9 2>/dev/null
     -rm -f .overmind.sock
     sleep 1
     overmind start -D
-    @echo "Waiting for services..."
-    @sleep 5
-    @echo "Services started. Use 'overmind connect' to attach."
-    @echo "Ports: Frontend=6701, Jieqi=6703, Dashboard=6704"
-    open http://localhost:6701
-
-# Start backend only (jieqi)
-backend:
-    uv run uvicorn jieqi.api.app:app --host 0.0.0.0 --port 6703 --reload
-
-# Start frontend only
-frontend:
-    cd frontend && npm run dev
+    @echo "Streamlit started on port 6704"
 
 # === 构建命令 ===
 
 # Install all dependencies
 install:
     uv sync
-    cd frontend && npm install
     cd rust-ai && cargo build --release
 
 # Build Rust release
 build-rust:
     cd rust-ai && cargo build --release
-
-# Build frontend
-build-frontend:
-    cd frontend && npm run build
 
 # === 工具命令 ===
 
@@ -89,11 +60,6 @@ fmt:
 lint:
     uv run ruff check .
     cd rust-ai && cargo clippy
-
-# API health check
-health:
-    @curl -s http://localhost:6703/health | jq .
-    @curl -s http://localhost:6703/ai/info | jq .
 
 # Run AI battle
 battle *ARGS:

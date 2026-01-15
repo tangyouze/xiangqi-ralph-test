@@ -10,22 +10,21 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+# 导入预计算的攻击表
+from jieqi.attack_tables import (
+    get_advisor_attacks,
+    get_elephant_attacks,
+    get_horse_attacks,
+    get_king_attacks,
+    get_line_attacks,
+    get_pawn_attacks,
+)
 from jieqi.types import (
     Color,
     PieceState,
     PieceType,
     Position,
     get_position_piece_type,
-)
-
-# 导入预计算的攻击表
-from jieqi.attack_tables import (
-    get_king_attacks,
-    get_advisor_attacks,
-    get_elephant_attacks,
-    get_horse_attacks,
-    get_pawn_attacks,
-    get_line_attacks,
 )
 
 if TYPE_CHECKING:

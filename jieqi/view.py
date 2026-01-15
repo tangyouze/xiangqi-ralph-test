@@ -13,10 +13,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from jieqi.types import Color, JieqiMove, PieceType, Position, GameResult
+from jieqi.types import Color, GameResult, JieqiMove, PieceType, Position
 
 if TYPE_CHECKING:
-    from jieqi.game import JieqiGame
+    pass
 
 
 @dataclass

@@ -4,24 +4,19 @@ AI 对战脚本
 让两个 AI 对战多次，统计胜率
 """
 
-import sys
 from pathlib import Path
-
-# 添加 backend 路径
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import typer
 from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
+from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn
 from rich.table import Table
-
-from jieqi.game import JieqiGame
-from jieqi.types import Color, GameResult
-from jieqi.ai.base import AIEngine, AIConfig
-from jieqi.fen import to_fen, parse_move
 
 # 导入 AI 策略以触发注册
 from jieqi.ai import strategies  # noqa: F401
+from jieqi.ai.base import AIConfig, AIEngine
+from jieqi.fen import parse_move, to_fen
+from jieqi.game import JieqiGame
+from jieqi.types import Color, GameResult
 
 console = Console()
 app = typer.Typer()
@@ -44,7 +39,7 @@ def calculate_elo(
     Returns:
         各策略的 Elo 评分
     """
-    elo = {s: initial_elo for s in strategies_list}
+    elo = dict.fromkeys(strategies_list, initial_elo)
 
     # 多轮迭代以稳定 Elo
     for _ in range(10):
@@ -132,7 +127,7 @@ def run_single_game(
         if avoid_draw:
             # 使用 Top-N 候选，规避和棋
             candidates = current_ai.select_moves_fen(fen, n=10)
-            for move_str, score in candidates:
+            for move_str, _score in candidates:
                 candidate_move, _ = parse_move(move_str)
                 if not would_cause_draw(game, candidate_move):
                     move = candidate_move
@@ -281,10 +276,11 @@ def battle(
         console.print(f"[red]Unknown AI: {ai_black}. Available: {available}[/red]")
         raise typer.Exit(1)
 
-    console.print(f"\n[bold]Jieqi AI Battle[/bold]")
+    console.print("\n[bold]Jieqi AI Battle[/bold]")
     console.print(f"Red: [red]{ai_red}[/red] vs Black: [blue]{ai_black}[/blue]")
     console.print(
-        f"Games: {num_games}, Max moves: {max_moves}, Time: {time_limit}s, Avoid draw: {avoid_draw}\n"
+        f"Games: {num_games}, Max moves: {max_moves}, Time: {time_limit}s, "
+        f"Avoid draw: {avoid_draw}\n"
     )
 
     stats = run_battle(ai_red, ai_black, num_games, max_moves, seed, avoid_draw, time_limit)
@@ -338,13 +334,13 @@ def battle(
 @app.command()
 def list_ai():
     """List available AI strategies"""
-    strategies = AIEngine.list_strategies()
+    strategy_list = AIEngine.list_strategies()
 
     table = Table(title="Available AI Strategies")
     table.add_column("Name", style="cyan")
     table.add_column("Description")
 
-    for s in strategies:
+    for s in strategy_list:
         table.add_row(s["name"], s["description"])
 
     console.print(table)
@@ -368,6 +364,7 @@ def verbose_battle(
 ):
     """Run a single game with detailed logging to JSONL file"""
     import time
+
     from jieqi.ai.battle_log import BattleLogger
 
     # 创建日志记录器
@@ -533,7 +530,7 @@ def compare(
     total_matchups = len(strategies_list) * (len(strategies_list) - 1)
     total_games = total_matchups * num_games
 
-    console.print(f"\n[bold]AI Round-Robin Comparison[/bold]")
+    console.print("\n[bold]AI Round-Robin Comparison[/bold]")
     console.print(f"Strategies: {len(strategies_list)}")
     console.print(f"Games per matchup: {num_games}")
     console.print(f"Total matchups: {total_matchups}")
@@ -651,7 +648,7 @@ def compare(
 
     # 排名
     console.print("\n[bold]Final Rankings (Win Rate | Elo):[/bold]")
-    elo_sorted = sorted(strategies_list, key=lambda s: elo[s], reverse=True)
+    sorted(strategies_list, key=lambda s: elo[s], reverse=True)
     for i, s in enumerate(sorted_strategies, 1):
         console.print(f"  {i:2}. {s:15} - {scores[s] * 100:.1f}% | Elo: {elo[s]:.0f}")
 

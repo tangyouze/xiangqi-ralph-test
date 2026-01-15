@@ -13,8 +13,8 @@ import time
 import pytest
 from typer.testing import CliRunner
 
-from jieqi.ai_cli import app
 from jieqi.ai.unified import UnifiedAIEngine
+from jieqi.ai_cli import app
 from jieqi.fen import get_legal_moves_from_fen
 
 runner = CliRunner()
@@ -237,7 +237,6 @@ class TestNPSBenchmark:
     @pytest.mark.slow
     def test_nps_benchmark_python(self):
         """Python 后端 NPS 基准测试"""
-        total_nodes = 0
         total_time = 0.0
         successful = 0
 
@@ -261,7 +260,7 @@ class TestNPSBenchmark:
 
         if total_time > 0:
             avg_time = total_time / successful
-            print(f"\nResults:")
+            print("\nResults:")
             print(f"  Scenarios: {successful}/{len(BENCHMARK_SCENARIOS)}")
             print(f"  Total time: {total_time:.2f}s")
             print(f"  Avg time per position: {avg_time * 1000:.1f}ms")
@@ -302,7 +301,7 @@ class TestNPSBenchmark:
 
         if total_time > 0:
             avg_time = total_time / successful
-            print(f"\nResults:")
+            print("\nResults:")
             print(f"  Scenarios: {successful}/{len(BENCHMARK_SCENARIOS)}")
             print(f"  Total time: {total_time:.2f}s")
             print(f"  Avg time per position: {avg_time * 1000:.1f}ms")

@@ -1,9 +1,9 @@
-from . import common
-import random
 import json
-from copy import deepcopy
+import random
 from collections import Counter
+from copy import deepcopy
 
+from . import common
 
 # 参考代码
 # https://github.com/NeymarL/ChineseChess-AlphaZero/
@@ -68,7 +68,7 @@ class Board:
         self.num = num  # 每方16个棋子
         self.board = []
         self.mapping = {}  # 记录暗子到明子的映射
-        self.chessdict = dict()
+        self.chessdict = {}
         self.initialize()
         self.original_board = deepcopy(self.board)
         self.pst = deepcopy(common.pst)
@@ -79,12 +79,12 @@ class Board:
 
     def initialize_board(self):
         self.board = []
-        for i in range(self.H):
+        for _i in range(self.H):
             self.board.append([0] * self.W)
 
     def initialize_another_board(self):
         other_board = []
-        for i in range(self.H):
+        for _i in range(self.H):
             other_board.append([0] * self.W)
         return other_board
 
@@ -99,7 +99,7 @@ class Board:
 
     def initialize_another_mapping(self):
         CHESSES = deepcopy(common.CHESSES)
-        mapping = dict()
+        mapping = {}
         random.shuffle(CHESSES)
         for i, red_dark_chess in enumerate(common.RED_POSITIONS):  # 映射红暗子
             mapping[red_dark_chess] = common.MASK_COLOR + CHESSES[i]
@@ -309,7 +309,7 @@ class Board:
                 _helper(color, desc)
             print("")
             if i == self.H // 2:
-                for k in range(2 * self.W + 1):
+                for _k in range(2 * self.W + 1):
                     print("*", end="")
                 print("")
         if with_number:
@@ -365,7 +365,7 @@ class Board:
         print("Initial state:")
         self.print_board()
         print("Uncovering... Do not tell others!")
-        virtual_board = self.uncover_board(self.board, self.mapping, verbose=True)
+        self.uncover_board(self.board, self.mapping, verbose=True)
 
     def random_board(self):
         # This function generates a random board
@@ -796,13 +796,11 @@ class Board:
                                 self.print_board()
                         if not only_legal:
                             print(
-                                "(%s, %s) --> (%s, %s): 是否合法:%s, 是否将军:%s, 是否对饮:%s"
-                                % (x1, y1, x2, y2, islegal, isjiangjun, drink)
+                                f"({x1}, {y1}) --> ({x2}, {y2}): 是否合法:{islegal}, 是否将军:{isjiangjun}, 是否对饮:{drink}"
                             )
                         elif islegal:
                             print(
-                                "(%s, %s) --> (%s, %s): 是否合法:%s, 是否将军:%s, 是否对饮:%s"
-                                % (x1, y1, x2, y2, islegal, isjiangjun, drink)
+                                f"({x1}, {y1}) --> ({x2}, {y2}): 是否合法:{islegal}, 是否将军:{isjiangjun}, 是否对饮:{drink}"
                             )
                             counter += 1
                         if not only_legal:
@@ -810,7 +808,6 @@ class Board:
         print(counter)
 
     def stupid_generate_all_legal_moves(self, board=None, turn=None, shuaijiang=None):
-        counter = 0
         legal_moves = []
         # A very stupid way to test check_legal_and_jiangjun
         for x1 in range(self.H):
@@ -1003,7 +1000,7 @@ class Board:
             x, y = 12 - key[0], 3 + key[1]
             pos = x * 16 + y
             chess = mapping[key]
-            covered = (chess & common.MASK_CHESS_ISCOVERED) != 0
+            (chess & common.MASK_CHESS_ISCOVERED) != 0
             color = chess & common.MASK_COLOR
             chess_type = chess & common.MASK_CHESS
             T = d[chess_type]
@@ -1039,7 +1036,7 @@ class Board:
                 print(set(legal_moves) - set(legal_moves_2))
                 print(set(legal_moves_2) - set(legal_moves))
                 self.print_board_icybee(self.translate_board(board))
-                assert False
+                raise AssertionError()
         newmapping = self.translate_mapping(mapping)
         legal_moves = list(map(self.translate_move, legal_moves))
         board = self.translate_board(board)
@@ -1110,8 +1107,10 @@ class Board:
     def scan_translate(self, board):
         finalreddict, finalblackdict = self.scan(board)
         reditems, blackitems = list(finalreddict.items()), list(finalblackdict.items())
-        f1 = lambda x: (self.translate_chess(x[0], 1), x[1])
-        f2 = lambda x: (self.translate_chess(x[0], 2), x[1])
+        def f1(x):
+            return (self.translate_chess(x[0], 1), x[1])
+        def f2(x):
+            return (self.translate_chess(x[0], 2), x[1])
         l1_red = list(map(f1, reditems))
         l2_red = list(map(f2, reditems))
         l1_black = list(map(f1, blackitems))
@@ -1181,63 +1180,37 @@ class Board:
             if board[cnt] in "DEFGHI":
                 if verbose:
                     print(
-                        "\033[31m 红暗: (%s): %s + %s --> %s \033[0m"
-                        % (_helper(cnt), score_red, average_coveredr, score_red + average_coveredr)
+                        f"\033[31m 红暗: ({_helper(cnt)}): {score_red} + {average_coveredr} --> {score_red + average_coveredr} \033[0m"
                     )
                 score_red += average_coveredr
             elif board[cnt] in "RNBAKCP":
                 if verbose:
                     print(
-                        "\033[31m 红明: (%s): %s + %s --> %s \033[0m"
-                        % (
-                            _helper(cnt),
-                            score_red,
-                            self.pst[board[cnt]][cnt],
-                            score_red + self.pst[board[cnt]][cnt],
-                        )
+                        f"\033[31m 红明: ({_helper(cnt)}): {score_red} + {self.pst[board[cnt]][cnt]} --> {score_red + self.pst[board[cnt]][cnt]} \033[0m"
                     )
                 score_red += self.pst[board[cnt]][cnt]
             elif board[cnt] == "U":
                 if verbose:
                     print(
-                        "\033[31m 红不: (%s): %s + %s --> %s \033[0m"
-                        % (_helper(cnt), score_red, averager[cnt], score_red + averager[cnt])
+                        f"\033[31m 红不: ({_helper(cnt)}): {score_red} + {averager[cnt]} --> {score_red + averager[cnt]} \033[0m"
                     )
                 score_red += averager[cnt]
             elif board[cnt] in "defghi":
                 if verbose:
                     print(
-                        " 黑暗: (%s): %s + %s --> %s"
-                        % (
-                            _helper(cnt),
-                            score_black,
-                            average_coveredb,
-                            score_black + average_coveredb,
-                        )
+                        f" 黑暗: ({_helper(cnt)}): {score_black} + {average_coveredb} --> {score_black + average_coveredb}"
                     )
                 score_black += average_coveredb
             elif board[cnt] in "rnbakcp":
                 if verbose:
                     print(
-                        " 黑明: (%s): %s + %s --> %s"
-                        % (
-                            _helper(cnt),
-                            score_black,
-                            self.pst[board[cnt].swapcase()][254 - cnt],
-                            score_black + self.pst[board[cnt].swapcase()][254 - cnt],
-                        )
+                        f" 黑明: ({_helper(cnt)}): {score_black} + {self.pst[board[cnt].swapcase()][254 - cnt]} --> {score_black + self.pst[board[cnt].swapcase()][254 - cnt]}"
                     )
                 score_black += self.pst[board[cnt].swapcase()][254 - cnt]
             elif board[cnt] == "u":
                 if verbose:
                     print(
-                        " 黑不: (%s): %s + %s --> %s"
-                        % (
-                            _helper(cnt),
-                            score_black,
-                            averageb[254 - cnt],
-                            score_black + averageb[254 - cnt],
-                        )
+                        f" 黑不: ({_helper(cnt)}): {score_black} + {averageb[254 - cnt]} --> {score_black + averageb[254 - cnt]}"
                     )
                 score_black += averageb[254 - cnt]
 
@@ -1280,7 +1253,6 @@ class Board:
                 return None
             return board[pos[0]][pos[1]] & common.MASK_COLOR != 0
 
-        legal_moves = []
         for pos in chessdict:
             chess = chessdict[pos]
             if (turn and (chess & common.MASK_COLOR == 0)) or (

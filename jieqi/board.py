@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 import random
-from typing import Iterator
+from collections.abc import Iterator
 
 from jieqi.piece import JieqiPiece, create_jieqi_piece
 from jieqi.types import (
@@ -18,8 +18,6 @@ from jieqi.types import (
     PieceState,
     PieceType,
     Position,
-    get_position_piece_type,
-    INITIAL_POSITIONS,
 )
 
 # 使用快速将军检测（懒加载以避免循环导入）
@@ -128,7 +126,7 @@ class JieqiBoard:
         else:
             # 预分配模式：随机分配真实身份
             self._rng.shuffle(piece_types_to_place)
-            for pos, actual_type in zip(non_king_positions, piece_types_to_place):
+            for pos, actual_type in zip(non_king_positions, piece_types_to_place, strict=False):
                 self._pieces[pos] = create_jieqi_piece(color, actual_type, pos, revealed=False)
 
     @property
@@ -486,11 +484,13 @@ class JieqiBoard:
         比 get_position_hash() 更精确，但更慢。
         用于需要精确匹配的场景。
         """
+
         # 生成一个确定性的字符串表示
-        pieces_list = sorted(
-            f"{pos.row}{pos.col}{piece.color.value}{piece.actual_type.value if piece.actual_type else '?'}{int(piece.is_hidden)}"
-            for pos, piece in self._pieces.items()
-        )
+        def piece_key(pos: Position, piece: JieqiPiece) -> str:
+            ptype = piece.actual_type.value if piece.actual_type else "?"
+            return f"{pos.row}{pos.col}{piece.color.value}{ptype}{int(piece.is_hidden)}"
+
+        pieces_list = sorted(piece_key(pos, piece) for pos, piece in self._pieces.items())
         return "|".join(pieces_list)
 
     def __iter__(self) -> Iterator[JieqiPiece]:

@@ -1,16 +1,16 @@
 #!/usr/bin/env pypy
-# -*- coding: utf-8 -*-
 
 # Updated by Si Miao 2021/05/20
-from __future__ import print_function
-import re, sys, time
-from itertools import count
-from collections import namedtuple
-import random
-from board import board, common_20210815 as common, library
-from copy import deepcopy
-import readline
 import json
+import random
+import re
+import time
+from collections import namedtuple
+from copy import deepcopy
+from itertools import count
+
+from board import board, library
+from board import common_20210815 as common
 
 NULLMOVE = True
 QS = True
@@ -18,7 +18,8 @@ QS = True
 debug_var = ""
 B = board.Board()
 piece = {"P": 44, "N": 108, "B": 23, "R": 233, "A": 23, "C": 101, "K": 2500}
-put = lambda board, i, p: board[:i] + p + board[i + 1 :]
+def put(board, i, p):
+    return board[:i] + p + board[i + 1 :]
 r = {"R": 2, "N": 2, "B": 2, "A": 2, "C": 2, "P": 5}
 b = {"r": 2, "n": 2, "b": 2, "a": 2, "c": 2, "p": 5}
 di = {0: {True: deepcopy(r), False: deepcopy(b)}}
@@ -644,7 +645,7 @@ class Position(namedtuple("Position", "board score turn version")):
             * di[self.version][not self.turn]["r" if self.turn else "R"]
             / sumall[self.version][not self.turn]
         )
-        bing_possibility = (
+        (
             0
             if sumall[self.version][self.turn] == 0
             else di[self.version][self.turn]["P" if self.turn else "p"]
@@ -944,7 +945,7 @@ class Searcher:
         score = 0
         maxscore = 0
         oppo_rooted_set = oppo.rooted()
-        oppo_rooted_set = set(map(lambda x: 254 - x, oppo_rooted_set))  # 对方有根子
+        oppo_rooted_set = {254 - x for x in oppo_rooted_set}  # 对方有根子
         argmax = None
         for move in moves:
             p = pos.board[move[0]]
@@ -1025,7 +1026,6 @@ class Searcher:
 
         # move函数
         def move():
-            move_score_list = []
             if nullmove_now and depth > 3 and not root and any(c in pos.board for c in "RNCI"):
                 if all(oppo.board[m[1]] != "k" for m in oppo.gen_moves()):
                     val = -self.alphabeta(
@@ -1235,7 +1235,7 @@ def generate_forbiddenmoves(pos, check_bozi=True, step=0):
             forbidden_moves.add(move)
         if check_bozi:
             i, j = move
-            p, q = pos.board[i], pos.board[j].upper()
+            p, _q = pos.board[i], pos.board[j].upper()
             # Actual move
             if p == "H" and (
                 (i == 164 and j == 52 and pos.board[51] in "dr")
@@ -1387,9 +1387,7 @@ def main(random_move=False, AI=True, debug=False):
             break
 
         print(
-            "Think depth: {} My move: {} (score {})".format(
-                _depth, render(254 - move[0]) + render(254 - move[1]), score
-            )
+            f"Think depth: {_depth} My move: {render(254 - move[0]) + render(254 - move[1])} (score {score})"
         )
         pos, win, eat, dst = hist[-1].mymove_check(move)
 

@@ -15,7 +15,6 @@ from jieqi.types import (
     Color,
     GameResult,
     JieqiMove,
-    PieceState,
     PieceType,
     get_position_piece_type,
 )
@@ -343,7 +342,7 @@ class JieqiGame:
 
         # 判断移动方向
         row_diff = move.to_pos.row - move.from_pos.row
-        col_diff = move.to_pos.col - move.from_pos.col
+        move.to_pos.col - move.from_pos.col
 
         # 对于红方：row 增加是"进"，row 减少是"退"
         # 对于黑方：row 减少是"进"，row 增加是"退"
@@ -453,4 +452,6 @@ class JieqiGame:
         ]
 
     def __repr__(self) -> str:
-        return f"JieqiGame({self.game_id}, turn={self.current_turn.value}, moves={len(self.move_history)})"
+        turn = self.current_turn.value
+        moves = len(self.move_history)
+        return f"JieqiGame({self.game_id}, turn={turn}, moves={moves})"

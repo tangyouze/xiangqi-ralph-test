@@ -24,10 +24,10 @@ from jieqi.ai.base import AIConfig, AIEngine, AIStrategy
 from jieqi.ai.evaluator import get_evaluator
 from jieqi.fen import create_board_from_fen, get_legal_moves_from_fen, parse_fen, parse_move
 from jieqi.simulation import SimulationBoard
-from jieqi.types import ActionType, Color, GameResult, JieqiMove, PieceType, Position
+from jieqi.types import ActionType, Color, GameResult, JieqiMove
 
 if TYPE_CHECKING:
-    pass
+    from jieqi.view import PlayerView
 
 
 AI_ID = "v019"

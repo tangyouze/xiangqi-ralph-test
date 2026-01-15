@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 from jieqi.types import Color, PieceType, Position
 
 if TYPE_CHECKING:
-    from jieqi.simulation import SimulationBoard, SimPiece
+    from jieqi.simulation import SimPiece, SimulationBoard
 
 
 # ============================================================================

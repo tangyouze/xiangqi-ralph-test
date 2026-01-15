@@ -4,9 +4,10 @@
 """
 
 import time
-from jieqi.board import JieqiBoard
-from jieqi.types import Color, ActionType, JieqiMove
+
 from jieqi.bitboard import FastMoveGenerator
+from jieqi.board import JieqiBoard
+from jieqi.types import ActionType, Color, JieqiMove
 
 
 def profile_legal_moves():

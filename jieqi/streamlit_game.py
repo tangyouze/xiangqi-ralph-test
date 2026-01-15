@@ -6,10 +6,6 @@
 - Button 网格交互
 - AI 策略选择
 - 走子历史和被吃子显示
-
-运行方式：
-    cd backend && source .venv/bin/activate
-    streamlit run jieqi/streamlit_game.py --server.port 6710
 """
 
 from __future__ import annotations
@@ -23,7 +19,6 @@ from jieqi.ai.unified import UnifiedAIEngine
 from jieqi.fen import parse_move, to_fen
 from jieqi.game import GameConfig, JieqiGame
 from jieqi.types import ActionType, Color, GameResult, JieqiMove, PieceType, Position
-
 
 # =============================================================================
 # 常量

@@ -25,8 +25,7 @@ from __future__ import annotations
 
 import json
 import sys
-from dataclasses import asdict, dataclass
-from typing import Literal
+from dataclasses import dataclass
 
 import typer
 
@@ -71,7 +70,7 @@ def moves(
                 print(f"  {mv}")
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
 
 @app.command()
@@ -104,7 +103,7 @@ def best(
                 print(f"  {mv} (score: {score:.2f})")
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
 
 @app.command(name="list")
@@ -121,7 +120,7 @@ def list_strategies(
             print(f"  {s}")
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
 
 @app.command()

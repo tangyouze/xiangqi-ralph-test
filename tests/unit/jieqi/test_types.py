@@ -2,8 +2,8 @@
 揭棋类型测试
 """
 
-import pytest
 from jieqi.types import (
+    INITIAL_POSITIONS,
     ActionType,
     Color,
     GameResult,
@@ -11,9 +11,8 @@ from jieqi.types import (
     PieceState,
     PieceType,
     Position,
-    get_position_piece_type,
     get_piece_positions_by_type,
-    INITIAL_POSITIONS,
+    get_position_piece_type,
 )
 
 

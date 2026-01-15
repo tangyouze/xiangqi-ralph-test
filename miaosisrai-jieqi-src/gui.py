@@ -1,14 +1,12 @@
 import subprocess
 import sys
+from queue import Queue
 from subprocess import PIPE
 from threading import Thread
-from queue import Queue
-from collections import namedtuple
 
 import pygame
 import pygame.freetype
-import sys
-from pygame.locals import QUIT, KEYDOWN, MOUSEBUTTONDOWN, MOUSEBUTTONUP
+from pygame.locals import KEYDOWN, MOUSEBUTTONDOWN, QUIT
 
 RED_CHESS_COLOR = [255, 255, 255]
 BLACK_CHESS_COLOR = [0, 0, 0]
@@ -51,17 +49,17 @@ class Board:
 
     def draw_board(self):
         x, y = self.start_point
-        for i in range(10):
+        for _i in range(10):
             pygame.draw.line(self.screen, self.line_color, [x, y], [x + self.width, y])
             y += self.row_spacing
 
         x, y = self.start_point
-        for i in range(9):
+        for _i in range(9):
             pygame.draw.line(self.screen, self.line_color, [x, y], [x, y + self.row_spacing * 9])
             x += self.col_spacing
 
         x, y = self.start_point_x + self.col_spacing, self.start_point_y + self.row_spacing * 4
-        for i in range(7):
+        for _i in range(7):
             pygame.draw.line(self.screen, self.screen_color, [x, y], [x, y + self.row_spacing])
             x += self.col_spacing
 

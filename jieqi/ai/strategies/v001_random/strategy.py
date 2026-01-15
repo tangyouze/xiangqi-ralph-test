@@ -18,7 +18,6 @@ import random
 from jieqi.ai.base import AIConfig, AIEngine, AIStrategy
 from jieqi.fen import get_legal_moves_from_fen
 
-
 AI_ID = "v001"
 AI_NAME = "random"
 

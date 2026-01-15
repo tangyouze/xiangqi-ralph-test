@@ -21,13 +21,13 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from jieqi.ai.base import AIConfig, AIEngine, AIStrategy
-from jieqi.ai.evaluator import get_evaluator, PIECE_BASE_VALUES
+from jieqi.ai.evaluator import PIECE_BASE_VALUES, get_evaluator
 from jieqi.fen import create_board_from_fen, get_legal_moves_from_fen, parse_fen, parse_move
 from jieqi.simulation import SimulationBoard
-from jieqi.types import ActionType, Color, GameResult, JieqiMove, PieceType, Position
+from jieqi.types import ActionType, Color, GameResult, JieqiMove, PieceType
 
 if TYPE_CHECKING:
-    pass
+    from jieqi.view import PlayerView
 
 
 AI_ID = "v020"
@@ -274,7 +274,7 @@ class MCTSEvalAI(AIStrategy):
         move = node.untried_moves.pop(0)
 
         # 计算先验优先级
-        piece = board.get_piece(move.from_pos)
+        board.get_piece(move.from_pos)
         target = board.get_piece(move.to_pos)
         priority = 1.0
         if target and target.color != node.color:
