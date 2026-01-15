@@ -29,8 +29,8 @@ impl MinimaxAI {
         }
     }
 
-    /// 评估局面
-    fn evaluate_position(&self, board: &Board, color: Color) -> f64 {
+    /// 评估局面（公开方法）
+    pub fn evaluate_position(&self, board: &Board, color: Color) -> f64 {
         let mut score = 0.0;
 
         // 棋子价值
@@ -66,6 +66,18 @@ impl MinimaxAI {
         }
 
         score
+    }
+
+    /// 静态评估一个棋盘局面（不搜索）
+    pub fn evaluate_static(board: &Board, color: Color) -> f64 {
+        let config = AIConfig {
+            depth: 1,
+            randomness: 0.0,
+            seed: None,
+            time_limit: None,
+        };
+        let ai = MinimaxAI::new(&config);
+        ai.evaluate_position(board, color)
     }
 
     /// Negamax 搜索（带 Alpha-Beta 剪枝）

@@ -7,7 +7,9 @@ pub mod board;
 pub mod fen;
 pub mod types;
 
-pub use ai::{get_node_count, reset_node_count, AIConfig, AIEngine, AIStrategy, ScoredMove};
+pub use ai::{
+    get_node_count, reset_node_count, AIConfig, AIEngine, AIStrategy, MinimaxAI, ScoredMove,
+};
 pub use board::{get_legal_moves_from_fen, Board};
 pub use fen::{apply_move_to_fen, parse_fen, pieces_to_fen, FenState};
 pub use types::{ActionType, Color, GameResult, JieqiMove, PieceType, Position};
