@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>AI Evaluation Report - muses</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 20px; }
+        h1 { color: #333; }
+        h2 { color: #555; margin-top: 24px; }
+        table { border-collapse: collapse; width: 100%; margin: 16px 0; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+        th { background: #f5f5f5; font-weight: 600; }
+        tr:nth-child(even) { background: #fafafa; }
+        code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; }
+        code.fen { font-size: 11px; color: #666; display: block; margin-top: 4px; }
+        .score-positive { color: #22863a; font-weight: 600; }
+        .score-negative { color: #cb2431; font-weight: 600; }
+        .summary { background: #e8f4f8; padding: 16px; margin: 16px 0; border-radius: 6px; }
+        .summary p { margin: 8px 0; }
+        .summary b { color: #333; }
+    </style>
+</head>
+<body>
+    <h1>AI Evaluation Report</h1>
+
+    <div class="summary">
+        <p><b>AI:</b> muses (rust)</p>
+        <p><b>Time:</b> 2026-01-15 10:03:14</p>
+        <p><b>Config:</b> depth=2, time_limit=0.5s</p>
+    </div>
+
+    <h2>Summary</h2>
+    <table>
+        <tr><td><b>Total Scenarios</b></td><td>16</td></tr>
+        <tr><td><b>Avg Score</b></td><td>+564.8</td></tr>
+        <tr><td><b>Total Time</b></td><td>6.08s</td></tr>
+    </table>
+
+    <h2>Scenario Results</h2>
+    <table>
+        <tr>
+            <th>Scenario / FEN</th>
+            <th>Best Move</th>
+            <th>Score</th>
+            <th>Time</th>
+            <th>Win Rate vs Random</th>
+        </tr>
+        <tr>
+                <td><b>initial</b><br><code class="fen">xxxxxxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXXXXXX -:- r r</code></td>
+                <td><code>+b2e2</code></td>
+                <td class="score-positive">+1000 (M)</td>
+                <td>444ms</td>
+                <td>100% (3W/0D/0L)</td>
+            </tr><tr>
+                <td><b>midgame_hidden</b><br><code class="fen">xxxx1xxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXX1XXXX -:- r r</code></td>
+                <td><code>-</code></td>
+                <td class="score-positive">+0</td>
+                <td>7ms</td>
+                <td>0% (0W/0D/3L)</td>
+            </tr><tr>
+                <td><b>double_rook_mate</b><br><code class="fen">4k4/9/9/9/9/9/9/9/4R4/3RK4 -:- r r</code></td>
+                <td><code>e1e9</code></td>
+                <td class="score-positive">+1000 (M)</td>
+                <td>410ms</td>
+                <td>100% (3W/0D/0L)</td>
+            </tr><tr>
+                <td><b>horse_cannon_mate</b><br><code class="fen">3ak4/9/9/9/9/9/9/5C3/4H4/4K4 -:- r r</code></td>
+                <td><code>f2e2</code></td>
+                <td class="score-positive">+1000 (M)</td>
+                <td>438ms</td>
+                <td>100% (3W/0D/0L)</td>
+            </tr><tr>
+                <td><b>iron_bolt</b><br><code class="fen">3k5/4a4/4R4/9/9/9/9/9/9/4K4 -:- r r</code></td>
+                <td><code>e0e1</code></td>
+                <td class="score-positive">+1000 (M)</td>
+                <td>397ms</td>
+                <td>100% (3W/0D/0L)</td>
+            </tr><tr>
+                <td><b>smothered_mate</b><br><code class="fen">4k4/4C4/4C4/9/9/9/9/9/9/4K4 -:- r r</code></td>
+                <td><code>e7e9</code></td>
+                <td class="score-positive">+1000 (M)</td>
+                <td>467ms</td>
+                <td>100% (3W/0D/0L)</td>
+            </tr><tr>
+                <td><b>rook_horse_cold</b><br><code class="fen">3k5/9/4H4/9/9/9/9/4R4/9/4K4 -:- r r</code></td>
+                <td><code>e7d9</code></td>
+                <td class="score-positive">+1000 (M)</td>
+                <td>508ms</td>
+                <td>100% (3W/0D/0L)</td>
+            </tr><tr>
+                <td><b>rook_vs_cannon</b><br><code class="fen">4k4/9/9/9/4c4/4R4/9/9/9/4K4 -:- r r</code></td>
+                <td><code>e4e5</code></td>
+                <td class="score-positive">+1000 (M)</td>
+                <td>410ms</td>
+                <td>100% (3W/0D/0L)</td>
+            </tr><tr>
+                <td><b>pawn_advance</b><br><code class="fen">4k4/9/9/9/9/9/4P4/9/9/4K4 -:- r r</code></td>
+                <td><code>e3e4</code></td>
+                <td class="score-positive">+31</td>
+                <td>21ms</td>
+                <td>0% (0W/3D/0L)</td>
+            </tr><tr>
+                <td><b>rook_pawn_vs_rook</b><br><code class="fen">4k4/9/4r4/9/9/9/4P4/9/4R4/4K4 -:- r r</code></td>
+                <td><code>e3e4</code></td>
+                <td class="score-positive">+18</td>
+                <td>388ms</td>
+                <td>100% (3W/0D/0L)</td>
+            </tr><tr>
+                <td><b>double_cannon_advisor</b><br><code class="fen">3ak4/4a4/9/9/9/9/9/4C4/4C4/4K4 -:- r r</code></td>
+                <td><code>e2e9</code></td>
+                <td class="score-positive">+1000 (M)</td>
+                <td>514ms</td>
+                <td>100% (3W/0D/0L)</td>
+            </tr><tr>
+                <td><b>hidden_opening</b><br><code class="fen">xxxxxxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXXXXXX -:- r r</code></td>
+                <td><code>+b2e2</code></td>
+                <td class="score-positive">+1000 (M)</td>
+                <td>414ms</td>
+                <td>100% (3W/0D/0L)</td>
+            </tr><tr>
+                <td><b>partial_revealed</b><br><code class="fen">xxxx1xxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1C5C1/9/XXXX1XXXX -:- r r</code></td>
+                <td><code>-</code></td>
+                <td class="score-positive">+0</td>
+                <td>6ms</td>
+                <td>0% (0W/0D/3L)</td>
+            </tr><tr>
+                <td><b>mixed_hidden_revealed</b><br><code class="fen">xr1k1r2x/9/1x2e2x1/x1x1x1x1x/9/9/X1X1X1X1X/1X2E2X1/9/XR1K1R2X -:- r r</code></td>
+                <td><code>+b2d2</code></td>
+                <td class="score-negative">-19</td>
+                <td>501ms</td>
+                <td>100% (3W/0D/0L)</td>
+            </tr><tr>
+                <td><b>midgame_attack</b><br><code class="fen">r2ak4/9/2h1e4/p3p4/9/6P2/P3P4/2H1E4/9/R2AK4 -:- r r</code></td>
+                <td><code>c2d4</code></td>
+                <td class="score-positive">+33</td>
+                <td>508ms</td>
+                <td>100% (3W/0D/0L)</td>
+            </tr><tr>
+                <td><b>complex_midgame</b><br><code class="fen">r1eak4/4a4/4e1h2/p1h1p3p/4c4/2P6/P3P3P/4E1H2/4A4/R2AK2R1 -:- r r</code></td>
+                <td><code>e0f0</code></td>
+                <td class="score-negative">-26</td>
+                <td>646ms</td>
+                <td>100% (3W/0D/0L)</td>
+            </tr>
+    </table>
+</body>
+</html>

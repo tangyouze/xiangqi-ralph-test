@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>AI Evaluation Report - muses</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 20px; }
+        h1 { color: #333; }
+        h2 { color: #555; margin-top: 24px; }
+        table { border-collapse: collapse; width: 100%; margin: 16px 0; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+        th { background: #f5f5f5; font-weight: 600; }
+        tr:nth-child(even) { background: #fafafa; }
+        code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; }
+        .score-positive { color: #22863a; font-weight: 600; }
+        .score-negative { color: #cb2431; font-weight: 600; }
+        .summary { background: #e8f4f8; padding: 16px; margin: 16px 0; border-radius: 6px; }
+        .summary p { margin: 8px 0; }
+        .summary b { color: #333; }
+    </style>
+</head>
+<body>
+    <h1>AI Evaluation Report</h1>
+
+    <div class="summary">
+        <p><b>AI:</b> muses (rust)</p>
+        <p><b>Time:</b> 2026-01-15 09:49:20</p>
+        <p><b>Config:</b> depth=2, time_limit=0.5s</p>
+    </div>
+
+    <h2>Summary</h2>
+    <table>
+        <tr><td><b>Total Scenarios</b></td><td>16</td></tr>
+        <tr><td><b>Avg Score</b></td><td>+5641.1</td></tr>
+        <tr><td><b>Total Time</b></td><td>5.68s</td></tr>
+    </table>
+
+    <h2>Scenario Results</h2>
+    <table>
+        <tr>
+            <th>Scenario</th>
+            <th>Best Move</th>
+            <th>Score</th>
+            <th>Time</th>
+            <th>NPS</th>
+        </tr>
+        <tr>
+                <td>initial</td>
+                <td><code>+b2e2</code></td>
+                <td class="score-positive">+9999</td>
+                <td>441ms</td>
+                <td>-</td>
+            </tr><tr>
+                <td>midgame_hidden</td>
+                <td><code>-</code></td>
+                <td class="score-positive">+0</td>
+                <td>7ms</td>
+                <td>-</td>
+            </tr><tr>
+                <td>double_rook_mate</td>
+                <td><code>e1e9</code></td>
+                <td class="score-positive">+10000</td>
+                <td>429ms</td>
+                <td>-</td>
+            </tr><tr>
+                <td>horse_cannon_mate</td>
+                <td><code>f2e2</code></td>
+                <td class="score-positive">+9991</td>
+                <td>468ms</td>
+                <td>-</td>
+            </tr><tr>
+                <td>iron_bolt</td>
+                <td><code>e0e1</code></td>
+                <td class="score-positive">+9993</td>
+                <td>384ms</td>
+                <td>-</td>
+            </tr><tr>
+                <td>smothered_mate</td>
+                <td><code>e7e9</code></td>
+                <td class="score-positive">+10000</td>
+                <td>499ms</td>
+                <td>-</td>
+            </tr><tr>
+                <td>rook_horse_cold</td>
+                <td><code>e7d9</code></td>
+                <td class="score-positive">+10000</td>
+                <td>529ms</td>
+                <td>-</td>
+            </tr><tr>
+                <td>rook_vs_cannon</td>
+                <td><code>e4e5</code></td>
+                <td class="score-positive">+9997</td>
+                <td>358ms</td>
+                <td>-</td>
+            </tr><tr>
+                <td>pawn_advance</td>
+                <td><code>e3e4</code></td>
+                <td class="score-positive">+155</td>
+                <td>21ms</td>
+                <td>-</td>
+            </tr><tr>
+                <td>rook_pawn_vs_rook</td>
+                <td><code>e3e4</code></td>
+                <td class="score-positive">+92</td>
+                <td>419ms</td>
+                <td>-</td>
+            </tr><tr>
+                <td>double_cannon_advisor</td>
+                <td><code>e2e9</code></td>
+                <td class="score-positive">+10000</td>
+                <td>509ms</td>
+                <td>-</td>
+            </tr><tr>
+                <td>hidden_opening</td>
+                <td><code>+b2e2</code></td>
+                <td class="score-positive">+9999</td>
+                <td>423ms</td>
+                <td>-</td>
+            </tr><tr>
+                <td>partial_revealed</td>
+                <td><code>-</code></td>
+                <td class="score-positive">+0</td>
+                <td>7ms</td>
+                <td>-</td>
+            </tr><tr>
+                <td>mixed_hidden_revealed</td>
+                <td><code>ERROR: Rust AI error: Error: Row 9 has 8 columns, expected 9
+</code></td>
+                <td class="score-positive">+0</td>
+                <td>5ms</td>
+                <td>-</td>
+            </tr><tr>
+                <td>midgame_attack</td>
+                <td><code>c2d4</code></td>
+                <td class="score-positive">+165</td>
+                <td>528ms</td>
+                <td>-</td>
+            </tr><tr>
+                <td>complex_midgame</td>
+                <td><code>e0f0</code></td>
+                <td class="score-negative">-133</td>
+                <td>654ms</td>
+                <td>-</td>
+            </tr>
+    </table>
+</body>
+</html>
