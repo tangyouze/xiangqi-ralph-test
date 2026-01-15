@@ -16,9 +16,13 @@ app = typer.Typer(help="AI Evaluation Tools")
 def report(
     strategy: str = typer.Option("muses", "--strategy", "-s", help="AI strategy name"),
     backend: str = typer.Option("rust", "--backend", "-b", help="Backend: python or rust"),
-    depth: int = typer.Option(4, "--depth", "-d", help="Search depth"),
-    time_limit: float = typer.Option(1.0, "--time", "-t", help="Time limit in seconds"),
+    depth: int = typer.Option(2, "--depth", "-d", help="Search depth"),
+    time_limit: float = typer.Option(0.5, "--time", "-t", help="Time limit in seconds"),
     output: str = typer.Option("data/reports", "--output", "-o", help="Output directory"),
+    winrate: bool = typer.Option(False, "--winrate/--no-winrate", help="Test win rate"),
+    winrate_games: int = typer.Option(5, "--winrate-games", help="Number of games"),
+    winrate_time: float = typer.Option(1.0, "--winrate-time", help="Time per move"),
+    workers: int = typer.Option(4, "--workers", "-w", help="Parallel workers"),
 ) -> None:
     """Generate AI evaluation HTML report"""
     from jieqi.ai.report import EVAL_SCENARIOS, generate_report
@@ -28,12 +32,23 @@ def report(
 
     logger.info(f"Generating report for {strategy} ({backend})")
     logger.info(f"Config: depth={depth}, time_limit={time_limit}s")
+    if winrate:
+        logger.info(
+            f"Win rate test: {winrate_games} games, {winrate_time}s/move, {workers} workers"
+        )
 
     report = generate_report(
         strategy=strategy,
         backend=backend,
         scenarios=EVAL_SCENARIOS,
-        config={"depth": depth, "time_limit": time_limit},
+        config={
+            "depth": depth,
+            "time_limit": time_limit,
+            "test_winrate": winrate,
+            "winrate_games": winrate_games,
+            "winrate_time_limit": winrate_time,
+            "max_workers": workers,
+        },
     )
 
     # 保存报告

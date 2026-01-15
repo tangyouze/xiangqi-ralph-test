@@ -798,6 +798,22 @@ impl MusesAI {
     }
 }
 
+/// 将内部分数归一化到 -1000 到 1000 范围
+fn normalize_score(score: i32) -> f64 {
+    // 将杀分数 (MATE_SCORE = 10000)
+    if score >= MATE_SCORE - 100 {
+        return 1000.0;
+    }
+    if score <= -(MATE_SCORE - 100) {
+        return -1000.0;
+    }
+
+    // 普通分数：clamp 到 -999 到 999
+    // 当前棋子价值范围大约 -5000 到 5000，缩放到 -999 到 999
+    let normalized = (score as f64 / 5.0).clamp(-999.0, 999.0);
+    normalized
+}
+
 impl AIStrategy for MusesAI {
     fn select_moves(&self, board: &Board, n: usize) -> Vec<ScoredMove> {
         // 创建新实例避免可变借用问题
@@ -814,13 +830,13 @@ impl AIStrategy for MusesAI {
             .into_iter()
             .map(|(mv, score)| {
                 let noise = if ai.randomness > 0.0 {
-                    (ai.rng.gen::<f64>() * ai.randomness * 100.0) as i32
+                    (ai.rng.gen::<f64>() * ai.randomness * 20.0) as i32
                 } else {
                     0
                 };
                 ScoredMove {
                     mv,
-                    score: (score + noise) as f64,
+                    score: normalize_score(score + noise),
                 }
             })
             .collect();

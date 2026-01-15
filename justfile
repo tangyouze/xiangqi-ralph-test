@@ -71,6 +71,10 @@ battle *ARGS:
 ai-report STRATEGY="muses" BACKEND="rust":
     uv run python scripts/ai_eval.py report --strategy {{STRATEGY}} --backend {{BACKEND}}
 
+# Generate AI evaluation report with win rate testing
+ai-report-winrate STRATEGY="muses" BACKEND="rust" GAMES="5":
+    uv run python scripts/ai_eval.py report --strategy {{STRATEGY}} --backend {{BACKEND}} --winrate --winrate-games {{GAMES}}
+
 # List evaluation scenarios
 ai-scenarios:
     uv run python scripts/ai_eval.py list-scenarios
