@@ -1,7 +1,7 @@
 [project]
-name = "xiangqi"
+name = "jieqi"
 version = "0.1.0"
-description = "Chinese Chess (Xiangqi) engine with AI and web interface"
+description = "Jieqi (Banqi/Dark Chess) engine with AI and web interface"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115.0",
@@ -29,7 +29,7 @@ build-backend = "hatchling.build"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
-addopts = "-v --cov=xiangqi --cov-report=term-missing"
+addopts = "-v --cov=jieqi --cov-report=term-missing"
 
 [tool.ruff]
 line-length = 100
@@ -39,7 +39,7 @@ target-version = "py311"
 select = ["E", "F", "W", "I", "N", "B", "A", "C4", "UP"]
 
 [tool.coverage.run]
-source = ["xiangqi"]
+source = ["jieqi"]
 branch = true
 
 [tool.coverage.report]
