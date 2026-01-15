@@ -38,6 +38,7 @@ impl Piece {
 pub struct Board {
     /// 90 个格子的棋子数组 (10行 x 9列)
     squares: [Option<Piece>; 90],
+    #[allow(dead_code)]
     viewer: Color,
     current_turn: Color,
     /// 缓存红方将的位置
@@ -135,6 +136,7 @@ impl Board {
 
     /// 获取某位置的棋子（可变）
     #[inline]
+    #[allow(dead_code)]
     fn get_piece_mut(&mut self, pos: Position) -> Option<&mut Piece> {
         if !pos.is_valid() {
             return None;
@@ -153,7 +155,7 @@ impl Board {
         self.squares
             .iter()
             .filter_map(|p| p.as_ref())
-            .filter(|p| color.map_or(true, |c| p.color == c))
+            .filter(|p| color.is_none_or(|c| p.color == c))
             .collect()
     }
 

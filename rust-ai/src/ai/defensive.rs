@@ -117,7 +117,7 @@ impl DefensiveAI {
 
         let mut max_eval = f64::NEG_INFINITY;
         for mv in legal_moves {
-            let was_hidden = board.get_piece(mv.from_pos).map_or(false, |p| p.is_hidden);
+            let was_hidden = board.get_piece(mv.from_pos).is_some_and(|p| p.is_hidden);
             let captured = board.make_move(&mv);
             let eval = -self.negamax(board, depth - 1, -beta, -alpha);
             board.undo_move(&mv, captured, was_hidden);

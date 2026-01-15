@@ -101,7 +101,7 @@ impl MinimaxAI {
 
         let mut max_eval = f64::NEG_INFINITY;
         for mv in legal_moves {
-            let was_hidden = board.get_piece(mv.from_pos).map_or(false, |p| p.is_hidden);
+            let was_hidden = board.get_piece(mv.from_pos).is_some_and(|p| p.is_hidden);
             let captured = board.make_move(&mv);
 
             // 递归调用，取负值（因为对手视角相反）

@@ -28,6 +28,7 @@ struct ZobristTable {
 }
 
 impl ZobristTable {
+    #[allow(clippy::needless_range_loop)]
     fn new() -> Self {
         let mut rng = StdRng::seed_from_u64(0xDEADBEEF);
         let mut pieces = [[[0u64; 2]; 16]; 90];
@@ -255,7 +256,7 @@ impl PVSAI {
             if piece.color == color {
                 score += value;
                 // 位置奖励
-                let center_bonus = (5 - (4 - piece.position.col as i32).abs()) as i32;
+                let center_bonus = 5 - (4 - piece.position.col as i32).abs();
                 score += center_bonus;
             } else {
                 score -= value;
@@ -278,16 +279,15 @@ impl PVSAI {
     /// MVV-LVA 评分
     #[inline]
     fn mvv_lva_score(&self, board: &Board, mv: &JieqiMove) -> i32 {
-        let victim = board
-            .get_piece(mv.to_pos)
-            .map_or(0, |p| Self::get_piece_value(p));
+        let victim = board.get_piece(mv.to_pos).map_or(0, Self::get_piece_value);
         let attacker = board
             .get_piece(mv.from_pos)
-            .map_or(0, |p| Self::get_piece_value(p));
+            .map_or(0, Self::get_piece_value);
         victim * 10 - attacker
     }
 
     /// 走法排序（原地排序，不分配新内存）
+    #[allow(clippy::too_many_arguments)]
     fn order_moves_inplace(
         &self,
         board: &Board,
@@ -325,10 +325,10 @@ impl PVSAI {
                     score += 800_000;
                 }
 
-                if ply < 64 {
-                    if self.killers[ply][0] == Some(*mv) || self.killers[ply][1] == Some(*mv) {
-                        score += 600_000;
-                    }
+                if ply < 64
+                    && (self.killers[ply][0] == Some(*mv) || self.killers[ply][1] == Some(*mv))
+                {
+                    score += 600_000;
                 }
 
                 score += self.history[mv.from_pos.to_index()][mv.to_pos.to_index()];
@@ -447,12 +447,12 @@ impl PVSAI {
                 }
             }
 
-            let was_hidden = board.get_piece(mv.from_pos).map_or(false, |p| p.is_hidden);
+            let was_hidden = board.get_piece(mv.from_pos).is_some_and(|p| p.is_hidden);
             let captured = board.make_move(&mv);
 
             if captured
                 .as_ref()
-                .map_or(false, |p| p.actual_type == Some(PieceType::King))
+                .is_some_and(|p| p.actual_type == Some(PieceType::King))
             {
                 board.undo_move(&mv, captured, was_hidden);
                 return MATE_SCORE - ply;
@@ -473,6 +473,7 @@ impl PVSAI {
     }
 
     /// PVS 搜索
+    #[allow(clippy::too_many_arguments)]
     fn pvs(
         &mut self,
         board: &mut Board,
@@ -486,7 +487,11 @@ impl PVSAI {
     ) -> i32 {
         NODE_COUNT.fetch_add(1, AtomicOrdering::Relaxed);
 
-        if NODE_COUNT.load(AtomicOrdering::Relaxed) % 4096 == 0 && self.is_time_up() {
+        if NODE_COUNT
+            .load(AtomicOrdering::Relaxed)
+            .is_multiple_of(4096)
+            && self.is_time_up()
+        {
             return alpha;
         }
 
@@ -623,7 +628,7 @@ impl PVSAI {
             };
 
             let target = board.get_piece(mv.to_pos);
-            let is_capture = target.map_or(false, |t| t.color != color);
+            let is_capture = target.is_some_and(|t| t.color != color);
             let is_reveal = mv.action_type == ActionType::RevealAndMove;
             let was_hidden = piece.is_hidden;
 
@@ -654,7 +659,7 @@ impl PVSAI {
 
             if captured
                 .as_ref()
-                .map_or(false, |p| p.actual_type == Some(PieceType::King))
+                .is_some_and(|p| p.actual_type == Some(PieceType::King))
             {
                 board.undo_move(&mv, captured, was_hidden);
                 return MATE_SCORE - ply;
@@ -802,7 +807,7 @@ impl PVSAI {
 
             if captured
                 .as_ref()
-                .map_or(false, |p| p.actual_type == Some(PieceType::King))
+                .is_some_and(|p| p.actual_type == Some(PieceType::King))
             {
                 results.push((*mv, MATE_SCORE));
                 continue;

@@ -52,7 +52,7 @@ pub struct FenState {
 
 /// 解析 FEN 字符串
 pub fn parse_fen(fen: &str) -> Result<FenState, String> {
-    let parts: Vec<&str> = fen.trim().split_whitespace().collect();
+    let parts: Vec<&str> = fen.split_whitespace().collect();
     if parts.len() != 4 {
         return Err(format!(
             "Invalid FEN format: expected '<board> <captured> <turn> <viewer>', got: {}",
@@ -206,6 +206,7 @@ fn parse_captured(captured_str: &str) -> Result<CapturedInfo, String> {
 }
 
 /// 从棋子列表生成 FEN 字符串
+#[allow(clippy::needless_range_loop)]
 pub fn pieces_to_fen(
     pieces: &[FenPiece],
     captured: &CapturedInfo,

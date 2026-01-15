@@ -29,6 +29,7 @@ struct ZobristTable {
 }
 
 impl ZobristTable {
+    #[allow(clippy::needless_range_loop)]
     fn new() -> Self {
         let mut rng = StdRng::seed_from_u64(0xDEADCAFE);
         let mut pieces = [[[0u64; 2]; 16]; 90];
@@ -263,7 +264,7 @@ impl MusesAI {
             if piece.color == color {
                 score += value;
                 // 中心控制奖励
-                let center_bonus = (5 - (4 - piece.position.col as i32).abs()) as i32;
+                let center_bonus = 5 - (4 - piece.position.col as i32).abs();
                 score += center_bonus;
 
                 // 前进奖励（兵）
@@ -296,12 +297,10 @@ impl MusesAI {
     /// MVV-LVA 评分
     #[inline]
     fn mvv_lva_score(&self, board: &Board, mv: &JieqiMove) -> i32 {
-        let victim = board
-            .get_piece(mv.to_pos)
-            .map_or(0, |p| Self::get_piece_value(p));
+        let victim = board.get_piece(mv.to_pos).map_or(0, Self::get_piece_value);
         let attacker = board
             .get_piece(mv.from_pos)
-            .map_or(0, |p| Self::get_piece_value(p));
+            .map_or(0, Self::get_piece_value);
         victim * 10 - attacker
     }
 
@@ -338,10 +337,10 @@ impl MusesAI {
                 }
 
                 // Killer moves
-                if ply < 64 {
-                    if self.killers[ply][0] == Some(*mv) || self.killers[ply][1] == Some(*mv) {
-                        score += 500_000;
-                    }
+                if ply < 64
+                    && (self.killers[ply][0] == Some(*mv) || self.killers[ply][1] == Some(*mv))
+                {
+                    score += 500_000;
                 }
 
                 // History heuristic
@@ -405,7 +404,7 @@ impl MusesAI {
             .filter(|mv| {
                 board
                     .get_piece(mv.to_pos)
-                    .map_or(false, |target| target.color != color)
+                    .is_some_and(|target| target.color != color)
             })
             .collect()
     }
@@ -455,7 +454,7 @@ impl MusesAI {
             // 吃将
             if captured
                 .as_ref()
-                .map_or(false, |p| p.actual_type == Some(PieceType::King))
+                .is_some_and(|p| p.actual_type == Some(PieceType::King))
             {
                 board.undo_move(&mv, captured, was_hidden);
                 return MATE_SCORE - ply;
@@ -485,6 +484,7 @@ impl MusesAI {
     }
 
     /// PVS 搜索
+    #[allow(clippy::too_many_arguments)]
     fn pvs(
         &mut self,
         board: &mut Board,
@@ -499,7 +499,7 @@ impl MusesAI {
         NODE_COUNT.fetch_add(1, AtomicOrdering::Relaxed);
 
         // 每 2000 节点检查时间
-        if self.nodes_evaluated % 2000 == 0 && self.is_time_up() {
+        if self.nodes_evaluated.is_multiple_of(2000) && self.is_time_up() {
             return alpha;
         }
 
@@ -578,7 +578,7 @@ impl MusesAI {
             // 吃将
             if captured
                 .as_ref()
-                .map_or(false, |p| p.actual_type == Some(PieceType::King))
+                .is_some_and(|p| p.actual_type == Some(PieceType::King))
             {
                 board.undo_move(mv, captured, was_hidden);
                 return MATE_SCORE - ply;
@@ -702,7 +702,7 @@ impl MusesAI {
             // 吃将
             if captured
                 .as_ref()
-                .map_or(false, |p| p.actual_type == Some(PieceType::King))
+                .is_some_and(|p| p.actual_type == Some(PieceType::King))
             {
                 results.push((*mv, MATE_SCORE));
                 continue;
