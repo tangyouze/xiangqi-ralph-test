@@ -24,8 +24,14 @@ impl IterativeDeepeningAI {
             Some(s) => StdRng::seed_from_u64(s),
             None => StdRng::from_entropy(),
         };
+        // 如果设置了时间限制，允许无限加深；否则使用配置的深度
+        let max_depth = if config.time_limit.is_some() {
+            50 // 会被时间限制打断
+        } else {
+            config.depth
+        };
         IterativeDeepeningAI {
-            max_depth: config.depth,
+            max_depth,
             rng,
             randomness: config.randomness,
             time_limit: config.time_limit.map(Duration::from_secs_f64),
