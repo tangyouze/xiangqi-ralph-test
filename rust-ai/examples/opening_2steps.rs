@@ -1,73 +1,70 @@
-//! 开局第一步分数分析（大规模采样）
+//! 开局2步分数分析
 //!
-//! 随机走1000次，统计分数分布
+//! 红方走1步 → 黑方走1步 → 评估分数
 
 use xiangqi_ai::{Board, MinimaxAI, Color};
 use rand::prelude::*;
 use std::collections::HashMap;
 
 fn main() {
-    // 正确的开局FEN：将/帅是明子
     let opening_fen = "xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXKXXXX -:- r r";
     
     println!("═══════════════════════════════════════════════");
-    println!("开局第一步静态评估分数（1000次随机采样）");
+    println!("开局2步分数分析（红1步→黑1步，采样500次）");
     println!("═══════════════════════════════════════════════\n");
     
     let board = Board::from_fen(opening_fen).unwrap();
-    
-    // 开局静态评估
     let opening_score = MinimaxAI::evaluate_static(&board, Color::Red);
-    println!("开局局面评估（红方视角）: {:.2}\n", opening_score);
+    println!("开局评估（红方视角）: {:.2}\n", opening_score);
     
-    // 获取所有合法走法
-    let moves = board.get_legal_moves(Color::Red);
-    println!("红方合法走法总数: {}\n", moves.len());
+    let red_moves = board.get_legal_moves(Color::Red);
+    println!("红方合法走法: {}\n", red_moves.len());
     
-    // 随机采样1000次
     let mut rng = rand::thread_rng();
-    let sample_size = 1000;
+    let sample_size = 500;
     
-    println!("开始随机采样 {} 次...\n", sample_size);
+    println!("开始随机采样 {} 次（红1步+黑1步）...\n", sample_size);
     
     let mut scores = Vec::new();
-    let mut move_scores: HashMap<String, Vec<f64>> = HashMap::new();
-    let mut piece_type_scores: HashMap<String, Vec<f64>> = HashMap::new();
+    let mut piece_scores: HashMap<String, Vec<f64>> = HashMap::new();
     
     for _ in 0..sample_size {
-        // 随机选择一个走法
-        let mv = moves.choose(&mut rng).unwrap();
+        // 红方随机走一步
+        let red_move = red_moves.choose(&mut rng).unwrap();
+        let mut board_after_red = board.clone();
         
-        let mut board_copy = board.clone();
+        let red_piece = board_after_red.get_piece(red_move.from_pos).unwrap();
+        let red_type = red_piece.movement_type.unwrap();
         
-        // 记录揭开前的位置
-        let revealed_piece = board_copy.get_piece(mv.from_pos).unwrap();
-        let revealed_type = revealed_piece.movement_type.unwrap();
+        board_after_red.make_move(red_move);
         
-        board_copy.make_move(mv);
+        // 黑方随机走一步
+        let black_moves = board_after_red.get_legal_moves(Color::Black);
+        if black_moves.is_empty() {
+            continue;
+        }
         
-        // 从黑方视角评估（因为走完后轮到黑方）
-        let score_black = MinimaxAI::evaluate_static(&board_copy, Color::Black);
+        let black_move = black_moves.choose(&mut rng).unwrap();
+        board_after_red.make_move(black_move);
         
-        // 转换为红方视角（取负）
-        let score_red = -score_black;
+        // 轮到红方，从红方视角评估
+        let score = MinimaxAI::evaluate_static(&board_after_red, Color::Red);
         
-        scores.push(score_red);
+        scores.push(score);
         
-        // 记录每个走法的分数
-        let move_str = mv.to_fen_str(None);
-        move_scores.entry(move_str).or_insert_with(Vec::new).push(score_red);
-        
-        // 记录每种棋子类型的分数
-        let piece_name = format!("{:?}", revealed_type);
-        piece_type_scores.entry(piece_name).or_insert_with(Vec::new).push(score_red);
+        let key = format!("{:?}", red_type);
+        piece_scores.entry(key).or_insert_with(Vec::new).push(score);
     }
     
-    // 统计
+    if scores.is_empty() {
+        println!("没有有效的采样结果");
+        return;
+    }
+    
     scores.sort_by(|a, b| a.partial_cmp(b).unwrap());
     
     println!("═══════════════════════════════════════════════");
-    println!("统计结果");
+    println!("统计结果（2步后）");
     println!("═══════════════════════════════════════════════\n");
     
     println!("分数范围:");
@@ -80,6 +77,7 @@ fn main() {
     // 分数分布
     println!("分数分布:");
     let ranges = [
+        (-2000.0, -1000.0, "巨大劣势"),
         (-1000.0, -500.0, "严重劣势"),
         (-500.0, -300.0, "明显劣势"),
         (-300.0, -100.0, "小劣"),
@@ -87,7 +85,8 @@ fn main() {
         (0.0, 100.0, "略优"),
         (100.0, 300.0, "小优"),
         (300.0, 500.0, "明显优势"),
-        (500.0, 1000.0, "巨大优势"),
+        (500.0, 1000.0, "严重优势"),
+        (1000.0, 2000.0, "巨大优势"),
     ];
     
     for (low, high, label) in ranges {
@@ -99,9 +98,9 @@ fn main() {
         }
     }
     
-    // 按棋子类型统计
-    println!("\n按棋子类型统计:");
-    let mut piece_stats: Vec<_> = piece_type_scores.iter()
+    // 按红方第一步棋子类型统计
+    println!("\n按红方第一步棋子类型统计:");
+    let mut piece_stats: Vec<_> = piece_scores.iter()
         .map(|(piece, scores_vec)| {
             let avg = scores_vec.iter().sum::<f64>() / scores_vec.len() as f64;
             let min = scores_vec.iter().cloned().fold(f64::INFINITY, f64::min);
@@ -114,17 +113,5 @@ fn main() {
     for (piece, count, avg, min, max) in piece_stats {
         println!("  {:<8} - {} 次 | 平均: {:>7.2} | 最小: {:>7.2} | 最大: {:>7.2}", 
             piece, count, avg, min, max);
-    }
-    
-    // 显示最常见的走法
-    println!("\n最常见的10个走法:");
-    let mut move_counts: Vec<_> = move_scores.iter()
-        .map(|(mv, scores_vec)| (mv.clone(), scores_vec.len(), scores_vec.iter().sum::<f64>() / scores_vec.len() as f64))
-        .collect();
-    move_counts.sort_by(|a, b| b.1.cmp(&a.1));
-    
-    for (i, (mv, count, avg_score)) in move_counts.iter().take(10).enumerate() {
-        println!("  {:2}. {} - {} 次 (平均分: {:.2})", 
-            i+1, mv, count, avg_score);
     }
 }
