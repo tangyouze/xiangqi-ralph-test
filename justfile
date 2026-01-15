@@ -1,4 +1,4 @@
-# Xiangqi project commands
+# Jieqi project commands
 
 # List all available commands (default)
 default:
@@ -11,7 +11,7 @@ test:
     @echo "=== Rust Tests ==="
     cd rust-ai && cargo test
     @echo "=== Python Tests ==="
-    cd backend && uv run pytest tests/unit/ tests/integration/ -v
+    uv run pytest tests/unit/ tests/integration/ -v
     @echo "=== All Tests Passed ==="
 
 # Run Rust tests only
@@ -20,11 +20,11 @@ test-rust:
 
 # Run Python tests only
 test-py:
-    cd backend && uv run pytest tests/ -v
+    uv run pytest tests/ -v
 
 # Run jieqi tests only
 test-jieqi:
-    cd backend && uv run pytest tests/unit/jieqi/ tests/integration/jieqi/ -v
+    uv run pytest tests/unit/jieqi/ tests/integration/jieqi/ -v
 
 # Run frontend e2e tests only
 test-e2e:
@@ -39,12 +39,10 @@ start:
 # Restart overmind in daemon mode
 restart:
     -overmind quit 2>/dev/null
-    -pkill -f "uvicorn main:app" 2>/dev/null
     -pkill -f "uvicorn jieqi_main:app" 2>/dev/null
     -pkill -f "npm run dev -- --port 6701" 2>/dev/null
     -pkill -f "streamlit" 2>/dev/null
     -lsof -ti:6701 | xargs kill -9 2>/dev/null
-    -lsof -ti:6702 | xargs kill -9 2>/dev/null
     -lsof -ti:6703 | xargs kill -9 2>/dev/null
     -lsof -ti:6704 | xargs kill -9 2>/dev/null
     -rm -f .overmind.sock
@@ -53,12 +51,12 @@ restart:
     @echo "Waiting for services..."
     @sleep 5
     @echo "Services started. Use 'overmind connect' to attach."
-    @echo "Ports: Frontend=6701, Backend=6702, Jieqi=6703, Dashboard=6704"
+    @echo "Ports: Frontend=6701, Jieqi=6703, Dashboard=6704"
     open http://localhost:6701
 
 # Start backend only (jieqi)
 backend:
-    cd backend && uv run uvicorn jieqi.api.app:app --host 0.0.0.0 --port 6703 --reload
+    uv run uvicorn jieqi.api.app:app --host 0.0.0.0 --port 6703 --reload
 
 # Start frontend only
 frontend:
@@ -68,7 +66,7 @@ frontend:
 
 # Install all dependencies
 install:
-    cd backend && uv sync
+    uv sync
     cd frontend && npm install
     cd rust-ai && cargo build --release
 
@@ -84,12 +82,12 @@ build-frontend:
 
 # Format code
 fmt:
-    cd backend && uv run ruff format .
+    uv run ruff format .
     cd rust-ai && cargo fmt
 
 # Lint code
 lint:
-    cd backend && uv run ruff check .
+    uv run ruff check .
     cd rust-ai && cargo clippy
 
 # API health check
@@ -99,4 +97,4 @@ health:
 
 # Run AI battle
 battle *ARGS:
-    cd backend && uv run python scripts/ai_battle.py {{ARGS}}
+    uv run python scripts/ai_battle.py {{ARGS}}

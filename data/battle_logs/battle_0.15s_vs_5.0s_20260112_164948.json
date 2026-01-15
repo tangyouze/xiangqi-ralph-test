@@ -1,0 +1,24 @@
+{
+  "config": {
+    "red_time": 0.15,
+    "black_time": 5.0,
+    "total_games": 100
+  },
+  "progress": {
+    "completed": 1,
+    "red_wins": 0,
+    "black_wins": 0,
+    "draws": 1
+  },
+  "games": [
+    {
+      "seed": 10,
+      "result": "draw",
+      "moves": 2,
+      "notations": [
+        "1. [红] 翻炮九进1",
+        "2. [黑] 翻砲1进1"
+      ]
+    }
+  ]
+}
