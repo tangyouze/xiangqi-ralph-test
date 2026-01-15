@@ -2,26 +2,18 @@
 //!
 //! 提供多种 AI 策略实现，包括随机、贪婪、Minimax 等
 
-mod aggressive;
-mod defensive;
 mod greedy;
 mod iterative;
 mod mcts;
 mod minimax;
 mod muses;
-mod positional;
-mod pvs;
 mod random;
 
-pub use aggressive::AggressiveAI;
-pub use defensive::DefensiveAI;
 pub use greedy::GreedyAI;
 pub use iterative::IterativeDeepeningAI;
 pub use mcts::MCTSAI;
 pub use minimax::{MinimaxAI, NODE_COUNT};
 pub use muses::MusesAI;
-pub use positional::PositionalAI;
-pub use pvs::PVSAI;
 pub use random::RandomAI;
 
 /// 重置节点计数器
@@ -127,34 +119,6 @@ impl AIEngine {
         }
     }
 
-    /// 创建位置评估 AI
-    pub fn positional(config: &AIConfig) -> Self {
-        AIEngine {
-            strategy: Box::new(PositionalAI::new(config)),
-        }
-    }
-
-    /// 创建防守型 AI
-    pub fn defensive(config: &AIConfig) -> Self {
-        AIEngine {
-            strategy: Box::new(DefensiveAI::new(config)),
-        }
-    }
-
-    /// 创建进攻型 AI
-    pub fn aggressive(config: &AIConfig) -> Self {
-        AIEngine {
-            strategy: Box::new(AggressiveAI::new(config)),
-        }
-    }
-
-    /// 创建 PVS AI
-    pub fn pvs(config: &AIConfig) -> Self {
-        AIEngine {
-            strategy: Box::new(PVSAI::new(config)),
-        }
-    }
-
     /// 创建 Muses AI
     pub fn muses(config: &AIConfig) -> Self {
         AIEngine {
@@ -170,13 +134,9 @@ impl AIEngine {
             "minimax" | "alphabeta" => Ok(Self::minimax(config)),
             "iterative" | "iterative_deepening" => Ok(Self::iterative_deepening(config)),
             "mcts" | "montecarlo" => Ok(Self::mcts(config)),
-            "positional" | "position" => Ok(Self::positional(config)),
-            "defensive" | "defense" => Ok(Self::defensive(config)),
-            "aggressive" | "attack" => Ok(Self::aggressive(config)),
-            "pvs" | "advanced" => Ok(Self::pvs(config)),
             "muses" => Ok(Self::muses(config)),
             _ => Err(format!(
-                "Unknown strategy: {}. Available: random, greedy, minimax, iterative, mcts, positional, defensive, aggressive, pvs, muses",
+                "Unknown strategy: {}. Available: random, greedy, minimax, iterative, mcts, muses",
                 name
             )),
         }
@@ -270,37 +230,13 @@ mod tests {
     }
 
     #[test]
-    fn test_positional_ai() {
+    fn test_muses_ai() {
         let fen = "4k4/9/9/9/4c4/4R4/9/9/9/4K4 -:- r r";
         let config = AIConfig {
             depth: 2,
             ..Default::default()
         };
-        let ai = AIEngine::positional(&config);
-        let best = ai.select_best_move_fen(fen).unwrap().unwrap();
-        assert_eq!(best, "e4e5");
-    }
-
-    #[test]
-    fn test_defensive_ai() {
-        let fen = "xxxxxxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXXXXXX -:- r r";
-        let config = AIConfig {
-            depth: 2,
-            ..Default::default()
-        };
-        let ai = AIEngine::defensive(&config);
-        let moves = ai.select_moves_fen(fen, 3).unwrap();
-        assert_eq!(moves.len(), 3);
-    }
-
-    #[test]
-    fn test_aggressive_ai() {
-        let fen = "4k4/9/9/9/4c4/4R4/9/9/9/4K4 -:- r r";
-        let config = AIConfig {
-            depth: 2,
-            ..Default::default()
-        };
-        let ai = AIEngine::aggressive(&config);
+        let ai = AIEngine::muses(&config);
         let best = ai.select_best_move_fen(fen).unwrap().unwrap();
         assert_eq!(best, "e4e5");
     }
@@ -308,16 +244,7 @@ mod tests {
     #[test]
     fn test_all_strategies_from_name() {
         let config = AIConfig::default();
-        let strategies = vec![
-            "random",
-            "greedy",
-            "minimax",
-            "iterative",
-            "mcts",
-            "positional",
-            "defensive",
-            "aggressive",
-        ];
+        let strategies = vec!["random", "greedy", "minimax", "iterative", "mcts", "muses"];
 
         for name in strategies {
             let result = AIEngine::from_strategy(name, &config);
