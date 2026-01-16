@@ -39,14 +39,12 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 class UnifiedAIConfig:
     """统一 AI 配置"""
 
-    # 搜索深度
-    depth: int = 3
+    # 时间限制（秒）
+    time_limit: float = 0.5
     # 随机性
     randomness: float = 0.0
     # 随机种子
     seed: int | None = None
-    # 时间限制（秒）
-    time_limit: float | None = None
 
 
 class AIBackend(ABC):
@@ -131,13 +129,12 @@ class RustBackend(AIBackend):
         return response.get("legal_moves", [])
 
     def get_best_moves(self, fen: str, n: int = 5) -> list[tuple[str, float]]:
-        time_limit = self.config.time_limit if self.config.time_limit is not None else 0.5
         response = self._send_request(
             {
                 "cmd": "best",
                 "fen": fen,
                 "strategy": self.strategy_name,
-                "time_limit": time_limit,
+                "time_limit": self.config.time_limit,
                 "n": n,
             }
         )
@@ -151,13 +148,12 @@ class RustBackend(AIBackend):
         Returns:
             (moves, nodes, nps) - 走法列表、搜索节点数、每秒节点数
         """
-        time_limit = self.config.time_limit if self.config.time_limit is not None else 0.5
         response = self._send_request(
             {
                 "cmd": "best",
                 "fen": fen,
                 "strategy": self.strategy_name,
-                "time_limit": time_limit,
+                "time_limit": self.config.time_limit,
                 "n": n,
             }
         )
@@ -201,34 +197,25 @@ class UnifiedAIEngine:
 
     def __init__(
         self,
-        backend: Literal["rust"] = "rust",  # 保留参数以兼容，但只支持rust
-        strategy: str = "minimax",
-        depth: int = 3,
+        strategy: str = "muses",
+        time_limit: float = 0.5,
         randomness: float = 0.0,
         seed: int | None = None,
-        time_limit: float | None = None,
     ):
         """创建统一 AI 引擎
 
         Args:
-            backend: 后端类型 (只支持 "rust")
             strategy: AI 策略名称
-            depth: 搜索深度
+            time_limit: 时间限制（秒）
             randomness: 随机性
             seed: 随机种子
-            time_limit: 时间限制（秒）
         """
-        if backend != "rust":
-            raise ValueError(f"只支持 Rust 后端。Python AI 策略已移除。")
-
-        self.backend_type = backend
         self.strategy = strategy
 
         config = UnifiedAIConfig(
-            depth=depth,
+            time_limit=time_limit,
             randomness=randomness,
             seed=seed,
-            time_limit=time_limit,
         )
 
         self._backend: AIBackend = RustBackend(strategy, config)
@@ -306,9 +293,9 @@ def get_legal_moves(fen: str) -> list[str]:
 def get_best_moves(
     fen: str,
     n: int = 5,
-    strategy: str = "minimax",
-    depth: int = 3,
+    strategy: str = "muses",
+    time_limit: float = 0.5,
 ) -> list[tuple[str, float]]:
     """获取最佳走法（便捷函数）"""
-    engine = UnifiedAIEngine(strategy=strategy, depth=depth)
+    engine = UnifiedAIEngine(strategy=strategy, time_limit=time_limit)
     return engine.get_best_moves(fen, n)

@@ -74,11 +74,11 @@ COL_CHARS = "abcdefghi"
 
 def render_board_html(fen: str, highlight_moves: list[tuple[str, float]] | None = None) -> str:
     """渲染中国象棋棋盘为 HTML
-    
+
     Args:
         fen: FEN 字符串
         highlight_moves: 需要高亮的走法 [(move_str, score), ...]
-    
+
     Returns:
         HTML 字符串
     """
@@ -303,7 +303,7 @@ def main():
         # AI 配置
         st.subheader("AI Settings")
 
-        depth = st.slider("Depth", 1, 5, 3)
+        time_limit = st.slider("Time (s)", 0.1, 10.0, 1.0, step=0.1)
 
         # 获取可用策略（仅 Rust 后端）
         try:
@@ -311,7 +311,7 @@ def main():
             available_strategies = engine.list_strategies()
         except Exception as e:
             st.error(f"Error loading strategies: {e}")
-            available_strategies = ["greedy"]
+            available_strategies = ["muses"]
 
         strategy = st.selectbox("Strategy", available_strategies)
         top_n = st.slider("Top N Moves", 1, 10, 5)
@@ -341,7 +341,7 @@ def main():
                 try:
                     engine = UnifiedAIEngine(
                         strategy=strategy,
-                        depth=depth,
+                        time_limit=time_limit,
                     )
                     moves = engine.get_best_moves(fen, top_n)
 

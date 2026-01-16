@@ -300,7 +300,6 @@ class EvalReport:
         avg_score = sum(r.score for r in self.results) / total if total > 0 else 0
 
         # 配置信息
-        depth = self.config.get("depth", "-")
         time_limit = self.config.get("time_limit", "-")
         if time_limit and time_limit != "-":
             time_limit = f"{time_limit}s"
@@ -333,7 +332,7 @@ class EvalReport:
     <div class="summary">
         <p><b>AI:</b> {self.ai_name}</p>
         <p><b>Time:</b> {self.timestamp}</p>
-        <p><b>Config:</b> depth={depth}, time_limit={time_limit}</p>
+        <p><b>Config:</b> time_limit={time_limit}</p>
     </div>
 
     <h2>Summary</h2>
@@ -373,7 +372,7 @@ def generate_report(
     Args:
         strategy: AI 策略名称
         scenarios: 评估场景列表 [(name, fen), ...]
-        config: AI 配置 {"depth": 4, "time_limit": 1.0}
+        config: AI 配置 {"time_limit": 1.0}
 
     Returns:
         评估报告
@@ -382,13 +381,12 @@ def generate_report(
         scenarios = EVAL_SCENARIOS
 
     if config is None:
-        config = {"depth": 4, "time_limit": 1.0}
+        config = {"time_limit": 1.0}
 
     # 创建 AI 引擎
     engine = UnifiedAIEngine(
         strategy=strategy,
-        depth=config.get("depth", 4),
-        time_limit=config.get("time_limit"),
+        time_limit=config.get("time_limit", 0.5),
     )
 
     results: list[ScenarioResult] = []

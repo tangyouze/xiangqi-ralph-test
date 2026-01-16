@@ -15,7 +15,6 @@ app = typer.Typer(help="AI Evaluation Tools")
 @app.command()
 def report(
     strategy: str = typer.Option("muses", "--strategy", "-s", help="AI strategy name"),
-    depth: int = typer.Option(2, "--depth", "-d", help="Search depth"),
     time_limit: float = typer.Option(0.5, "--time", "-t", help="Time limit in seconds"),
     output: str = typer.Option("data/reports", "--output", "-o", help="Output directory"),
     winrate: bool = typer.Option(False, "--winrate/--no-winrate", help="Test win rate"),
@@ -30,7 +29,7 @@ def report(
     output_path = Path(output)
 
     logger.info(f"Generating report for {strategy}")
-    logger.info(f"Config: depth={depth}, time_limit={time_limit}s")
+    logger.info(f"Config: time_limit={time_limit}s")
     if winrate:
         logger.info(
             f"Win rate test: {winrate_games} games, {winrate_time}s/move, {workers} workers"
@@ -40,7 +39,6 @@ def report(
         strategy=strategy,
         scenarios=EVAL_SCENARIOS,
         config={
-            "depth": depth,
             "time_limit": time_limit,
             "test_winrate": winrate,
             "winrate_games": winrate_games,

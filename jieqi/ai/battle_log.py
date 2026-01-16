@@ -69,7 +69,6 @@ class MoveRecord:
     move: dict  # 走法（结构化 JSON）
     score: float  # 评分
     nodes: int  # 搜索节点数
-    depth: int  # 搜索深度
     tt_hits: int  # TT 命中数
     tt_total: int  # TT 总查询数
     candidates: list[dict]  # 候选着法 [{action_type, from_pos, to_pos, score}, ...]
@@ -136,8 +135,6 @@ class BattleLogger:
         self.move_count = 0
         self.red_total_nodes = 0
         self.black_total_nodes = 0
-        self.red_max_depth = 0
-        self.black_max_depth = 0
         self.start_time = datetime.now()
 
         # 写入游戏开始记录
@@ -176,7 +173,6 @@ class BattleLogger:
         move: Any,
         score: float,
         nodes: int,
-        depth: int,
         elapsed_ms: float,
         revealed_type: str | None,
         fen_after: str,
@@ -191,7 +187,6 @@ class BattleLogger:
             move: 走法对象或字符串
             score: 评分
             nodes: 搜索节点数
-            depth: 搜索深度
             elapsed_ms: 思考时间（毫秒）
             revealed_type: 揭开的棋子类型（如果是揭子走法，否则为 None）
             fen_after: 走完后的 FEN
@@ -202,10 +197,8 @@ class BattleLogger:
         # 更新统计
         if player == "red":
             self.red_total_nodes += nodes
-            self.red_max_depth = max(self.red_max_depth, depth)
         else:
             self.black_total_nodes += nodes
-            self.black_max_depth = max(self.black_max_depth, depth)
 
         # 序列化走法为结构化 JSON
         move_data = serialize_move(move) if not isinstance(move, str) else move
@@ -222,7 +215,6 @@ class BattleLogger:
             "score": score,
             "nodes": nodes,
             "nps": nps,
-            "depth": depth,
             "elapsed_ms": elapsed_ms,
             "revealed_type": revealed_type,
             "fen_after": fen_after,
@@ -248,13 +240,11 @@ class BattleLogger:
             red_stats={
                 "total_nodes": self.red_total_nodes,
                 "avg_nodes": self.red_total_nodes / max(red_moves, 1),
-                "max_depth": self.red_max_depth,
                 "moves": red_moves,
             },
             black_stats={
                 "total_nodes": self.black_total_nodes,
                 "avg_nodes": self.black_total_nodes / max(black_moves, 1),
-                "max_depth": self.black_max_depth,
                 "moves": black_moves,
             },
             duration_seconds=duration,

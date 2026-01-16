@@ -25,7 +25,7 @@ test-py:
 # === 服务命令 ===
 
 # Start streamlit dashboard
-start:
+streamlit:
     uv run streamlit run streamlit_app.py --server.port 6704
 
 # Restart with overmind

@@ -69,9 +69,7 @@ def init_session_state():
         st.session_state.game_mode = GameMode.HUMAN_VS_AI
     # ai_backend 已移除，只使用Rust
     if "ai_strategy" not in st.session_state:
-        st.session_state.ai_strategy = "minimax"  # Rust默认策略
-    if "ai_depth" not in st.session_state:
-        st.session_state.ai_depth = 3
+        st.session_state.ai_strategy = "muses"
     if "ai_thinking" not in st.session_state:
         st.session_state.ai_thinking = False
     if "pending_reveal" not in st.session_state:
@@ -82,6 +80,10 @@ def init_session_state():
         st.session_state.auto_play = False
     if "delay_reveal" not in st.session_state:
         st.session_state.delay_reveal = False
+    if "ai_time_limit" not in st.session_state:
+        st.session_state.ai_time_limit = 0.5  # 默认 0.5 秒
+    if "last_ai_stats" not in st.session_state:
+        st.session_state.last_ai_stats = None  # {nodes, nps, time_ms, move, score}
 
 
 def create_new_game():
@@ -95,6 +97,7 @@ def create_new_game():
     st.session_state.pending_reveal = None
     st.session_state.message = "Game started! Red moves first."
     st.session_state.auto_play = False
+    st.session_state.last_ai_stats = None
 
 
 def get_piece_at(row: int, col: int) -> dict | None:
@@ -286,17 +289,31 @@ def make_ai_move():
         # 创建 AI 引擎（只使用Rust）
         engine = UnifiedAIEngine(
             strategy=st.session_state.ai_strategy,
-            depth=st.session_state.ai_depth,
+            time_limit=st.session_state.ai_time_limit,
         )
 
-        # 获取最佳走法
-        moves = engine.get_best_moves(fen, n=1)
+        # 记录开始时间
+        start_time = time.time()
+
+        # 获取最佳走法及统计信息
+        moves, nodes, nps = engine.get_best_moves_with_stats(fen, n=1)
+        elapsed_ms = (time.time() - start_time) * 1000
+
         if not moves:
             st.session_state.message = "AI has no legal moves!"
             st.session_state.ai_thinking = False
             return
 
         move_str, score = moves[0]
+
+        # 保存 AI 统计信息
+        st.session_state.last_ai_stats = {
+            "move": move_str,
+            "score": score,
+            "nodes": nodes,
+            "nps": nps,
+            "time_ms": elapsed_ms,
+        }
 
         # 解析走法
         move, revealed_type = parse_move(move_str)
@@ -458,8 +475,10 @@ def render_board():
     )
 
     # 开始渲染棋盘
-    st.markdown('<div class="xiangqi-board-wrapper"><div class="xiangqi-grid">', unsafe_allow_html=True)
-    
+    st.markdown(
+        '<div class="xiangqi-board-wrapper"><div class="xiangqi-grid">', unsafe_allow_html=True
+    )
+
     # 列标签（a-i）
     col_labels = st.columns([0.6] + [1] * 9)
     col_labels[0].markdown('<div class="coord-label"></div>', unsafe_allow_html=True)
@@ -492,7 +511,7 @@ def render_board():
                     # 明子
                     btn_text = PIECE_SYMBOLS.get((piece["color"], piece["actual_type"]), "?")
                     piece_type = piece["color"].value
-                
+
                 # 添加选中标记
                 if is_selected:
                     piece_type += "-selected"
@@ -516,7 +535,7 @@ def render_board():
 
                 # 使用 HTML 属性传递样式信息
                 btn_html = f'<div style="display:none;" data-piece="{piece_type}"></div>'
-                
+
                 if st.button(
                     btn_text,
                     key=key,
@@ -525,7 +544,7 @@ def render_board():
                 ):
                     handle_cell_click(row, col)
                     st.rerun()
-        
+
         # 在第 4-5 行之间添加楚河汉界提示
         if row == 5:
             st.markdown(
@@ -541,8 +560,8 @@ def render_board():
                 """,
                 unsafe_allow_html=True,
             )
-    
-    st.markdown('</div></div>', unsafe_allow_html=True)
+
+    st.markdown("</div></div>", unsafe_allow_html=True)
 
 
 def render_reveal_selector():
@@ -600,25 +619,24 @@ def render_sidebar():
         st.subheader("AI Settings")
         st.caption("🦀 Powered by Rust")
 
-        col1, col2 = st.columns(2)
-        with col1:
-            # 选择Rust策略
-            st.session_state.ai_strategy = st.selectbox(
-                "Strategy",
-                ["minimax", "muses", "greedy", "random", "iterative", "mcts"],
-                index=0,
-                help="Rust实现的AI策略"
-            )
-        with col2:
-            st.session_state.ai_depth = st.slider(
-                "Depth",
-                1,
-                5,
-                st.session_state.ai_depth,
-            )
+        # 选择Rust策略
+        st.session_state.ai_strategy = st.selectbox(
+            "Strategy",
+            ["muses", "iterative", "minimax", "greedy", "random", "mcts"],
+            index=0,
+            help="Rust AI strategy",
+        )
+
+        st.session_state.ai_time_limit = st.slider(
+            "Time (s)",
+            0.1,
+            10.0,
+            st.session_state.ai_time_limit,
+            step=0.1,
+            help="AI thinking time limit",
+        )
 
         st.divider()
-
 
         # 新游戏按钮
         if st.button("New Game", type="primary", use_container_width=True):
@@ -665,6 +683,22 @@ def render_game_info():
         st.metric("Red Hidden", game.get_hidden_count(Color.RED))
     with col4:
         st.metric("Black Hidden", game.get_hidden_count(Color.BLACK))
+
+    # AI 统计信息
+    stats = st.session_state.last_ai_stats
+    if stats is not None:
+        st.divider()
+        st.caption("Last AI Move")
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("Move", stats["move"])
+        with col2:
+            st.metric("Score", f"{stats['score']:.1f}")
+        with col3:
+            st.metric("Nodes", f"{stats['nodes']:,}")
+        with col4:
+            nps_k = stats["nps"] / 1000 if stats["nps"] > 0 else 0
+            st.metric("NPS", f"{nps_k:.0f}K")
 
 
 def render_move_history():

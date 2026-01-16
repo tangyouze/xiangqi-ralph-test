@@ -23,10 +23,8 @@ from dataclasses import dataclass
 class AIConfig:
     """AI 配置"""
 
-    # 搜索深度
-    depth: int = 3
     # 时间限制（秒）
-    time_limit: float | None = None
+    time_limit: float = 0.5
     # 随机性（用于避免相同局面下完全相同的走法）
     randomness: float = 0.0
     # 随机种子

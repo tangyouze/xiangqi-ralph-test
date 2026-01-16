@@ -673,7 +673,6 @@ def _run_game_impl(
                 "score": score,
                 "nodes": nodes,
                 "nps": nps,
-                "depth": 3,
                 "elapsed_ms": elapsed_ms,
                 "revealed_type": revealed_type,
                 "fen_after": fen_after,
