@@ -5,7 +5,7 @@
 use clap::{Parser, Subcommand};
 use serde::{Deserialize, Serialize};
 use std::time::Instant;
-use xiangqi_ai::{get_legal_moves_from_fen, get_node_count, reset_node_count, AIConfig, AIEngine};
+use xiangqi_ai::{get_legal_moves_from_fen, get_node_count, reset_node_count, AIConfig, AIEngine, Board, MinimaxAI, Color};
 
 #[derive(Parser)]
 #[command(name = "xiangqi-ai")]
@@ -20,30 +20,26 @@ enum Commands {
     /// 获取合法走法
     Moves {
         /// FEN 字符串
-        #[arg(short, long)]
+        #[arg(long)]
         fen: String,
     },
 
     /// 选择最佳走法
     Best {
         /// FEN 字符串
-        #[arg(short, long)]
+        #[arg(long)]
         fen: String,
 
-        /// AI 策略 (random, greedy, minimax, iterative, mcts, positional, defensive, aggressive)
-        #[arg(short, long, default_value = "greedy")]
+        /// AI 策略 (random, greedy, minimax, iterative, mcts, muses)
+        #[arg(long, default_value = "muses")]
         strategy: String,
 
-        /// 搜索深度
-        #[arg(short, long, default_value = "3")]
-        depth: u32,
-
         /// 时间限制（秒）
-        #[arg(short = 't', long)]
+        #[arg(long)]
         time_limit: Option<f64>,
 
         /// 返回的走法数量
-        #[arg(short, long, default_value = "1")]
+        #[arg(long, default_value = "1")]
         n: usize,
 
         /// JSON 输出
@@ -51,15 +47,15 @@ enum Commands {
         json: bool,
     },
 
-    /// 交互模式
-    Play {
-        /// AI 策略
-        #[arg(short, long, default_value = "greedy")]
-        strategy: String,
+    /// 评估局面分数
+    Score {
+        /// FEN 字符串
+        #[arg(long)]
+        fen: String,
 
-        /// 搜索深度
-        #[arg(short, long, default_value = "3")]
-        depth: u32,
+        /// JSON 输出
+        #[arg(long)]
+        json: bool,
     },
 }
 
@@ -98,13 +94,12 @@ fn main() {
         Commands::Best {
             fen,
             strategy,
-            depth,
             time_limit,
             n,
             json,
         } => {
             let config = AIConfig {
-                depth,
+                depth: 100, // 使用时间限制，深度设置足够大
                 randomness: 0.0,
                 seed: None,
                 time_limit,
@@ -146,7 +141,7 @@ fn main() {
                             nodes, elapsed, nps
                         );
                     } else {
-                        println!("Best moves (strategy={}, depth={}):", strategy, depth);
+                        println!("Best moves (strategy={}):", strategy);
                         for (mv, score) in moves {
                             println!("  {} (score: {:.2})", mv, score);
                         }
@@ -163,10 +158,29 @@ fn main() {
             }
         }
 
-        Commands::Play { strategy, depth } => {
-            println!("Interactive mode not yet implemented.");
-            println!("Strategy: {}, Depth: {}", strategy, depth);
-            println!("\nUse 'best' command to get AI moves for a FEN position.");
+        Commands::Score { fen, json } => {
+            match Board::from_fen(&fen) {
+                Ok(board) => {
+                    let color = board.current_turn();
+                    let score = MinimaxAI::evaluate_static(&board, color);
+
+                    if json {
+                        println!(
+                            "{{\"fen\": {:?}, \"color\": {:?}, \"score\": {:.2}}}",
+                            fen,
+                            if color == Color::Red { "red" } else { "black" },
+                            score
+                        );
+                    } else {
+                        let color_str = if color == Color::Red { "红方" } else { "黑方" };
+                        println!("局面评估 ({} 视角): {:.2}", color_str, score);
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Error: {}", e);
+                    std::process::exit(1);
+                }
+            }
         }
     }
 }

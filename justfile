@@ -75,6 +75,10 @@ rustai-moves FEN:
 rustai-best FEN STRATEGY="muses" TIME="0.5" N="10":
     cd rust-ai && cargo run --release -- best --fen "{{FEN}}" --strategy {{STRATEGY}} --time-limit {{TIME}} --n {{N}} --json
 
+# Evaluate position score
+rustai-score FEN:
+    cd rust-ai && cargo run --release -- score --fen "{{FEN}}"
+
 # Show help for Rust AI CLI
 rustai-help:
     cd rust-ai && cargo run --release -- --help
