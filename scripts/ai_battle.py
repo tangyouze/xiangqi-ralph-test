@@ -24,7 +24,16 @@ console = Console()
 app = typer.Typer()
 
 # 可用策略列表
-AVAILABLE_STRATEGIES = ["random", "greedy", "iterative", "mcts", "muses", "muses2", "muses3", "muses4"]
+AVAILABLE_STRATEGIES = [
+    "random",
+    "greedy",
+    "iterative",
+    "mcts",
+    "muses",
+    "muses2",
+    "muses3",
+    "muses4",
+]
 
 # FEN 英文到中文映射
 FEN_TO_CHINESE = {
@@ -768,16 +777,14 @@ def run_matchup_games(args: tuple) -> tuple[str, str, list[str], dict, list[str]
 
 @app.command()
 def battle(
-    ai_red: str = typer.Option("muses", "--red", "-r", help="Red AI strategy"),
-    ai_black: str = typer.Option("minimax", "--black", "-b", help="Black AI strategy"),
-    num_games: int = typer.Option(10, "--games", "-n", help="Number of games"),
-    max_moves: int = typer.Option(300, "--max-moves", "-m", help="Max moves per game"),
-    seed: int | None = typer.Option(42, "--seed", "-s", help="Random seed"),
-    time_limit: float = typer.Option(
-        0.1, "--time", "-t", help="AI thinking time per move (seconds)"
-    ),
-    log_dir: str | None = typer.Option(None, "--log-dir", "-l", help="Log directory"),
-    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show each move in detail"),
+    ai_red: str = typer.Option("muses", "--red", help="Red AI strategy"),
+    ai_black: str = typer.Option("minimax", "--black", help="Black AI strategy"),
+    num_games: int = typer.Option(10, "--games", help="Number of games"),
+    max_moves: int = typer.Option(300, "--max-moves", help="Max moves per game"),
+    seed: int | None = typer.Option(42, "--seed", help="Random seed"),
+    time_limit: float = typer.Option(0.1, "--time", help="AI thinking time per move (seconds)"),
+    log_dir: str | None = typer.Option(None, "--log-dir", help="Log directory"),
+    verbose: bool = typer.Option(False, "--verbose", help="Show each move in detail"),
 ):
     """Run AI vs AI battle with logging"""
     # 验证策略
@@ -891,18 +898,16 @@ def list_ai():
 
 @app.command()
 def compare(
-    num_games: int = typer.Option(10, "--games", "-n", help="Number of games per direction"),
-    max_moves: int = typer.Option(300, "--max-moves", "-m", help="Max moves per game"),
-    seed: int | None = typer.Option(42, "--seed", "-s", help="Random seed"),
-    output: str | None = typer.Option(None, "--output", "-o", help="Output JSON file"),
+    num_games: int = typer.Option(10, "--games", help="Number of games per direction"),
+    max_moves: int = typer.Option(300, "--max-moves", help="Max moves per game"),
+    seed: int | None = typer.Option(42, "--seed", help="Random seed"),
+    output: str | None = typer.Option(None, "--output", help="Output JSON file"),
     strategies_filter: str | None = typer.Option(
-        None, "--filter", "-f", help="Comma-separated list of strategies to include"
+        None, "--filter", help="Comma-separated list of strategies to include"
     ),
-    time_limit: float = typer.Option(
-        0.1, "--time", "-t", help="AI thinking time per move (seconds)"
-    ),
-    workers: int = typer.Option(10, "--workers", "-w", help="Number of parallel workers"),
-    log_dir: str | None = typer.Option(None, "--log-dir", "-l", help="Log directory"),
+    time_limit: float = typer.Option(0.1, "--time", help="AI thinking time per move (seconds)"),
+    workers: int = typer.Option(10, "--workers", help="Number of parallel workers"),
+    log_dir: str | None = typer.Option(None, "--log-dir", help="Log directory"),
 ):
     """Run round-robin comparison between AI strategies (red vs black and black vs red)"""
     # 获取策略列表

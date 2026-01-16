@@ -65,9 +65,13 @@ lint:
 battle *ARGS:
     uv run python scripts/ai_battle.py {{ARGS}}
 
+# 快速对战测试（10局, 0.1秒, 10并发）
+fast-battle RED="muses2" BLACK="muses" GAMES="10":
+    uv run python scripts/ai_battle.py compare --filter {{RED}},{{BLACK}} --games {{GAMES}} --time 0.1 --workers 10
+
 # Run single AI battle with verbose output
 battle-verbose RED="muses" BLACK="iterative" TIME="0.1":
-    uv run python scripts/ai_battle.py battle -n 1 -v -r {{RED}} -b {{BLACK}} -t {{TIME}}
+    uv run python scripts/ai_battle.py battle --games 1 --verbose --red {{RED}} --black {{BLACK}} --time {{TIME}}
 
 # === Rust AI CLI ===
 

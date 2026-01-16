@@ -51,7 +51,7 @@ class MovesResponse:
 
 @app.command()
 def moves(
-    fen: str = typer.Option(..., "--fen", "-f", help="FEN 字符串"),
+    fen: str = typer.Option(..., "--fen", help="FEN 字符串"),
     output_json: bool = typer.Option(False, "--json", help="JSON 输出"),
 ) -> None:
     """获取合法走法"""
@@ -73,11 +73,11 @@ def moves(
 
 @app.command()
 def best(
-    fen: str = typer.Option(..., "--fen", "-f", help="FEN 字符串"),
-    strategy: str = typer.Option("greedy", "--strategy", "-s", help="AI 策略"),
-    n: int = typer.Option(1, "--n", "-n", help="返回的走法数量"),
+    fen: str = typer.Option(..., "--fen", help="FEN 字符串"),
+    strategy: str = typer.Option("greedy", "--strategy", help="AI 策略"),
+    n: int = typer.Option(1, "--n", help="返回的走法数量"),
     output_json: bool = typer.Option(False, "--json", help="JSON 输出"),
-    time_limit: float | None = typer.Option(None, "--time", "-t", help="时间限制（秒）"),
+    time_limit: float | None = typer.Option(None, "--time", help="时间限制（秒）"),
 ) -> None:
     """选择最佳走法"""
     try:

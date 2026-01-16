@@ -14,13 +14,13 @@ app = typer.Typer(help="AI Evaluation Tools")
 
 @app.command()
 def report(
-    strategy: str = typer.Option("muses", "--strategy", "-s", help="AI strategy name"),
-    time_limit: float = typer.Option(0.5, "--time", "-t", help="Time limit in seconds"),
-    output: str = typer.Option("data/reports", "--output", "-o", help="Output directory"),
+    strategy: str = typer.Option("muses", "--strategy", help="AI strategy name"),
+    time_limit: float = typer.Option(0.5, "--time", help="Time limit in seconds"),
+    output: str = typer.Option("data/reports", "--output", help="Output directory"),
     winrate: bool = typer.Option(False, "--winrate/--no-winrate", help="Test win rate"),
     winrate_games: int = typer.Option(5, "--winrate-games", help="Number of games"),
     winrate_time: float = typer.Option(1.0, "--winrate-time", help="Time per move"),
-    workers: int = typer.Option(4, "--workers", "-w", help="Parallel workers"),
+    workers: int = typer.Option(4, "--workers", help="Parallel workers"),
 ) -> None:
     """Generate AI evaluation HTML report"""
     from jieqi.ai.report import EVAL_SCENARIOS, generate_report
