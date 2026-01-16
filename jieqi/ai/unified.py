@@ -119,16 +119,14 @@ class RustBackend(AIBackend):
             fen,
             "--strategy",
             self.strategy_name,
-            "--depth",
-            str(self.config.depth),
             "--n",
             str(n),
             "--json",
         ]
 
-        # 添加时间限制（如果设置）
-        if self.config.time_limit is not None:
-            args.extend(["--time-limit", str(self.config.time_limit)])
+        # 添加时间限制（使用配置或默认值）
+        time_limit = self.config.time_limit if self.config.time_limit is not None else 0.5
+        args.extend(["--time-limit", str(time_limit)])
 
         output = self._run_command(args)
 
@@ -175,7 +173,7 @@ class UnifiedAIEngine:
         """
         if backend != "rust":
             raise ValueError(f"只支持 Rust 后端。Python AI 策略已移除。")
-        
+
         self.backend_type = backend
         self.strategy = strategy
 
@@ -187,7 +185,6 @@ class UnifiedAIEngine:
         )
 
         self._backend: AIBackend = RustBackend(strategy, config)
-
 
     def get_legal_moves(self, fen: str) -> list[str]:
         """获取合法走法
