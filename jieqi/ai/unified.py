@@ -71,7 +71,7 @@ class AIBackend(ABC):
 class RustBackend(AIBackend):
     """Rust AI 后端
 
-    通过调用 Rust CLI 二进制文件与 Rust AI 通信
+    通过长驻 server 进程与 Rust AI 通信（stdin/stdout）
     """
 
     def __init__(self, strategy: str = "greedy", config: UnifiedAIConfig | None = None):
@@ -90,49 +90,58 @@ class RustBackend(AIBackend):
                 "Rust AI binary not found. Please build with: cd rust-ai && cargo build --release"
             )
 
-    def _run_command(self, args: list[str]) -> str:
-        """执行 Rust CLI 命令"""
-        cmd = [str(self._binary)] + args
-        result = subprocess.run(cmd, capture_output=True, text=True)
+        # 长驻进程
+        self._process: subprocess.Popen | None = None
 
-        if result.returncode != 0:
-            raise RuntimeError(f"Rust AI error: {result.stderr}")
+    def _ensure_server(self) -> None:
+        """确保 server 进程在运行"""
+        if self._process is None or self._process.poll() is not None:
+            self._process = subprocess.Popen(
+                [str(self._binary), "server"],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
 
-        return result.stdout
+    def _send_request(self, request: dict) -> dict:
+        """发送请求并等待响应"""
+        self._ensure_server()
+        assert self._process is not None
+        assert self._process.stdin is not None
+        assert self._process.stdout is not None
+
+        # 发送请求
+        self._process.stdin.write(json.dumps(request) + "\n")
+        self._process.stdin.flush()
+
+        # 读取响应
+        response_line = self._process.stdout.readline()
+        if not response_line:
+            raise RuntimeError("Rust server closed unexpectedly")
+
+        response = json.loads(response_line)
+        if not response.get("ok", False):
+            raise RuntimeError(f"Rust AI error: {response.get('error', 'Unknown error')}")
+
+        return response
 
     def get_legal_moves(self, fen: str) -> list[str]:
-        output = self._run_command(["moves", "--fen", fen])
-
-        # 解析输出
-        moves = []
-        for line in output.strip().split("\n"):
-            line = line.strip()
-            if line and not line.startswith("Legal moves"):
-                moves.append(line)
-
-        return moves
+        response = self._send_request({"cmd": "moves", "fen": fen})
+        return response.get("legal_moves", [])
 
     def get_best_moves(self, fen: str, n: int = 5) -> list[tuple[str, float]]:
-        args = [
-            "best",
-            "--fen",
-            fen,
-            "--strategy",
-            self.strategy_name,
-            "--n",
-            str(n),
-            "--json",
-        ]
-
-        # 添加时间限制（使用配置或默认值）
         time_limit = self.config.time_limit if self.config.time_limit is not None else 0.5
-        args.extend(["--time-limit", str(time_limit)])
-
-        output = self._run_command(args)
-
-        # 解析 JSON 输出
-        data = json.loads(output)
-        return [(m["move"], m["score"]) for m in data["moves"]]
+        response = self._send_request(
+            {
+                "cmd": "best",
+                "fen": fen,
+                "strategy": self.strategy_name,
+                "time_limit": time_limit,
+                "n": n,
+            }
+        )
+        return [(m["move"], m["score"]) for m in response.get("moves", [])]
 
     def list_strategies(self) -> list[str]:
         # Rust 支持的策略
@@ -144,6 +153,22 @@ class RustBackend(AIBackend):
             "mcts",
             "muses",
         ]
+
+    def close(self) -> None:
+        """关闭 server 进程"""
+        if self._process is not None and self._process.poll() is None:
+            try:
+                assert self._process.stdin is not None
+                self._process.stdin.write(json.dumps({"cmd": "quit"}) + "\n")
+                self._process.stdin.flush()
+                self._process.wait(timeout=1.0)
+            except Exception:
+                self._process.kill()
+            self._process = None
+
+    def __del__(self):
+        """析构时关闭进程"""
+        self.close()
 
 
 class UnifiedAIEngine:

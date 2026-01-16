@@ -236,6 +236,24 @@ def run_single_game_with_log(
     return result, move_count, stats, game_id
 
 
+def run_single_game_task(args: tuple) -> tuple[str, str, str, int, str]:
+    """运行单局对战（用于多进程，每局一个任务）
+
+    Args:
+        args: (red, black, time_limit, max_moves, seed, log_dir, game_index)
+
+    Returns:
+        (red, black, result, moves, game_id)
+    """
+    red, black, time_limit, max_moves, seed, log_dir_str, game_index = args
+    log_dir = Path(log_dir_str) if log_dir_str else None
+
+    result, moves, _stats, game_id = run_single_game_with_log(
+        red, black, time_limit, max_moves, seed, log_dir, game_index
+    )
+    return red, black, result, moves, game_id
+
+
 def run_matchup_games(args: tuple) -> tuple[str, str, list[str], dict, list[str]]:
     """运行一组对战（用于多进程）
 
@@ -417,7 +435,8 @@ def compare(
     console.print(f"Total matchups: {num_pairs} (each pair plays both directions)")
     console.print(f"Total games: {total_games}")
     console.print(f"Time limit: {time_limit}s/move, Workers: {workers}")
-    console.print(f"Log dir: {log_path}\n")
+    console.print(f"Log dir: {log_path}")
+    console.print()
 
     # 结果矩阵
     results: dict[str, dict[str, dict]] = {
@@ -425,18 +444,25 @@ def compare(
         for s1 in strategies_list
     }
 
-    # 构建所有对战任务（每对都包含两个方向）
-    matchup_args = []
+    # 构建所有单局任务（每局一个任务，方便实时进度更新）
+    game_args = []
+    game_index = 0
     for idx, s1 in enumerate(strategies_list):
         for jdx, s2 in enumerate(strategies_list):
             if s1 != s2:
-                matchup_seed = (seed + idx * 1000 + jdx * 100) if seed else None
-                matchup_args.append(
-                    (s1, s2, num_games, max_moves, matchup_seed, time_limit, str(log_path))
-                )
+                for i in range(num_games):
+                    game_seed = (seed + idx * 1000 + jdx * 100 + i * 2) if seed else None
+                    game_args.append(
+                        (s1, s2, time_limit, max_moves, game_seed, str(log_path), game_index)
+                    )
+                    game_index += 1
 
-    completed = 0
     all_game_ids = []
+    start_time = time.time()
+
+    # 实时统计
+    wins_count = {s: 0 for s in strategies_list}
+    losses_count = {s: 0 for s in strategies_list}
 
     with Progress(
         SpinnerColumn(),
@@ -444,45 +470,76 @@ def compare(
         BarColumn(),
         TaskProgressColumn(),
         TextColumn("[cyan]{task.completed}/{task.total}[/cyan]"),
+        TextColumn("•"),
+        TextColumn("[yellow]{task.fields[status]}[/yellow]"),
         console=console,
+        refresh_per_second=4,
     ) as progress:
-        task = progress.add_task("[green]Running battles...", total=len(matchup_args))
+        task = progress.add_task(
+            "[green]Running battles...", total=total_games, status="starting..."
+        )
 
         if workers > 1:
-            # 多进程模式
+            # 多进程模式：每局一个任务
             with ProcessPoolExecutor(max_workers=workers) as executor:
-                futures = {executor.submit(run_matchup_games, args): args for args in matchup_args}
+                futures = {executor.submit(run_single_game_task, args): args for args in game_args}
                 for future in as_completed(futures):
-                    ai_red, ai_black, game_results, stats, game_ids = future.result()
+                    ai_red, ai_black, result, moves, game_id = future.result()
 
-                    # 统计结果
-                    wins = sum(1 for r in game_results if r == "red_win")
-                    losses = sum(1 for r in game_results if r == "black_win")
-                    draws = len(game_results) - wins - losses
+                    # 更新结果
+                    if result == "red_win":
+                        results[ai_red][ai_black]["wins"] += 1
+                        wins_count[ai_red] += 1
+                        losses_count[ai_black] += 1
+                    elif result == "black_win":
+                        results[ai_red][ai_black]["losses"] += 1
+                        wins_count[ai_black] += 1
+                        losses_count[ai_red] += 1
+                    else:
+                        results[ai_red][ai_black]["draws"] += 1
 
-                    results[ai_red][ai_black]["wins"] += wins
-                    results[ai_red][ai_black]["losses"] += losses
-                    results[ai_red][ai_black]["draws"] += draws
+                    all_game_ids.append(game_id)
 
-                    all_game_ids.extend(game_ids)
-                    completed += 1
-                    progress.update(task, advance=1)
+                    # 生成状态文本
+                    elapsed = time.time() - start_time
+                    completed = len(all_game_ids)
+                    speed = completed / elapsed if elapsed > 0 else 0
+                    eta = (total_games - completed) / speed if speed > 0 else 0
+
+                    # 显示各策略胜负
+                    status_parts = []
+                    for s in strategies_list:
+                        status_parts.append(f"{s[:3]}:{wins_count[s]}W")
+                    status = " ".join(status_parts) + f" | {speed:.1f}g/s ETA:{eta:.0f}s"
+
+                    progress.update(task, advance=1, status=status)
         else:
             # 单进程模式
-            for args in matchup_args:
-                ai_red, ai_black, game_results, stats, game_ids = run_matchup_games(args)
+            for args in game_args:
+                ai_red, ai_black, result, moves, game_id = run_single_game_task(args)
 
-                wins = sum(1 for r in game_results if r == "red_win")
-                losses = sum(1 for r in game_results if r == "black_win")
-                draws = len(game_results) - wins - losses
+                if result == "red_win":
+                    results[ai_red][ai_black]["wins"] += 1
+                    wins_count[ai_red] += 1
+                    losses_count[ai_black] += 1
+                elif result == "black_win":
+                    results[ai_red][ai_black]["losses"] += 1
+                    wins_count[ai_black] += 1
+                    losses_count[ai_red] += 1
+                else:
+                    results[ai_red][ai_black]["draws"] += 1
 
-                results[ai_red][ai_black]["wins"] += wins
-                results[ai_red][ai_black]["losses"] += losses
-                results[ai_red][ai_black]["draws"] += draws
+                all_game_ids.append(game_id)
 
-                all_game_ids.extend(game_ids)
-                completed += 1
-                progress.update(task, advance=1)
+                elapsed = time.time() - start_time
+                completed = len(all_game_ids)
+                speed = completed / elapsed if elapsed > 0 else 0
+                eta = (total_games - completed) / speed if speed > 0 else 0
+                status_parts = []
+                for s in strategies_list:
+                    status_parts.append(f"{s[:3]}:{wins_count[s]}W")
+                status = " ".join(status_parts) + f" | {speed:.1f}g/s ETA:{eta:.0f}s"
+                progress.update(task, advance=1, status=status)
 
     # 计算综合得分（作为红方的胜率）
     scores: dict[str, float] = {}
