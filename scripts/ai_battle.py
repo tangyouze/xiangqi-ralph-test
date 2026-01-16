@@ -100,6 +100,39 @@ def run_single_game_with_log(
     red_ai = UnifiedAIEngine(strategy=red_strategy, time_limit=time_limit)
     black_ai = UnifiedAIEngine(strategy=black_strategy, time_limit=time_limit)
 
+    try:
+        return _run_game_impl(
+            red_ai,
+            black_ai,
+            red_strategy,
+            black_strategy,
+            time_limit,
+            max_moves,
+            seed,
+            log_dir,
+            game_index,
+        )
+    finally:
+        # 确保关闭 Rust server 进程
+        if hasattr(red_ai, "_backend") and hasattr(red_ai._backend, "close"):
+            red_ai._backend.close()
+        if hasattr(black_ai, "_backend") and hasattr(black_ai._backend, "close"):
+            black_ai._backend.close()
+
+
+def _run_game_impl(
+    red_ai: UnifiedAIEngine,
+    black_ai: UnifiedAIEngine,
+    red_strategy: str,
+    black_strategy: str,
+    time_limit: float,
+    max_moves: int,
+    seed: int | None,
+    log_dir: Path | None,
+    game_index: int = 0,
+) -> tuple[str, int, dict, str]:
+    """实际执行对战逻辑"""
+
     # 创建游戏
     game = JieqiGame()
 
