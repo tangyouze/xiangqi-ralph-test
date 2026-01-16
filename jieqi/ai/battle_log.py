@@ -177,12 +177,26 @@ class BattleLogger:
         score: float,
         nodes: int,
         depth: int,
-        tt_hits: int,
-        tt_misses: int,
-        candidates: list[tuple[Any, float]],
-        elapsed_ms: float = 0.0,
+        elapsed_ms: float,
+        revealed_type: str | None,
+        fen_after: str,
+        candidates: list[tuple[Any, float]] | None = None,
     ) -> None:
-        """记录一步走法"""
+        """记录一步走法
+
+        Args:
+            move_num: 步数
+            player: 玩家 ("red" | "black")
+            ai_name: AI 名称
+            move: 走法对象或字符串
+            score: 评分
+            nodes: 搜索节点数
+            depth: 搜索深度
+            elapsed_ms: 思考时间（毫秒）
+            revealed_type: 揭开的棋子类型（如果是揭子走法，否则为 None）
+            fen_after: 走完后的 FEN
+            candidates: 候选着法列表
+        """
         self.move_count = move_num
 
         # 更新统计
@@ -194,7 +208,10 @@ class BattleLogger:
             self.black_max_depth = max(self.black_max_depth, depth)
 
         # 序列化走法为结构化 JSON
-        move_data = serialize_move(move)
+        move_data = serialize_move(move) if not isinstance(move, str) else move
+
+        # 计算 NPS (nodes per second)
+        nps = int(nodes / (elapsed_ms / 1000)) if elapsed_ms > 0 else 0
 
         record = {
             "type": "move",
@@ -204,11 +221,14 @@ class BattleLogger:
             "move": move_data,
             "score": score,
             "nodes": nodes,
+            "nps": nps,
             "depth": depth,
-            "tt_hits": tt_hits,
-            "tt_total": tt_hits + tt_misses,
-            "candidates": [{**serialize_move(m), "score": s} for m, s in candidates],
             "elapsed_ms": elapsed_ms,
+            "revealed_type": revealed_type,
+            "fen_after": fen_after,
+            "candidates": (
+                [{**serialize_move(m), "score": s} for m, s in candidates] if candidates else []
+            ),
         }
         self._write_record(record)
 
