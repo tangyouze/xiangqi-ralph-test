@@ -321,7 +321,7 @@ def make_ai_move():
 
 
 def render_board():
-    """渲染棋盘（Button 网格）"""
+    """渲染中国象棋棋盘（交叉点布局）"""
     game: JieqiGame = st.session_state.game
     if game is None:
         st.info("Click 'New Game' to start!")
@@ -330,41 +330,148 @@ def render_board():
     selected = st.session_state.selected_pos
     legal_targets = {t[0] for t in st.session_state.legal_targets}
 
-    # 棋盘样式
+    # 中国象棋风格的 CSS
     st.markdown(
         """
         <style>
-        .stButton > button {
-            width: 52px !important;
-            height: 52px !important;
-            padding: 0 !important;
-            font-size: 24px !important;
-            border-radius: 50% !important;
-            margin: 1px !important;
+        /* 棋盘容器 */
+        .xiangqi-board-wrapper {
+            background: linear-gradient(135deg, #f5e6d3 0%, #e8d4b8 100%);
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(139, 105, 20, 0.3);
+            display: inline-block;
+            margin: 10px auto;
         }
+        
+        /* 棋盘网格背景 */
+        .xiangqi-grid {
+            background-color: #f4e4c1;
+            padding: 8px;
+            border: 3px solid #654321;
+            position: relative;
+        }
+        
+        /* 楚河汉界文字 */
+        .river-text {
+            position: absolute;
+            font-size: 16px;
+            font-weight: bold;
+            color: #4682b4;
+            text-shadow: 1px 1px 2px rgba(255,255,255,0.8);
+        }
+        
+        /* 棋子按钮样式 */
+        .stButton > button {
+            width: 46px !important;
+            height: 46px !important;
+            min-width: 46px !important;
+            min-height: 46px !important;
+            padding: 0 !important;
+            font-size: 22px !important;
+            font-weight: bold !important;
+            border-radius: 50% !important;
+            margin: 0 !important;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.25) !important;
+            transition: all 0.2s ease !important;
+            border: 2px solid transparent !important;
+        }
+        
+        /* 红方明子 */
+        .stButton > button[data-piece="red"] {
+            background: linear-gradient(145deg, #fff5f5, #ffdddd) !important;
+            color: #DC143C !important;
+            border-color: #DC143C !important;
+            border-width: 2.5px !important;
+        }
+        
+        /* 黑方明子 */
+        .stButton > button[data-piece="black"] {
+            background: linear-gradient(145deg, #f0f0f0, #d0d0d0) !important;
+            color: #2C3E50 !important;
+            border-color: #2C3E50 !important;
+            border-width: 2.5px !important;
+        }
+        
+        /* 红方暗子 */
+        .stButton > button[data-piece="red-hidden"] {
+            background: linear-gradient(145deg, #ffe0e0, #ffb0b0) !important;
+            color: #8B0000 !important;
+            border: 3px dashed #DC143C !important;
+            font-size: 18px !important;
+            opacity: 0.85 !important;
+        }
+        
+        /* 黑方暗子 */
+        .stButton > button[data-piece="black-hidden"] {
+            background: linear-gradient(145deg, #a0a0a0, #707070) !important;
+            color: #ffffff !important;
+            border: 3px dashed #2C3E50 !important;
+            font-size: 18px !important;
+            opacity: 0.85 !important;
+        }
+        
+        /* 空位 */
+        .stButton > button[data-piece="empty"] {
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+        }
+        
+        /* 可走位置提示 */
+        .stButton > button[data-piece="target"] {
+            background: radial-gradient(circle, #90EE90 0%, #98FB98 40%, transparent 60%) !important;
+            border: 2px solid #32CD32 !important;
+            box-shadow: 0 0 8px rgba(50, 205, 50, 0.6) !important;
+        }
+        
+        /* 选中状态 */
+        .stButton > button[data-piece*="selected"] {
+            border: 4px solid #FFD700 !important;
+            box-shadow: 0 0 12px rgba(255, 215, 0, 0.8), 0 4px 8px rgba(0,0,0,0.3) !important;
+            transform: translateY(-2px) !important;
+        }
+        
+        /* hover 效果 */
+        .stButton > button:hover:not(:disabled) {
+            transform: translateY(-2px) scale(1.05) !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.35) !important;
+        }
+        
+        /* 禁用状态 */
         .stButton > button:disabled {
             opacity: 1 !important;
+            cursor: default !important;
+        }
+        
+        /* 行列标签 */
+        .coord-label {
+            font-size: 13px;
+            color: #654321;
+            font-weight: 600;
+            text-align: center;
+            padding: 6px 0;
         }
         </style>
         """,
         unsafe_allow_html=True,
     )
 
-    # 列标签
-    col_labels = st.columns([1] + [1] * 9)
-    col_labels[0].write("")  # 空白
+    # 开始渲染棋盘
+    st.markdown('<div class="xiangqi-board-wrapper"><div class="xiangqi-grid">', unsafe_allow_html=True)
+    
+    # 列标签（a-i）
+    col_labels = st.columns([0.6] + [1] * 9)
+    col_labels[0].markdown('<div class="coord-label"></div>', unsafe_allow_html=True)
     for i, c in enumerate("abcdefghi"):
-        col_labels[i + 1].markdown(f"<center>{c}</center>", unsafe_allow_html=True)
+        col_labels[i + 1].markdown(f'<div class="coord-label">{c}</div>', unsafe_allow_html=True)
 
-    # 棋盘（从 row 9 到 row 0）
+    # 棋盘行（从 row 9 到 row 0）
     for row in range(9, -1, -1):
-        cols = st.columns([1] + [1] * 9)
+        cols = st.columns([0.6] + [1] * 9)
 
         # 行号
-        cols[0].markdown(
-            f"<div style='text-align:center;padding-top:12px;'>{row}</div>",
-            unsafe_allow_html=True,
-        )
+        cols[0].markdown(f'<div class="coord-label">{row}</div>', unsafe_allow_html=True)
 
         for col in range(9):
             pos = Position(row, col)
@@ -374,43 +481,68 @@ def render_board():
             is_selected = selected == pos
             is_target = pos in legal_targets
 
-            # 按钮文本
+            # 按钮文本和样式标记
+            piece_type = "empty"
             if piece is not None:
                 if piece["is_hidden"]:
                     # 暗子
-                    btn_text = "暗" if piece["color"] == Color.RED else "暗"
+                    btn_text = "暗"
+                    piece_type = f"{piece['color'].value}-hidden"
                 else:
                     # 明子
                     btn_text = PIECE_SYMBOLS.get((piece["color"], piece["actual_type"]), "?")
+                    piece_type = piece["color"].value
+                
+                # 添加选中标记
+                if is_selected:
+                    piece_type += "-selected"
+            elif is_target:
+                # 可走位置
+                btn_text = "·"
+                piece_type = "target"
             else:
-                btn_text = "·" if is_target else ""
+                # 空位
+                btn_text = ""
+                piece_type = "empty"
 
-            # 按钮颜色 key
+            # 按钮 key
             key = f"cell_{row}_{col}"
 
             with cols[col + 1]:
-                # 使用不同类型的按钮来表示状态
-                if is_selected:
-                    btn_type = "primary"
-                elif is_target:
-                    btn_type = "secondary"
-                else:
-                    btn_type = "secondary"
-
                 # 判断是否可点击
                 can_click = game.result == GameResult.ONGOING
                 if st.session_state.game_mode == GameMode.HUMAN_VS_AI:
                     can_click = can_click and game.current_turn == Color.RED
 
+                # 使用 HTML 属性传递样式信息
+                btn_html = f'<div style="display:none;" data-piece="{piece_type}"></div>'
+                
                 if st.button(
                     btn_text,
                     key=key,
-                    type=btn_type,  # type: ignore
                     disabled=not can_click,
                     use_container_width=True,
                 ):
                     handle_cell_click(row, col)
                     st.rerun()
+        
+        # 在第 4-5 行之间添加楚河汉界提示
+        if row == 5:
+            st.markdown(
+                """
+                <div style="text-align: center; margin: 8px 0; padding: 4px; 
+                     background: linear-gradient(to bottom, rgba(173, 216, 230, 0.15), rgba(135, 206, 235, 0.25), rgba(173, 216, 230, 0.15));
+                     border-top: 2px solid rgba(70, 130, 180, 0.3);
+                     border-bottom: 2px solid rgba(70, 130, 180, 0.3);">
+                    <span style="color: #4682b4; font-weight: bold; font-size: 14px; margin: 0 30px;">楚河</span>
+                    <span style="color: #999; font-size: 12px;">━━━━━</span>
+                    <span style="color: #4682b4; font-weight: bold; font-size: 14px; margin: 0 30px;">汉界</span>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+    
+    st.markdown('</div></div>', unsafe_allow_html=True)
 
 
 def render_reveal_selector():

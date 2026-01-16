@@ -73,12 +73,12 @@ COL_CHARS = "abcdefghi"
 
 
 def render_board_html(fen: str, highlight_moves: list[tuple[str, float]] | None = None) -> str:
-    """渲染棋盘为 HTML
-
+    """渲染中国象棋棋盘为 HTML
+    
     Args:
         fen: FEN 字符串
         highlight_moves: 需要高亮的走法 [(move_str, score), ...]
-
+    
     Returns:
         HTML 字符串
     """
@@ -125,28 +125,33 @@ def render_board_html(fen: str, highlight_moves: list[tuple[str, float]] | None 
         .board-container {
             font-family: 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
             background: linear-gradient(135deg, #f5e6d3 0%, #e8d4b8 100%);
-            padding: 15px;
+            padding: 20px;
             border-radius: 12px;
             display: inline-block;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            box-shadow: 0 8px 24px rgba(139, 105, 20, 0.3);
+            position: relative;
         }
         .board-table {
             border-collapse: collapse;
-            background: #d4b896;
-        }
-        .board-table td {
-            width: 52px;
-            height: 52px;
-            text-align: center;
-            vertical-align: middle;
-            border: 1px solid #8b6914;
-            font-size: 26px;
+            background: #f4e4c1;
+            border: 3px solid #654321;
             position: relative;
         }
+        .board-table td {
+            width: 50px;
+            height: 50px;
+            text-align: center;
+            vertical-align: middle;
+            border: 1px solid #A0826D;
+            font-size: 24px;
+            position: relative;
+            background: transparent;
+        }
         .board-table .river {
-            background: #d4e5f7;
-            font-size: 14px;
-            color: #666;
+            background: linear-gradient(to bottom, rgba(173, 216, 230, 0.1), rgba(135, 206, 235, 0.2), rgba(173, 216, 230, 0.1));
+            font-size: 13px;
+            color: #4682b4;
+            font-weight: bold;
         }
         .piece {
             display: inline-block;
@@ -155,48 +160,77 @@ def render_board_html(fen: str, highlight_moves: list[tuple[str, float]] | None 
             line-height: 42px;
             border-radius: 50%;
             font-weight: bold;
-            font-size: 22px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            font-size: 21px;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.25);
+            transition: transform 0.2s ease;
+        }
+        .piece:hover {
+            transform: scale(1.05);
         }
         .piece.red {
             background: linear-gradient(145deg, #fff5f5, #ffe0e0);
-            color: #c00;
-            border: 2px solid #c00;
+            color: #DC143C;
+            border: 2.5px solid #DC143C;
         }
         .piece.black {
-            background: linear-gradient(145deg, #f5f5f5, #e0e0e0);
-            color: #000;
-            border: 2px solid #333;
+            background: linear-gradient(145deg, #f0f0f0, #d0d0d0);
+            color: #2C3E50;
+            border: 2.5px solid #2C3E50;
         }
         .piece.red-hidden {
-            background: linear-gradient(145deg, #ffdddd, #ffaaaa);
-            color: #900;
-            border: 3px dashed #c00;
-            font-size: 18px;
+            background: linear-gradient(145deg, #ffe0e0, #ffb0b0);
+            color: #8B0000;
+            border: 3px dashed #DC143C;
+            font-size: 17px;
+            opacity: 0.9;
         }
         .piece.black-hidden {
-            background: linear-gradient(145deg, #aaaaaa, #777777);
-            color: #fff;
-            border: 3px dashed #333;
-            font-size: 18px;
+            background: linear-gradient(145deg, #a0a0a0, #707070);
+            color: #ffffff;
+            border: 3px dashed #2C3E50;
+            font-size: 17px;
+            opacity: 0.9;
         }
         .highlight-from {
-            background: #fff59d !important;
-            box-shadow: inset 0 0 8px #ffc107;
+            background: rgba(255, 245, 157, 0.6) !important;
+            box-shadow: inset 0 0 12px rgba(255, 193, 7, 0.8);
         }
         .highlight-to {
-            background: #a5d6a7 !important;
-            box-shadow: inset 0 0 8px #4caf50;
+            background: rgba(165, 214, 167, 0.6) !important;
+            box-shadow: inset 0 0 12px rgba(76, 175, 80, 0.8);
         }
         .row-label, .col-label {
-            font-size: 12px;
-            color: #666;
-            width: 28px;
+            font-size: 13px;
+            color: #654321;
+            font-weight: 600;
+            width: 32px;
             border: none !important;
             background: transparent !important;
         }
+        /* SVG 九宫格斜线 */
+        .palace-lines {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
     </style>
     <div class="board-container">
+        <svg class="palace-lines" width="100%" height="100%" style="position: absolute; top: 0; left: 0;">
+            <!-- 红方九宫格斜线 (行0-2, 列3-5) -->
+            <!-- 左上到右下 -->
+            <line x1="185" y1="515" x2="285" y2="615" stroke="#654321" stroke-width="1.5" opacity="0.6"/>
+            <!-- 右上到左下 -->
+            <line x1="285" y1="515" x2="185" y2="615" stroke="#654321" stroke-width="1.5" opacity="0.6"/>
+            
+            <!-- 黑方九宫格斜线 (行7-9, 列3-5) -->
+            <!-- 左上到右下 -->
+            <line x1="185" y1="65" x2="285" y2="165" stroke="#654321" stroke-width="1.5" opacity="0.6"/>
+            <!-- 右上到左下 -->
+            <line x1="285" y1="65" x2="185" y2="165" stroke="#654321" stroke-width="1.5" opacity="0.6"/>
+        </svg>
         <table class="board-table">
     """
 
@@ -215,12 +249,12 @@ def render_board_html(fen: str, highlight_moves: list[tuple[str, float]] | None 
             content = board[row][col]
 
             # 楚河汉界
-            if row == 4 or row == 5:
-                if not content:
-                    if row == 4 and col == 4:
-                        content = "楚河"
-                    elif row == 5 and col == 4:
-                        content = "漢界"
+            if (row == 4 or row == 5) and not content:
+                cell_class += " river"
+                if row == 4 and col == 4:
+                    content = "楚河"
+                elif row == 5 and col == 4:
+                    content = "汉界"
 
             html += f'<td class="{cell_class}">{content}</td>'
 
