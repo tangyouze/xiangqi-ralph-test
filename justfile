@@ -65,6 +65,20 @@ lint:
 battle *ARGS:
     uv run python scripts/ai_battle.py {{ARGS}}
 
+# === Rust AI CLI ===
+
+# Get legal moves for a position
+rustai-moves FEN:
+    cd rust-ai && cargo run --release -- moves --fen "{{FEN}}"
+
+# Get best move(s) for a position
+rustai-best FEN STRATEGY="muses" TIME="0.5" N="10":
+    cd rust-ai && cargo run --release -- best --fen "{{FEN}}" --strategy {{STRATEGY}} --time-limit {{TIME}} --n {{N}} --json
+
+# Show help for Rust AI CLI
+rustai-help:
+    cd rust-ai && cargo run --release -- --help
+
 # === AI 评估命令 ===
 
 # Generate AI evaluation report
