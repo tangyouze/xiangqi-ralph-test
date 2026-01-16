@@ -378,7 +378,7 @@ def render_board():
             text-shadow: 1px 1px 2px rgba(255,255,255,0.8);
         }
         
-        /* 棋子按钮样式 */
+        /* 棋子按钮基础样式 */
         .stButton > button {
             width: 46px !important;
             height: 46px !important;
@@ -393,68 +393,66 @@ def render_board():
             transition: all 0.2s ease !important;
             border: 2px solid transparent !important;
         }
-        
+
         /* 红方明子 */
-        .stButton > button[data-piece="red"] {
+        .piece-red .stButton > button {
             background: linear-gradient(145deg, #fff5f5, #ffdddd) !important;
             color: #DC143C !important;
             border-color: #DC143C !important;
             border-width: 2.5px !important;
         }
-        
+
         /* 黑方明子 */
-        .stButton > button[data-piece="black"] {
+        .piece-black .stButton > button {
             background: linear-gradient(145deg, #f0f0f0, #d0d0d0) !important;
             color: #2C3E50 !important;
             border-color: #2C3E50 !important;
             border-width: 2.5px !important;
         }
-        
+
         /* 红方暗子 */
-        .stButton > button[data-piece="red-hidden"] {
+        .piece-red-hidden .stButton > button {
             background: linear-gradient(145deg, #ffe0e0, #ffb0b0) !important;
             color: #8B0000 !important;
             border: 3px dashed #DC143C !important;
             font-size: 18px !important;
-            opacity: 0.85 !important;
         }
-        
+
         /* 黑方暗子 */
-        .stButton > button[data-piece="black-hidden"] {
+        .piece-black-hidden .stButton > button {
             background: linear-gradient(145deg, #a0a0a0, #707070) !important;
             color: #ffffff !important;
             border: 3px dashed #2C3E50 !important;
             font-size: 18px !important;
-            opacity: 0.85 !important;
         }
-        
+
         /* 空位 */
-        .stButton > button[data-piece="empty"] {
+        .piece-empty .stButton > button {
             background: transparent !important;
             border: none !important;
             box-shadow: none !important;
         }
-        
+
         /* 可走位置提示 */
-        .stButton > button[data-piece="target"] {
+        .piece-target .stButton > button {
             background: radial-gradient(circle, #90EE90 0%, #98FB98 40%, transparent 60%) !important;
             border: 2px solid #32CD32 !important;
             box-shadow: 0 0 8px rgba(50, 205, 50, 0.6) !important;
         }
-        
+
         /* 选中状态 */
-        .stButton > button[data-piece*="selected"] {
+        .piece-selected .stButton > button {
             border: 4px solid #FFD700 !important;
             box-shadow: 0 0 12px rgba(255, 215, 0, 0.8), 0 4px 8px rgba(0,0,0,0.3) !important;
             transform: translateY(-2px) !important;
         }
-        
+
         /* hover 效果 */
         .stButton > button:hover:not(:disabled) {
             transform: translateY(-2px) scale(1.05) !important;
             box-shadow: 0 4px 12px rgba(0,0,0,0.35) !important;
         }
-        
+
         /* 禁用状态 */
         .stButton > button:disabled {
             opacity: 1 !important;
@@ -533,9 +531,13 @@ def render_board():
                 if st.session_state.game_mode == GameMode.HUMAN_VS_AI:
                     can_click = can_click and game.current_turn == Color.RED
 
-                # 使用 HTML 属性传递样式信息
-                btn_html = f'<div style="display:none;" data-piece="{piece_type}"></div>'
+                # 构建 CSS 类名
+                css_classes = [f"piece-{piece_type.replace('-selected', '')}"]
+                if is_selected:
+                    css_classes.append("piece-selected")
 
+                # 用 div 包装按钮以应用样式
+                st.markdown(f'<div class="{" ".join(css_classes)}">', unsafe_allow_html=True)
                 if st.button(
                     btn_text,
                     key=key,
@@ -544,6 +546,7 @@ def render_board():
                 ):
                     handle_cell_click(row, col)
                     st.rerun()
+                st.markdown("</div>", unsafe_allow_html=True)
 
         # 在第 4-5 行之间添加楚河汉界提示
         if row == 5:
