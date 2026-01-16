@@ -65,6 +65,10 @@ lint:
 battle *ARGS:
     uv run python scripts/ai_battle.py {{ARGS}}
 
+# Run single AI battle with verbose output
+battle-verbose RED="muses" BLACK="minimax":
+    uv run python scripts/ai_battle.py battle -n 1 -v -r {{RED}} -b {{BLACK}}
+
 # === Rust AI CLI ===
 
 # Get legal moves for a position

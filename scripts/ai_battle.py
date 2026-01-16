@@ -81,6 +81,7 @@ def run_single_game_with_log(
     seed: int | None,
     log_dir: Path | None,
     game_index: int = 0,
+    verbose: bool = False,
 ) -> tuple[str, int, dict, str]:
     """运行单场对战并记录日志
 
@@ -92,6 +93,7 @@ def run_single_game_with_log(
         seed: 随机种子
         log_dir: 日志目录
         game_index: 游戏索引（用于生成唯一 game_id）
+        verbose: 是否输出每步详情
 
     Returns:
         (result, moves, stats, game_id)
@@ -111,6 +113,7 @@ def run_single_game_with_log(
             seed,
             log_dir,
             game_index,
+            verbose,
         )
     finally:
         # 确保关闭 Rust server 进程
@@ -130,6 +133,7 @@ def _run_game_impl(
     seed: int | None,
     log_dir: Path | None,
     game_index: int = 0,
+    verbose: bool = False,
 ) -> tuple[str, int, dict, str]:
     """实际执行对战逻辑"""
 
@@ -219,6 +223,15 @@ def _run_game_impl(
             stats["red_nodes"] += estimated_nodes
         else:
             stats["black_nodes"] += estimated_nodes
+
+        # Verbose 输出
+        if verbose:
+            color_tag = "[red]" if player == "red" else "[blue]"
+            revealed_info = f"  → revealed: {revealed_type}" if revealed_type else ""
+            console.print(
+                f"#{move_count:3d}  {color_tag}{player:5}[/{color_tag[1:]}  "
+                f"{ai_name:10}  {move_str:8}  score={score:6.1f}  {elapsed_ms:6.0f}ms{revealed_info}"
+            )
 
         # 记录日志
         if log_file:
@@ -336,6 +349,7 @@ def battle(
         0.1, "--time", "-t", help="AI thinking time per move (seconds)"
     ),
     log_dir: str | None = typer.Option(None, "--log-dir", "-l", help="Log directory"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show each move in detail"),
 ):
     """Run AI vs AI battle with logging"""
     # 验证策略
@@ -356,31 +370,56 @@ def battle(
     console.print("\n[bold]Jieqi AI Battle[/bold]")
     console.print(f"Red: [red]{ai_red}[/red] vs Black: [blue]{ai_black}[/blue]")
     console.print(f"Games: {num_games}, Max moves: {max_moves}, Time: {time_limit}s")
-    console.print(f"Log dir: {log_path}\n")
+    console.print(f"Log dir: {log_path}")
+    if verbose:
+        console.print("[yellow]Verbose mode: ON[/yellow]")
+    console.print()
 
     # 运行对战
     results = {"red_win": 0, "black_win": 0, "draw": 0}
     total_moves = 0
     game_ids = []
 
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        BarColumn(),
-        TaskProgressColumn(),
-        console=console,
-    ) as progress:
-        task = progress.add_task(f"[cyan]{ai_red} vs {ai_black}...", total=num_games)
-
+    if verbose:
+        # Verbose 模式：直接输出每步详情，不用进度条
         for i in range(num_games):
+            if num_games > 1:
+                console.print(f"\n[bold cyan]--- Game {i + 1}/{num_games} ---[/bold cyan]")
             game_seed = (seed + i * 2) if seed else None
             result, moves, stats, game_id = run_single_game_with_log(
-                ai_red, ai_black, time_limit, max_moves, game_seed, log_path, i
+                ai_red, ai_black, time_limit, max_moves, game_seed, log_path, i, verbose=True
             )
             results[result] += 1
             total_moves += moves
             game_ids.append(game_id)
-            progress.update(task, advance=1)
+
+            # 显示本局结果
+            result_text = {
+                "red_win": f"[red]{ai_red} wins![/red]",
+                "black_win": f"[blue]{ai_black} wins![/blue]",
+                "draw": "[yellow]Draw[/yellow]",
+            }
+            console.print(f"\n>>> Result: {result_text[result]} ({moves} moves)")
+    else:
+        # 正常模式：用进度条
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            console=console,
+        ) as progress:
+            task = progress.add_task(f"[cyan]{ai_red} vs {ai_black}...", total=num_games)
+
+            for i in range(num_games):
+                game_seed = (seed + i * 2) if seed else None
+                result, moves, stats, game_id = run_single_game_with_log(
+                    ai_red, ai_black, time_limit, max_moves, game_seed, log_path, i
+                )
+                results[result] += 1
+                total_moves += moves
+                game_ids.append(game_id)
+                progress.update(task, advance=1)
 
     # 显示结果
     table = Table(title="Battle Results")
