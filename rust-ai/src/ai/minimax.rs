@@ -5,6 +5,7 @@ use crate::board::Board;
 use crate::types::{Color, GameResult, PieceType, HIDDEN_PIECE_VALUE};
 use rand::prelude::*;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{Duration, Instant};
 
 /// 全局节点计数器
 pub static NODE_COUNT: AtomicU64 = AtomicU64::new(0);
@@ -14,6 +15,8 @@ pub struct MinimaxAI {
     depth: u32,
     rng: StdRng,
     randomness: f64,
+    time_limit: Option<Duration>,
+    start_time: Option<Instant>,
 }
 
 impl MinimaxAI {
@@ -22,10 +25,27 @@ impl MinimaxAI {
             Some(s) => StdRng::seed_from_u64(s),
             None => StdRng::from_entropy(),
         };
+        // 如果设置了时间限制，使用较大的深度（会被时间打断）
+        let depth = if config.time_limit.is_some() && config.depth > 10 {
+            10 // 带时间限制时，限制最大深度避免卡死
+        } else {
+            config.depth.min(6) // 无时间限制时，最大深度 6
+        };
         MinimaxAI {
-            depth: config.depth,
+            depth,
             rng,
             randomness: config.randomness,
+            time_limit: config.time_limit.map(Duration::from_secs_f64),
+            start_time: None,
+        }
+    }
+
+    /// 检查是否超时
+    fn is_timeout(&self) -> bool {
+        if let (Some(limit), Some(start)) = (self.time_limit, self.start_time) {
+            start.elapsed() >= limit
+        } else {
+            false
         }
     }
 
@@ -85,6 +105,11 @@ impl MinimaxAI {
         // 节点计数
         NODE_COUNT.fetch_add(1, Ordering::Relaxed);
 
+        // 超时检查（每 1000 个节点检查一次）
+        if NODE_COUNT.load(Ordering::Relaxed) % 1000 == 0 && self.is_timeout() {
+            return 0.0; // 超时返回中性分数
+        }
+
         let current_color = board.current_turn();
         let legal_moves = board.get_legal_moves(current_color);
 
@@ -113,6 +138,11 @@ impl MinimaxAI {
 
         let mut max_eval = f64::NEG_INFINITY;
         for mv in legal_moves {
+            // 超时检查
+            if self.is_timeout() {
+                break;
+            }
+
             let was_hidden = board.get_piece(mv.from_pos).is_some_and(|p| p.is_hidden);
             let captured = board.make_move(&mv);
 
@@ -133,34 +163,47 @@ impl MinimaxAI {
 
 impl AIStrategy for MinimaxAI {
     fn select_moves(&self, board: &Board, n: usize) -> Vec<ScoredMove> {
+        // 设置开始时间（通过可变引用绕过 borrow checker）
+        let mut ai = MinimaxAI {
+            depth: self.depth,
+            rng: self.rng.clone(),
+            randomness: self.randomness,
+            time_limit: self.time_limit,
+            start_time: Some(Instant::now()),
+        };
+
         let color = board.current_turn();
         let moves = board.get_legal_moves(color);
-        let mut rng = self.rng.clone();
 
         let mut scored: Vec<ScoredMove> = moves
             .into_iter()
-            .map(|mv| {
+            .filter_map(|mv| {
+                // 超时检查
+                if ai.is_timeout() {
+                    return None;
+                }
+
                 let mut board_copy = board.clone();
                 board_copy.make_move(&mv);
 
                 // 使用 negamax 搜索：从对手视角取负值
-                let base_score = -self.negamax(
+                let base_score = -ai.negamax(
                     &mut board_copy,
-                    self.depth - 1,
+                    ai.depth - 1,
                     f64::NEG_INFINITY,
                     f64::INFINITY,
                 );
 
-                let noise = if self.randomness > 0.0 {
-                    rng.gen::<f64>() * self.randomness * 100.0
+                let noise = if ai.randomness > 0.0 {
+                    ai.rng.gen::<f64>() * ai.randomness * 100.0
                 } else {
                     0.0
                 };
 
-                ScoredMove {
+                Some(ScoredMove {
                     mv,
                     score: base_score + noise,
-                }
+                })
             })
             .collect();
 
