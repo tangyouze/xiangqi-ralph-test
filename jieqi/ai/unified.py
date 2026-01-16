@@ -1,19 +1,15 @@
 """
 统一 AI 引擎接口
 
-提供统一的 FEN 接口，可以调用 Python 或 Rust AI 后端。
+只支持 Rust AI 后端。Python AI 策略已移除。
 
 ## 使用方法
 
 ```python
 from jieqi.ai.unified import UnifiedAIEngine
 
-# 使用 Python 后端
-engine = UnifiedAIEngine(backend="python", strategy="greedy")
-moves = engine.get_best_moves(fen, n=5)
-
-# 使用 Rust 后端
-engine = UnifiedAIEngine(backend="rust", strategy="minimax", depth=3)
+# 使用 Rust 后端（只支持Rust）
+engine = UnifiedAIEngine(strategy="minimax", depth=3)
 moves = engine.get_best_moves(fen, n=5)
 
 # 获取合法走法
@@ -70,37 +66,6 @@ class AIBackend(ABC):
     def list_strategies(self) -> list[str]:
         """列出可用策略"""
         pass
-
-
-class PythonBackend(AIBackend):
-    """Python AI 后端"""
-
-    def __init__(self, strategy: str = "greedy", config: UnifiedAIConfig | None = None):
-        from jieqi.ai import AIConfig, AIEngine
-
-        self.strategy_name = strategy
-        self.config = config or UnifiedAIConfig()
-
-        ai_config = AIConfig(
-            depth=self.config.depth,
-            randomness=self.config.randomness,
-            seed=self.config.seed,
-            time_limit=self.config.time_limit,
-        )
-        self._engine = AIEngine.create(strategy, ai_config)
-
-    def get_legal_moves(self, fen: str) -> list[str]:
-        from jieqi.fen import get_legal_moves_from_fen
-
-        return get_legal_moves_from_fen(fen)
-
-    def get_best_moves(self, fen: str, n: int = 5) -> list[tuple[str, float]]:
-        return self._engine.select_moves_fen(fen, n)
-
-    def list_strategies(self) -> list[str]:
-        from jieqi.ai import AIEngine
-
-        return AIEngine.get_strategy_names()
 
 
 class RustBackend(AIBackend):
@@ -186,13 +151,13 @@ class RustBackend(AIBackend):
 class UnifiedAIEngine:
     """统一 AI 引擎
 
-    提供统一的 FEN 接口，可以调用 Python 或 Rust AI 后端。
+    调用 Rust AI 后端（Python AI 已移除）。
     """
 
     def __init__(
         self,
-        backend: Literal["python", "rust"] = "python",
-        strategy: str = "greedy",
+        backend: Literal["rust"] = "rust",  # 保留参数以兼容，但只支持rust
+        strategy: str = "minimax",
         depth: int = 3,
         randomness: float = 0.0,
         seed: int | None = None,
@@ -201,13 +166,16 @@ class UnifiedAIEngine:
         """创建统一 AI 引擎
 
         Args:
-            backend: 后端类型 ("python" 或 "rust")
+            backend: 后端类型 (只支持 "rust")
             strategy: AI 策略名称
             depth: 搜索深度
             randomness: 随机性
             seed: 随机种子
             time_limit: 时间限制（秒）
         """
+        if backend != "rust":
+            raise ValueError(f"只支持 Rust 后端。Python AI 策略已移除。")
+        
         self.backend_type = backend
         self.strategy = strategy
 
@@ -218,12 +186,8 @@ class UnifiedAIEngine:
             time_limit=time_limit,
         )
 
-        if backend == "python":
-            self._backend: AIBackend = PythonBackend(strategy, config)
-        elif backend == "rust":
-            self._backend = RustBackend(strategy, config)
-        else:
-            raise ValueError(f"Unknown backend: {backend}. Use 'python' or 'rust'.")
+        self._backend: AIBackend = RustBackend(strategy, config)
+
 
     def get_legal_moves(self, fen: str) -> list[str]:
         """获取合法走法
@@ -267,7 +231,7 @@ class UnifiedAIEngine:
     @staticmethod
     def list_backends() -> list[str]:
         """列出可用的后端"""
-        return ["python", "rust"]
+        return ["rust"]  # 只支持Rust
 
 
 # =============================================================================
@@ -275,19 +239,18 @@ class UnifiedAIEngine:
 # =============================================================================
 
 
-def get_legal_moves(fen: str, backend: Literal["python", "rust"] = "python") -> list[str]:
+def get_legal_moves(fen: str) -> list[str]:
     """获取合法走法（便捷函数）"""
-    engine = UnifiedAIEngine(backend=backend)
+    engine = UnifiedAIEngine()
     return engine.get_legal_moves(fen)
 
 
 def get_best_moves(
     fen: str,
     n: int = 5,
-    backend: Literal["python", "rust"] = "python",
-    strategy: str = "greedy",
+    strategy: str = "minimax",
     depth: int = 3,
 ) -> list[tuple[str, float]]:
     """获取最佳走法（便捷函数）"""
-    engine = UnifiedAIEngine(backend=backend, strategy=strategy, depth=depth)
+    engine = UnifiedAIEngine(strategy=strategy, depth=depth)
     return engine.get_best_moves(fen, n)

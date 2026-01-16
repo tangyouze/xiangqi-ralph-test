@@ -67,10 +67,9 @@ def init_session_state():
         st.session_state.legal_targets = []
     if "game_mode" not in st.session_state:
         st.session_state.game_mode = GameMode.HUMAN_VS_AI
-    if "ai_backend" not in st.session_state:
-        st.session_state.ai_backend = "python"
+    # ai_backend 已移除，只使用Rust
     if "ai_strategy" not in st.session_state:
-        st.session_state.ai_strategy = "greedy"
+        st.session_state.ai_strategy = "minimax"  # Rust默认策略
     if "ai_depth" not in st.session_state:
         st.session_state.ai_depth = 3
     if "ai_thinking" not in st.session_state:
@@ -284,9 +283,8 @@ def make_ai_move():
         view = game.get_view(game.current_turn)
         fen = to_fen(view)
 
-        # 创建 AI 引擎
+        # 创建 AI 引擎（只使用Rust）
         engine = UnifiedAIEngine(
-            backend=st.session_state.ai_backend,  # type: ignore
             strategy=st.session_state.ai_strategy,
             depth=st.session_state.ai_depth,
         )
@@ -466,15 +464,18 @@ def render_sidebar():
 
         st.divider()
 
-        # AI 设置
+        # AI 设置（只支持Rust）
         st.subheader("AI Settings")
+        st.caption("🦀 Powered by Rust")
 
         col1, col2 = st.columns(2)
         with col1:
-            st.session_state.ai_backend = st.selectbox(
-                "Backend",
-                ["python", "rust"],
-                index=0 if st.session_state.ai_backend == "python" else 1,
+            # 选择Rust策略
+            st.session_state.ai_strategy = st.selectbox(
+                "Strategy",
+                ["minimax", "muses", "greedy", "random", "iterative", "mcts"],
+                index=0,
+                help="Rust实现的AI策略"
             )
         with col2:
             st.session_state.ai_depth = st.slider(
@@ -484,25 +485,8 @@ def render_sidebar():
                 st.session_state.ai_depth,
             )
 
-        # 获取可用策略
-        try:
-            engine = UnifiedAIEngine(backend=st.session_state.ai_backend)  # type: ignore
-            strategies = engine.list_strategies()
-        except Exception:
-            strategies = ["greedy"]
-
-        current_idx = (
-            strategies.index(st.session_state.ai_strategy)
-            if st.session_state.ai_strategy in strategies
-            else 0
-        )
-        st.session_state.ai_strategy = st.selectbox(
-            "Strategy",
-            strategies,
-            index=current_idx,
-        )
-
         st.divider()
+
 
         # 新游戏按钮
         if st.button("New Game", type="primary", use_container_width=True):
