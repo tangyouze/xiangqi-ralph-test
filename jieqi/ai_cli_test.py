@@ -210,20 +210,11 @@ class TestBestCommand:
         assert '"moves"' in result.stdout
         assert '"strategy"' in result.stdout
 
-    def test_best_with_rust_backend(self):
-        """测试 Rust 后端"""
-        fen = "xxxxxxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXXXXXX -:- r r"
-        result = runner.invoke(app, ["best", "--fen", fen, "-b", "rust", "-s", "greedy"])
-
-        # Rust 可能未编译，跳过
-        if result.exit_code != 0 and "not found" in result.stdout.lower():
-            pytest.skip("Rust backend not available")
-
     def test_moves_are_legal(self):
         """测试所有返回的走法都是合法的"""
         fen = "xxxxxxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXXXXXX -:- r r"
 
-        engine = UnifiedAIEngine(backend="python", strategy="greedy")
+        engine = UnifiedAIEngine(strategy="greedy")
         moves = engine.get_best_moves(fen, n=10)
 
         legal_moves = get_legal_moves_from_fen(fen)
@@ -235,46 +226,11 @@ class TestNPSBenchmark:
     """NPS 基准测试 - 100 个精选场景"""
 
     @pytest.mark.slow
-    def test_nps_benchmark_python(self):
-        """Python 后端 NPS 基准测试"""
-        total_time = 0.0
-        successful = 0
-
-        print("\n" + "=" * 60)
-        print("NPS Benchmark - Python Backend")
-        print("=" * 60)
-
-        for name, fen in BENCHMARK_SCENARIOS:
-            try:
-                engine = UnifiedAIEngine(backend="python", strategy="iterative", time_limit=0.1)
-
-                start = time.perf_counter()
-                engine.get_best_moves(fen, n=1)
-                elapsed = time.perf_counter() - start
-
-                total_time += elapsed
-                successful += 1
-            except Exception as e:
-                print(f"  SKIP {name}: {e}")
-                continue
-
-        if total_time > 0:
-            avg_time = total_time / successful
-            print("\nResults:")
-            print(f"  Scenarios: {successful}/{len(BENCHMARK_SCENARIOS)}")
-            print(f"  Total time: {total_time:.2f}s")
-            print(f"  Avg time per position: {avg_time * 1000:.1f}ms")
-        else:
-            print("No successful runs")
-
-        assert successful > 0, "At least some scenarios should complete"
-
-    @pytest.mark.slow
-    def test_nps_benchmark_rust(self):
-        """Rust 后端 NPS 基准测试"""
+    def test_nps_benchmark(self):
+        """NPS 基准测试（Rust 后端）"""
         try:
             # 检查 Rust 后端是否可用
-            engine = UnifiedAIEngine(backend="rust", strategy="iterative")
+            engine = UnifiedAIEngine(strategy="iterative")
         except FileNotFoundError:
             pytest.skip("Rust backend not available")
 
@@ -282,12 +238,12 @@ class TestNPSBenchmark:
         successful = 0
 
         print("\n" + "=" * 60)
-        print("NPS Benchmark - Rust Backend")
+        print("NPS Benchmark")
         print("=" * 60)
 
         for name, fen in BENCHMARK_SCENARIOS:
             try:
-                engine = UnifiedAIEngine(backend="rust", strategy="iterative", time_limit=0.1)
+                engine = UnifiedAIEngine(strategy="iterative", time_limit=0.1)
 
                 start = time.perf_counter()
                 engine.get_best_moves(fen, n=1)

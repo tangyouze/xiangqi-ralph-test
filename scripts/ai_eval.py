@@ -15,7 +15,6 @@ app = typer.Typer(help="AI Evaluation Tools")
 @app.command()
 def report(
     strategy: str = typer.Option("muses", "--strategy", "-s", help="AI strategy name"),
-    backend: str = typer.Option("rust", "--backend", "-b", help="Backend: python or rust"),
     depth: int = typer.Option(2, "--depth", "-d", help="Search depth"),
     time_limit: float = typer.Option(0.5, "--time", "-t", help="Time limit in seconds"),
     output: str = typer.Option("data/reports", "--output", "-o", help="Output directory"),
@@ -30,7 +29,7 @@ def report(
 
     output_path = Path(output)
 
-    logger.info(f"Generating report for {strategy} ({backend})")
+    logger.info(f"Generating report for {strategy}")
     logger.info(f"Config: depth={depth}, time_limit={time_limit}s")
     if winrate:
         logger.info(
@@ -39,7 +38,6 @@ def report(
 
     report = generate_report(
         strategy=strategy,
-        backend=backend,
         scenarios=EVAL_SCENARIOS,
         config={
             "depth": depth,
@@ -54,7 +52,7 @@ def report(
     # 保存报告
     output_path.mkdir(parents=True, exist_ok=True)
     timestamp = report.timestamp.replace(" ", "_").replace(":", "-")
-    report_path = output_path / f"{strategy}_{backend}_{timestamp}.html"
+    report_path = output_path / f"{strategy}_{timestamp}.html"
     report.save(report_path)
 
     logger.info(f"Report saved to: {report_path}")

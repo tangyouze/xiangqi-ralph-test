@@ -129,12 +129,10 @@ def _run_single_game(
 ) -> str:
     """运行单局游戏（用于并行执行）"""
     red_engine = UnifiedAIEngine(
-        backend="rust",
         strategy=red_strategy,
         time_limit=time_limit,
     )
     black_engine = UnifiedAIEngine(
-        backend="rust",
         strategy=black_strategy,
         time_limit=time_limit if black_strategy != "random" else 0.1,
     )
@@ -255,7 +253,6 @@ class EvalReport:
     """AI 评估报告"""
 
     ai_name: str
-    backend: str  # python / rust
     timestamp: str
     config: dict  # depth, time_limit 等
     results: list[ScenarioResult]
@@ -334,7 +331,7 @@ class EvalReport:
     <h1>AI Evaluation Report</h1>
 
     <div class="summary">
-        <p><b>AI:</b> {self.ai_name} ({self.backend})</p>
+        <p><b>AI:</b> {self.ai_name}</p>
         <p><b>Time:</b> {self.timestamp}</p>
         <p><b>Config:</b> depth={depth}, time_limit={time_limit}</p>
     </div>
@@ -368,7 +365,6 @@ class EvalReport:
 
 def generate_report(
     strategy: str,
-    backend: str,
     scenarios: list[tuple[str, str]] | None = None,
     config: dict | None = None,
 ) -> EvalReport:
@@ -376,7 +372,6 @@ def generate_report(
 
     Args:
         strategy: AI 策略名称
-        backend: 后端类型 ("python" 或 "rust")
         scenarios: 评估场景列表 [(name, fen), ...]
         config: AI 配置 {"depth": 4, "time_limit": 1.0}
 
@@ -391,7 +386,6 @@ def generate_report(
 
     # 创建 AI 引擎
     engine = UnifiedAIEngine(
-        backend=backend,
         strategy=strategy,
         depth=config.get("depth", 4),
         time_limit=config.get("time_limit"),
@@ -400,7 +394,7 @@ def generate_report(
     results: list[ScenarioResult] = []
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    logger.info(f"Evaluating {strategy} ({backend}) on {len(scenarios)} scenarios...")
+    logger.info(f"Evaluating {strategy} on {len(scenarios)} scenarios...")
 
     # 是否测试胜率
     test_winrate = config.get("test_winrate", False)
@@ -476,7 +470,6 @@ def generate_report(
 
     return EvalReport(
         ai_name=strategy,
-        backend=backend,
         timestamp=timestamp,
         config=config,
         results=results,

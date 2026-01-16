@@ -435,10 +435,21 @@ class JieqiBoard:
         return GameResult.ONGOING
 
     def copy(self) -> JieqiBoard:
-        """创建棋盘的深拷贝"""
+        """创建棋盘的深拷贝
+
+        复制所有属性，包括延迟分配模式相关状态
+        """
         new_board = JieqiBoard.__new__(JieqiBoard)
         new_board._pieces = {}
         new_board._seed = self._seed
+        new_board._delay_reveal = self._delay_reveal
+        # 使用相同种子创建新的 RNG，确保独立性
+        new_board._rng = random.Random(self._seed)
+        # 深拷贝待分配类型池
+        new_board._pending_types = {
+            Color.RED: list(self._pending_types[Color.RED]),
+            Color.BLACK: list(self._pending_types[Color.BLACK]),
+        }
         for pos, piece in self._pieces.items():
             new_board._pieces[pos] = piece.copy()
         return new_board

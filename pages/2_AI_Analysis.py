@@ -248,8 +248,8 @@ def render_board_html(fen: str, highlight_moves: list[tuple[str, float]] | None 
 def main():
     st.set_page_config(page_title="AI Analysis", page_icon="🔍", layout="wide")
 
-    st.title("🔍 AI Analysis Dashboard")
-    st.markdown("Test different AI backends (Python/Rust) on various positions")
+    st.title("AI Analysis Dashboard")
+    st.markdown("Test AI on various positions (Rust backend)")
 
     # 侧边栏 - 配置
     with st.sidebar:
@@ -269,15 +269,11 @@ def main():
         # AI 配置
         st.subheader("AI Settings")
 
-        col1, col2 = st.columns(2)
-        with col1:
-            backend = st.selectbox("Backend", ["python", "rust"])
-        with col2:
-            depth = st.slider("Depth", 1, 5, 3)
+        depth = st.slider("Depth", 1, 5, 3)
 
-        # 获取可用策略
+        # 获取可用策略（仅 Rust 后端）
         try:
-            engine = UnifiedAIEngine(backend=backend)  # type: ignore
+            engine = UnifiedAIEngine()
             available_strategies = engine.list_strategies()
         except Exception as e:
             st.error(f"Error loading strategies: {e}")
@@ -305,19 +301,17 @@ def main():
     with col_analysis:
         st.subheader("AI Analysis")
 
-        # 运行 AI
+        # 运行 AI（仅 Rust 后端）
         if st.button("Run AI Analysis", type="primary"):
-            with st.spinner(f"Running {backend} AI ({strategy})..."):
+            with st.spinner(f"Running Rust AI ({strategy})..."):
                 try:
                     engine = UnifiedAIEngine(
-                        backend=backend,  # type: ignore
                         strategy=strategy,
                         depth=depth,
                     )
                     moves = engine.get_best_moves(fen, top_n)
 
                     st.session_state["ai_moves"] = moves
-                    st.session_state["ai_backend"] = backend
                     st.session_state["ai_strategy"] = strategy
 
                 except Exception as e:
@@ -341,12 +335,9 @@ def main():
 
     with col_analysis:
         if ai_moves:
-            ai_backend = st.session_state.get("ai_backend", "")
             ai_strategy = st.session_state.get("ai_strategy", "")
 
-            st.success(
-                f"Found {len(ai_moves)} moves (backend={ai_backend}, strategy={ai_strategy})"
-            )
+            st.success(f"Found {len(ai_moves)} moves (strategy={ai_strategy})")
 
             # 走法选择器
             move_options = ["All Moves"] + [
@@ -405,7 +396,7 @@ def main():
     # 合法走法统计
     with st.expander("Legal Moves Analysis"):
         try:
-            engine = UnifiedAIEngine(backend=backend)  # type: ignore
+            engine = UnifiedAIEngine()
             legal_moves = engine.get_legal_moves(fen)
 
             reveal_moves = [m for m in legal_moves if m.startswith("+")]
@@ -429,36 +420,6 @@ def main():
 
         except Exception as e:
             st.error(f"Error: {e}")
-
-    # 比较两个后端
-    with st.expander("Compare Backends"):
-        if st.button("Compare Python vs Rust"):
-            with st.spinner("Comparing..."):
-                col_py, col_rust = st.columns(2)
-
-                with col_py:
-                    st.markdown("### Python Backend")
-                    try:
-                        py_engine = UnifiedAIEngine(
-                            backend="python", strategy=strategy, depth=depth
-                        )
-                        py_moves = py_engine.get_best_moves(fen, top_n)
-                        for move, score in py_moves:
-                            st.write(f"- `{move}` (score: {score:.1f})")
-                    except Exception as e:
-                        st.error(f"Error: {e}")
-
-                with col_rust:
-                    st.markdown("### Rust Backend")
-                    try:
-                        rust_engine = UnifiedAIEngine(
-                            backend="rust", strategy=strategy, depth=depth
-                        )
-                        rust_moves = rust_engine.get_best_moves(fen, top_n)
-                        for move, score in rust_moves:
-                            st.write(f"- `{move}` (score: {score:.1f})")
-                    except Exception as e:
-                        st.error(f"Error: {e}")
 
 
 if __name__ == "__main__":
