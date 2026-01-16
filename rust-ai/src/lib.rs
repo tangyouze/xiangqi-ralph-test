@@ -5,6 +5,7 @@
 pub mod ai;
 pub mod board;
 pub mod fen;
+pub mod test_positions;
 pub mod types;
 
 pub use ai::{
