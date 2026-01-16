@@ -16,9 +16,9 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-# 导入 AI 策略
-from jieqi.ai import strategies  # noqa: F401
+# 导入 AI 引擎
 from jieqi.ai.base import AIConfig, AIEngine
+from jieqi.ai.unified import UnifiedAIEngine
 from jieqi.fen import parse_move, to_fen
 from jieqi.game import JieqiGame
 from jieqi.types import Color, GameResult
@@ -290,12 +290,18 @@ def display_results(data: dict):
 
         with col1:
             # 得分分布柱状图
+            df_scores = pd.DataFrame(
+                {
+                    "Strategy": sorted_strategies,
+                    "Win Rate (%)": [scores[s] * 100 for s in sorted_strategies],
+                }
+            )
             fig = px.bar(
-                x=sorted_strategies,
-                y=[scores[s] * 100 for s in sorted_strategies],
-                labels={"x": "Strategy", "y": "Win Rate (%)"},
+                df_scores,
+                x="Strategy",
+                y="Win Rate (%)",
                 title="Win Rate by Strategy",
-                color=[scores[s] * 100 for s in sorted_strategies],
+                color="Win Rate (%)",
                 color_continuous_scale="RdYlGn",
             )
             fig.update_layout(showlegend=False)
@@ -305,12 +311,18 @@ def display_results(data: dict):
             # Elo 分布
             if elo:
                 elo_sorted = sorted(elo.items(), key=lambda x: x[1], reverse=True)
+                df_elo = pd.DataFrame(
+                    {
+                        "Strategy": [s for s, _ in elo_sorted],
+                        "Elo Rating": [e for _, e in elo_sorted],
+                    }
+                )
                 fig = px.bar(
-                    x=[s for s, _ in elo_sorted],
-                    y=[e for _, e in elo_sorted],
-                    labels={"x": "Strategy", "y": "Elo Rating"},
+                    df_elo,
+                    x="Strategy",
+                    y="Elo Rating",
                     title="Elo Ratings",
-                    color=[e for _, e in elo_sorted],
+                    color="Elo Rating",
                     color_continuous_scale="Blues",
                 )
                 fig.update_layout(showlegend=False)
@@ -354,7 +366,7 @@ def main():
     # 侧边栏配置
     st.sidebar.header("Settings")
 
-    all_strategies = AIEngine.get_strategy_names()
+    all_strategies = UnifiedAIEngine().list_strategies()
 
     # 策略选择
     selected_strategies = st.sidebar.multiselect(
