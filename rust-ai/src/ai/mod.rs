@@ -6,12 +6,16 @@ mod greedy;
 mod iterative;
 mod mcts;
 mod muses;
+mod muses2;
+mod muses3;
 mod random;
 
 pub use greedy::GreedyAI;
 pub use iterative::IterativeDeepeningAI;
 pub use mcts::MCTSAI;
 pub use muses::MusesAI;
+pub use muses2::Muses2AI;
+pub use muses3::Muses3AI;
 pub use random::RandomAI;
 
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering as AtomicOrdering};
@@ -135,6 +139,20 @@ impl AIEngine {
         }
     }
 
+    /// 创建 Muses2 AI
+    pub fn muses2(config: &AIConfig) -> Self {
+        AIEngine {
+            strategy: Box::new(Muses2AI::new(config)),
+        }
+    }
+
+    /// 创建 Muses3 AI
+    pub fn muses3(config: &AIConfig) -> Self {
+        AIEngine {
+            strategy: Box::new(Muses3AI::new(config)),
+        }
+    }
+
     /// 从策略名称创建
     pub fn from_strategy(name: &str, config: &AIConfig) -> Result<Self, String> {
         match name.to_lowercase().as_str() {
@@ -143,8 +161,10 @@ impl AIEngine {
             "iterative" | "iterative_deepening" => Ok(Self::iterative_deepening(config)),
             "mcts" | "montecarlo" => Ok(Self::mcts(config)),
             "muses" => Ok(Self::muses(config)),
+            "muses2" => Ok(Self::muses2(config)),
+            "muses3" => Ok(Self::muses3(config)),
             _ => Err(format!(
-                "Unknown strategy: {}. Available: random, greedy, iterative, mcts, muses",
+                "Unknown strategy: {}. Available: random, greedy, iterative, mcts, muses, muses2, muses3",
                 name
             )),
         }

@@ -170,6 +170,9 @@ class RustBackend(AIBackend):
             "iterative",
             "mcts",
             "muses",
+            "muses2",
+            "muses3",
+            "muses4",
         ]
 
     def close(self) -> None:

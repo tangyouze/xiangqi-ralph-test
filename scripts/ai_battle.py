@@ -24,7 +24,7 @@ console = Console()
 app = typer.Typer()
 
 # 可用策略列表
-AVAILABLE_STRATEGIES = ["random", "greedy", "iterative", "mcts", "muses"]
+AVAILABLE_STRATEGIES = ["random", "greedy", "iterative", "mcts", "muses", "muses2", "muses3", "muses4"]
 
 # FEN 英文到中文映射
 FEN_TO_CHINESE = {
