@@ -68,12 +68,12 @@ battle *ARGS:
 # === AI 评估命令 ===
 
 # Generate AI evaluation report
-ai-report STRATEGY="muses" BACKEND="rust":
-    uv run python scripts/ai_eval.py report --strategy {{STRATEGY}} --backend {{BACKEND}}
+ai-report STRATEGY="muses":
+    uv run python scripts/ai_eval.py report --strategy {{STRATEGY}}
 
 # Generate AI evaluation report with win rate testing
-ai-report-winrate STRATEGY="muses" BACKEND="rust" GAMES="5":
-    uv run python scripts/ai_eval.py report --strategy {{STRATEGY}} --backend {{BACKEND}} --winrate --winrate-games {{GAMES}}
+ai-report-winrate STRATEGY="muses" GAMES="5":
+    uv run python scripts/ai_eval.py report --strategy {{STRATEGY}} --winrate --winrate-games {{GAMES}}
 
 # List evaluation scenarios
 ai-scenarios:
