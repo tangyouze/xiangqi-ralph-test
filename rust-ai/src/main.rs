@@ -10,7 +10,7 @@ use clap::{Parser, Subcommand};
 use serde::{Deserialize, Serialize};
 use std::io::{self, BufRead, Write};
 use std::time::Instant;
-use xiangqi_ai::{get_legal_moves_from_fen, get_node_count, reset_node_count, AIConfig, AIEngine, Board, IterativeDeepeningAI, Color};
+use xiangqi_ai::{get_legal_moves_from_fen, get_node_count, reset_node_count, get_depth_reached, reset_depth_reached, AIConfig, AIEngine, Board, IterativeDeepeningAI, Color};
 
 #[derive(Parser)]
 #[command(name = "xiangqi-ai")]
@@ -102,6 +102,8 @@ struct ServerResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     legal_moves: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    depth: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     nodes: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     nps: Option<f64>,
@@ -112,11 +114,12 @@ struct ServerResponse {
 }
 
 impl ServerResponse {
-    fn success_moves(moves: Vec<MoveResult>, nodes: u64, nps: f64, elapsed_ms: f64) -> Self {
+    fn success_moves(moves: Vec<MoveResult>, depth: u32, nodes: u64, nps: f64, elapsed_ms: f64) -> Self {
         Self {
             ok: true,
             moves: Some(moves),
             legal_moves: None,
+            depth: Some(depth),
             nodes: Some(nodes),
             nps: Some(nps),
             elapsed_ms: Some(elapsed_ms),
@@ -129,6 +132,7 @@ impl ServerResponse {
             ok: true,
             moves: None,
             legal_moves: Some(legal_moves),
+            depth: None,
             nodes: None,
             nps: None,
             elapsed_ms: None,
@@ -141,6 +145,7 @@ impl ServerResponse {
             ok: false,
             moves: None,
             legal_moves: None,
+            depth: None,
             nodes: None,
             nps: None,
             elapsed_ms: None,
@@ -190,14 +195,16 @@ fn main() {
                 }
             };
 
-            // 重置节点计数器
+            // 重置计数器
             reset_node_count();
+            reset_depth_reached();
             let start = Instant::now();
 
             match ai.select_moves_fen(&fen, n) {
                 Ok(moves) => {
                     let elapsed = start.elapsed().as_secs_f64();
                     let nodes = get_node_count();
+                    let depth = get_depth_reached();
                     let nps = if elapsed > 0.0 {
                         nodes as f64 / elapsed
                     } else {
@@ -214,8 +221,8 @@ fn main() {
                         };
                         println!("{}", serde_json::to_string_pretty(&response).unwrap());
                         eprintln!(
-                            "Stats: nodes={}, time={:.3}s, nps={:.0}",
-                            nodes, elapsed, nps
+                            "Stats: depth={}, nodes={}, time={:.3}s, nps={:.0}",
+                            depth, nodes, elapsed, nps
                         );
                     } else {
                         println!("Best moves (strategy={}):", strategy);
@@ -223,8 +230,8 @@ fn main() {
                             println!("  {} (score: {:.2})", mv, score);
                         }
                         println!(
-                            "\nStats: nodes={}, time={:.3}s, nps={:.0}",
-                            nodes, elapsed, nps
+                            "\nStats: depth={}, nodes={}, time={:.3}s, nps={:.0}",
+                            depth, nodes, elapsed, nps
                         );
                     }
                 }
@@ -327,12 +334,14 @@ fn handle_best_request(request: &ServerRequest) -> ServerResponse {
     };
 
     reset_node_count();
+    reset_depth_reached();
     let start = Instant::now();
 
     match ai.select_moves_fen(&request.fen, n) {
         Ok(moves) => {
             let elapsed = start.elapsed().as_secs_f64();
             let nodes = get_node_count();
+            let depth = get_depth_reached();
             let nps = if elapsed > 0.0 { nodes as f64 / elapsed } else { 0.0 };
 
             let move_results: Vec<MoveResult> = moves
@@ -340,7 +349,7 @@ fn handle_best_request(request: &ServerRequest) -> ServerResponse {
                 .map(|(mv, score)| MoveResult { mv, score })
                 .collect();
 
-            ServerResponse::success_moves(move_results, nodes, nps, elapsed * 1000.0)
+            ServerResponse::success_moves(move_results, depth, nodes, nps, elapsed * 1000.0)
         }
         Err(e) => ServerResponse::error(&format!("AI error: {}", e)),
     }

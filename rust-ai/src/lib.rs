@@ -9,8 +9,8 @@ pub mod test_positions;
 pub mod types;
 
 pub use ai::{
-    get_node_count, reset_node_count, AIConfig, AIEngine, AIStrategy, IterativeDeepeningAI,
-    ScoredMove,
+    get_depth_reached, get_node_count, reset_depth_reached, reset_node_count, AIConfig, AIEngine,
+    AIStrategy, IterativeDeepeningAI, ScoredMove,
 };
 pub use board::{get_legal_moves_from_fen, Board};
 pub use fen::{apply_move_to_fen, parse_fen, pieces_to_fen, FenState};

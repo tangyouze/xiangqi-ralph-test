@@ -14,10 +14,13 @@ pub use mcts::MCTSAI;
 pub use muses::MusesAI;
 pub use random::RandomAI;
 
-use std::sync::atomic::{AtomicU64, Ordering as AtomicOrdering};
+use std::sync::atomic::{AtomicU32, AtomicU64, Ordering as AtomicOrdering};
 
 /// 全局节点计数器
 pub static NODE_COUNT: AtomicU64 = AtomicU64::new(0);
+
+/// 全局搜索深度记录器
+pub static DEPTH_REACHED: AtomicU32 = AtomicU32::new(0);
 
 /// 重置节点计数器
 pub fn reset_node_count() {
@@ -27,6 +30,16 @@ pub fn reset_node_count() {
 /// 获取当前节点计数
 pub fn get_node_count() -> u64 {
     NODE_COUNT.load(AtomicOrdering::Relaxed)
+}
+
+/// 重置深度记录器
+pub fn reset_depth_reached() {
+    DEPTH_REACHED.store(0, AtomicOrdering::Relaxed);
+}
+
+/// 获取搜索达到的深度
+pub fn get_depth_reached() -> u32 {
+    DEPTH_REACHED.load(AtomicOrdering::Relaxed)
 }
 
 use crate::board::Board;

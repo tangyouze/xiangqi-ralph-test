@@ -16,7 +16,7 @@ use rand::prelude::*;
 use std::sync::atomic::Ordering as AtomicOrdering;
 use std::time::{Duration, Instant};
 
-use super::NODE_COUNT;
+use super::{DEPTH_REACHED, NODE_COUNT};
 
 // ============================================================================
 // Zobrist Hashing
@@ -781,6 +781,9 @@ impl MusesAI {
             // 只有完成整个深度才更新
             if scores.len() == moves.len() {
                 all_scores = scores;
+
+                // 记录达到的深度
+                DEPTH_REACHED.store(depth, AtomicOrdering::Relaxed);
 
                 // 按分数排序
                 all_scores.sort_by(|a, b| b.1.cmp(&a.1));
