@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import json
 import time
 from enum import Enum
 
@@ -347,6 +348,9 @@ def render_board():
     selected = st.session_state.selected_pos
     legal_targets = {t[0] for t in st.session_state.legal_targets}
 
+    # 收集棋子样式信息用于 JavaScript
+    piece_styles: dict[str, str] = {}
+
     # 中国象棋风格的 CSS
     st.markdown(
         """
@@ -360,7 +364,7 @@ def render_board():
             display: inline-block;
             margin: 10px auto;
         }
-        
+
         /* 棋盘网格背景 */
         .xiangqi-grid {
             background-color: #f4e4c1;
@@ -368,16 +372,7 @@ def render_board():
             border: 3px solid #654321;
             position: relative;
         }
-        
-        /* 楚河汉界文字 */
-        .river-text {
-            position: absolute;
-            font-size: 16px;
-            font-weight: bold;
-            color: #4682b4;
-            text-shadow: 1px 1px 2px rgba(255,255,255,0.8);
-        }
-        
+
         /* 棋子按钮基础样式 */
         .stButton > button {
             width: 46px !important;
@@ -389,76 +384,21 @@ def render_board():
             font-weight: bold !important;
             border-radius: 50% !important;
             margin: 0 !important;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.25) !important;
             transition: all 0.2s ease !important;
-            border: 2px solid transparent !important;
-        }
-
-        /* 红方明子 */
-        .piece-red .stButton > button {
-            background: linear-gradient(145deg, #fff5f5, #ffdddd) !important;
-            color: #DC143C !important;
-            border-color: #DC143C !important;
-            border-width: 2.5px !important;
-        }
-
-        /* 黑方明子 */
-        .piece-black .stButton > button {
-            background: linear-gradient(145deg, #f0f0f0, #d0d0d0) !important;
-            color: #2C3E50 !important;
-            border-color: #2C3E50 !important;
-            border-width: 2.5px !important;
-        }
-
-        /* 红方暗子 */
-        .piece-red-hidden .stButton > button {
-            background: linear-gradient(145deg, #ffe0e0, #ffb0b0) !important;
-            color: #8B0000 !important;
-            border: 3px dashed #DC143C !important;
-            font-size: 18px !important;
-        }
-
-        /* 黑方暗子 */
-        .piece-black-hidden .stButton > button {
-            background: linear-gradient(145deg, #a0a0a0, #707070) !important;
-            color: #ffffff !important;
-            border: 3px dashed #2C3E50 !important;
-            font-size: 18px !important;
-        }
-
-        /* 空位 */
-        .piece-empty .stButton > button {
-            background: transparent !important;
-            border: none !important;
-            box-shadow: none !important;
-        }
-
-        /* 可走位置提示 */
-        .piece-target .stButton > button {
-            background: radial-gradient(circle, #90EE90 0%, #98FB98 40%, transparent 60%) !important;
-            border: 2px solid #32CD32 !important;
-            box-shadow: 0 0 8px rgba(50, 205, 50, 0.6) !important;
-        }
-
-        /* 选中状态 */
-        .piece-selected .stButton > button {
-            border: 4px solid #FFD700 !important;
-            box-shadow: 0 0 12px rgba(255, 215, 0, 0.8), 0 4px 8px rgba(0,0,0,0.3) !important;
-            transform: translateY(-2px) !important;
         }
 
         /* hover 效果 */
         .stButton > button:hover:not(:disabled) {
             transform: translateY(-2px) scale(1.05) !important;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.35) !important;
+            filter: brightness(1.1) !important;
         }
 
-        /* 禁用状态 */
+        /* 禁用状态保持可见 */
         .stButton > button:disabled {
             opacity: 1 !important;
             cursor: default !important;
         }
-        
+
         /* 行列标签 */
         .coord-label {
             font-size: 13px;
@@ -531,13 +471,9 @@ def render_board():
                 if st.session_state.game_mode == GameMode.HUMAN_VS_AI:
                     can_click = can_click and game.current_turn == Color.RED
 
-                # 构建 CSS 类名
-                css_classes = [f"piece-{piece_type.replace('-selected', '')}"]
-                if is_selected:
-                    css_classes.append("piece-selected")
+                # 记录样式信息
+                piece_styles[key] = piece_type
 
-                # 用 div 包装按钮以应用样式
-                st.markdown(f'<div class="{" ".join(css_classes)}">', unsafe_allow_html=True)
                 if st.button(
                     btn_text,
                     key=key,
@@ -546,7 +482,6 @@ def render_board():
                 ):
                     handle_cell_click(row, col)
                     st.rerun()
-                st.markdown("</div>", unsafe_allow_html=True)
 
         # 在第 4-5 行之间添加楚河汉界提示
         if row == 5:
@@ -565,6 +500,54 @@ def render_board():
             )
 
     st.markdown("</div></div>", unsafe_allow_html=True)
+
+    # 注入 JavaScript 来应用棋子样式
+    style_map = {
+        "red": "background: linear-gradient(145deg, #fff5f5, #ffdddd); color: #DC143C; border: 2.5px solid #DC143C;",
+        "black": "background: linear-gradient(145deg, #f0f0f0, #d0d0d0); color: #2C3E50; border: 2.5px solid #2C3E50;",
+        "red-hidden": "background: linear-gradient(145deg, #ffe0e0, #ffb0b0); color: #8B0000; border: 3px dashed #DC143C;",
+        "black-hidden": "background: linear-gradient(145deg, #a0a0a0, #707070); color: #ffffff; border: 3px dashed #2C3E50;",
+        "empty": "background: transparent; border: none; box-shadow: none;",
+        "target": "background: radial-gradient(circle, #90EE90 0%, #98FB98 40%, transparent 60%); border: 2px solid #32CD32;",
+    }
+
+    # 添加选中状态样式
+    for key in list(piece_styles.keys()):
+        if piece_styles[key].endswith("-selected"):
+            base_type = piece_styles[key].replace("-selected", "")
+            piece_styles[key] = base_type  # 保留基础类型，JavaScript 会处理选中状态
+
+    js_code = f"""
+    <script>
+    const pieceStyles = {json.dumps(piece_styles)};
+    const styleMap = {json.dumps(style_map)};
+    const selectedStyle = "border: 4px solid #FFD700 !important; box-shadow: 0 0 12px rgba(255, 215, 0, 0.8);";
+
+    function applyPieceStyles() {{
+        for (const [key, pieceType] of Object.entries(pieceStyles)) {{
+            // 查找按钮（通过 data-testid 属性）
+            const btn = document.querySelector(`button[data-testid="stBaseButton-secondary"][kind="secondary"]`);
+            // 尝试通过 key 查找
+            const allButtons = document.querySelectorAll('button');
+            allButtons.forEach(btn => {{
+                const parent = btn.closest('[data-testid]');
+                if (parent && parent.getAttribute('data-testid')?.includes(key)) {{
+                    const style = styleMap[pieceType.replace('-selected', '')] || '';
+                    btn.style.cssText += style;
+                    if (pieceType.includes('-selected')) {{
+                        btn.style.cssText += selectedStyle;
+                    }}
+                }}
+            }});
+        }}
+    }}
+
+    // 延迟执行以确保 DOM 已渲染
+    setTimeout(applyPieceStyles, 100);
+    setTimeout(applyPieceStyles, 500);
+    </script>
+    """
+    st.markdown(js_code, unsafe_allow_html=True)
 
 
 def render_reveal_selector():
