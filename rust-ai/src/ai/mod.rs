@@ -1,29 +1,32 @@
 //! AI 策略模块
 //!
-//! 提供多种 AI 策略实现，包括随机、贪婪、Minimax 等
+//! 提供多种 AI 策略实现，包括随机、贪婪、迭代加深等
 
 mod greedy;
 mod iterative;
 mod mcts;
-mod minimax;
 mod muses;
 mod random;
 
 pub use greedy::GreedyAI;
 pub use iterative::IterativeDeepeningAI;
 pub use mcts::MCTSAI;
-pub use minimax::{MinimaxAI, NODE_COUNT};
 pub use muses::MusesAI;
 pub use random::RandomAI;
 
+use std::sync::atomic::{AtomicU64, Ordering as AtomicOrdering};
+
+/// 全局节点计数器
+pub static NODE_COUNT: AtomicU64 = AtomicU64::new(0);
+
 /// 重置节点计数器
 pub fn reset_node_count() {
-    NODE_COUNT.store(0, std::sync::atomic::Ordering::Relaxed);
+    NODE_COUNT.store(0, AtomicOrdering::Relaxed);
 }
 
 /// 获取当前节点计数
 pub fn get_node_count() -> u64 {
-    NODE_COUNT.load(std::sync::atomic::Ordering::Relaxed)
+    NODE_COUNT.load(AtomicOrdering::Relaxed)
 }
 
 use crate::board::Board;
@@ -98,13 +101,6 @@ impl AIEngine {
         }
     }
 
-    /// 创建 Minimax AI
-    pub fn minimax(config: &AIConfig) -> Self {
-        AIEngine {
-            strategy: Box::new(MinimaxAI::new(config)),
-        }
-    }
-
     /// 创建迭代加深 AI
     pub fn iterative_deepening(config: &AIConfig) -> Self {
         AIEngine {
@@ -131,12 +127,11 @@ impl AIEngine {
         match name.to_lowercase().as_str() {
             "random" => Ok(Self::random(config.seed)),
             "greedy" => Ok(Self::greedy(config)),
-            "minimax" | "alphabeta" => Ok(Self::minimax(config)),
             "iterative" | "iterative_deepening" => Ok(Self::iterative_deepening(config)),
             "mcts" | "montecarlo" => Ok(Self::mcts(config)),
             "muses" => Ok(Self::muses(config)),
             _ => Err(format!(
-                "Unknown strategy: {}. Available: random, greedy, minimax, iterative, mcts, muses",
+                "Unknown strategy: {}. Available: random, greedy, iterative, mcts, muses",
                 name
             )),
         }
@@ -181,18 +176,6 @@ mod tests {
         let ai = AIEngine::greedy(&config);
         let moves = ai.select_moves_fen(fen, 5).unwrap();
         assert_eq!(moves.len(), 5);
-    }
-
-    #[test]
-    fn test_minimax_ai() {
-        let fen = "4k4/9/9/9/9/4R4/9/9/9/4K4 -:- r r";
-        let config = AIConfig {
-            depth: 2,
-            ..Default::default()
-        };
-        let ai = AIEngine::minimax(&config);
-        let best = ai.select_best_move_fen(fen).unwrap();
-        assert!(best.is_some());
     }
 
     #[test]
@@ -244,7 +227,7 @@ mod tests {
     #[test]
     fn test_all_strategies_from_name() {
         let config = AIConfig::default();
-        let strategies = vec!["random", "greedy", "minimax", "iterative", "mcts", "muses"];
+        let strategies = vec!["random", "greedy", "iterative", "mcts", "muses"];
 
         for name in strategies {
             let result = AIEngine::from_strategy(name, &config);

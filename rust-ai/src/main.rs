@@ -10,7 +10,7 @@ use clap::{Parser, Subcommand};
 use serde::{Deserialize, Serialize};
 use std::io::{self, BufRead, Write};
 use std::time::Instant;
-use xiangqi_ai::{get_legal_moves_from_fen, get_node_count, reset_node_count, AIConfig, AIEngine, Board, MinimaxAI, Color};
+use xiangqi_ai::{get_legal_moves_from_fen, get_node_count, reset_node_count, AIConfig, AIEngine, Board, IterativeDeepeningAI, Color};
 
 #[derive(Parser)]
 #[command(name = "xiangqi-ai")]
@@ -239,7 +239,7 @@ fn main() {
             match Board::from_fen(&fen) {
                 Ok(board) => {
                     let color = board.current_turn();
-                    let score = MinimaxAI::evaluate_static(&board, color);
+                    let score = IterativeDeepeningAI::evaluate_static(&board, color);
 
                     if json {
                         println!(

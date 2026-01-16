@@ -16,7 +16,7 @@ use rand::prelude::*;
 use std::sync::atomic::Ordering as AtomicOrdering;
 use std::time::{Duration, Instant};
 
-use super::minimax::NODE_COUNT;
+use super::NODE_COUNT;
 
 // ============================================================================
 // Zobrist Hashing

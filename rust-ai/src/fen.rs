@@ -264,6 +264,7 @@ pub fn pieces_to_fen(
     let board_str = rows.join("/");
 
     // 被吃子字符串
+    // 红方被吃 = 红子 = 大写; 黑方被吃 = 黑子 = 小写
     let red_captured_str = if captured.red_captured.is_empty() {
         "-".to_string()
     } else {
@@ -272,12 +273,7 @@ pub fn pieces_to_fen(
             .iter()
             .map(|c| {
                 if let Some(pt) = c.piece_type {
-                    let ch = pt.to_fen_char();
-                    if c.was_hidden {
-                        ch
-                    } else {
-                        ch.to_ascii_uppercase()
-                    }
+                    pt.to_fen_char().to_ascii_uppercase() // 红子始终大写
                 } else {
                     '?'
                 }
@@ -293,12 +289,7 @@ pub fn pieces_to_fen(
             .iter()
             .map(|c| {
                 if let Some(pt) = c.piece_type {
-                    let ch = pt.to_fen_char();
-                    if c.was_hidden {
-                        ch
-                    } else {
-                        ch.to_ascii_uppercase()
-                    }
+                    pt.to_fen_char() // 黑子始终小写 (to_fen_char 返回小写)
                 } else {
                     '?'
                 }

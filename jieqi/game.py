@@ -192,6 +192,11 @@ class JieqiGame:
 
         record = self.move_history.pop()
         self.board.undo_move(record.move, record.captured, record.was_hidden)
+
+        # 撤销被吃子记录
+        if record.captured is not None and self.captured_pieces:
+            self.captured_pieces.pop()
+
         self.current_turn = self.current_turn.opposite
         self.result = GameResult.ONGOING
         return True

@@ -143,12 +143,34 @@ class RustBackend(AIBackend):
         )
         return [(m["move"], m["score"]) for m in response.get("moves", [])]
 
+    def get_best_moves_with_stats(
+        self, fen: str, n: int = 5
+    ) -> tuple[list[tuple[str, float]], int, float]:
+        """获取最佳走法及搜索统计
+
+        Returns:
+            (moves, nodes, nps) - 走法列表、搜索节点数、每秒节点数
+        """
+        time_limit = self.config.time_limit if self.config.time_limit is not None else 0.5
+        response = self._send_request(
+            {
+                "cmd": "best",
+                "fen": fen,
+                "strategy": self.strategy_name,
+                "time_limit": time_limit,
+                "n": n,
+            }
+        )
+        moves = [(m["move"], m["score"]) for m in response.get("moves", [])]
+        nodes = response.get("nodes", 0)
+        nps = response.get("nps", 0.0)
+        return moves, nodes, nps
+
     def list_strategies(self) -> list[str]:
         # Rust 支持的策略
         return [
             "random",
             "greedy",
-            "minimax",
             "iterative",
             "mcts",
             "muses",
@@ -233,6 +255,20 @@ class UnifiedAIEngine:
             [(move_str, score), ...] 按分数降序排列
         """
         return self._backend.get_best_moves(fen, n)
+
+    def get_best_moves_with_stats(
+        self, fen: str, n: int = 5
+    ) -> tuple[list[tuple[str, float]], int, float]:
+        """获取最佳走法及搜索统计
+
+        Args:
+            fen: FEN 字符串
+            n: 返回的走法数量
+
+        Returns:
+            (moves, nodes, nps) - 走法列表、搜索节点数、每秒节点数
+        """
+        return self._backend.get_best_moves_with_stats(fen, n)
 
     def get_best_move(self, fen: str) -> tuple[str, float] | None:
         """获取最佳单一走法

@@ -18,13 +18,355 @@ from rich.table import Table
 from jieqi.ai.unified import UnifiedAIEngine
 from jieqi.fen import parse_move, to_fen
 from jieqi.game import JieqiGame
-from jieqi.types import ActionType, Color, GameResult
+from jieqi.types import ActionType, Color, GameResult, PieceType
 
 console = Console()
 app = typer.Typer()
 
 # 可用策略列表
-AVAILABLE_STRATEGIES = ["random", "greedy", "minimax", "iterative", "mcts", "muses"]
+AVAILABLE_STRATEGIES = ["random", "greedy", "iterative", "mcts", "muses"]
+
+# FEN 英文到中文映射
+FEN_TO_CHINESE = {
+    # 红方
+    "R": "車",
+    "H": "馬",
+    "E": "象",
+    "A": "士",
+    "K": "帥",
+    "C": "炮",
+    "P": "兵",
+    # 黑方
+    "r": "车",
+    "h": "马",
+    "e": "相",
+    "a": "仕",
+    "k": "将",
+    "c": "砲",
+    "p": "卒",
+    # 暗子
+    "X": "暗",
+    "x": "暗",
+}
+
+# PieceType 到中文映射（红方/黑方）
+PIECE_TYPE_TO_CHINESE = {
+    PieceType.ROOK: ("車", "车"),
+    PieceType.HORSE: ("馬", "马"),
+    PieceType.ELEPHANT: ("象", "相"),
+    PieceType.ADVISOR: ("士", "仕"),
+    PieceType.KING: ("帥", "将"),
+    PieceType.CANNON: ("炮", "砲"),
+    PieceType.PAWN: ("兵", "卒"),
+}
+
+
+def piece_to_chinese_colored(piece_type: PieceType, color: Color, is_hidden: bool = False) -> str:
+    """将棋子转换为带颜色的中文名称
+
+    Args:
+        piece_type: 棋子类型
+        color: 棋子颜色
+        is_hidden: 是否是暗子（吃暗子时显示"暗x"）
+
+    Returns:
+        带 rich 颜色标记的中文名称，如 "[red]車[/red]" 或 "[blue]暗车[/blue]"
+    """
+    red_name, black_name = PIECE_TYPE_TO_CHINESE.get(piece_type, ("?", "?"))
+    if color == Color.RED:
+        name = red_name
+        color_tag = "red"
+    else:
+        name = black_name
+        color_tag = "blue"
+
+    prefix = "暗" if is_hidden else ""
+    return f"[{color_tag}]{prefix}{name}[/{color_tag}]"
+
+
+def fen_to_chinese(fen: str) -> str:
+    """将 FEN 棋盘部分转换为中文显示"""
+    # 只转换棋盘部分（第一个空格之前）
+    parts = fen.split(" ")
+    board_part = parts[0]
+    result = []
+    for ch in board_part:
+        if ch in FEN_TO_CHINESE:
+            result.append(FEN_TO_CHINESE[ch])
+        else:
+            result.append(ch)
+    return "".join(result)
+
+
+def fen_to_board_table(fen: str) -> Table:
+    """将 FEN 转换为 rich Table 棋盘显示"""
+    # 解析棋盘部分
+    parts = fen.split(" ")
+    board_part = parts[0]
+    rows = board_part.split("/")
+
+    # 创建表格
+    table = Table(show_header=True, header_style="bold", box=None, padding=(0, 1))
+    table.add_column("", style="dim")  # 行号
+    for col in "abcdefghi":
+        table.add_column(col, justify="center", width=2)
+
+    # 填充棋盘
+    for row_idx, row_fen in enumerate(rows):
+        row_num = 9 - row_idx
+        cells = [str(row_num)]
+        col = 0
+        for ch in row_fen:
+            if ch.isdigit():
+                # 空格
+                for _ in range(int(ch)):
+                    cells.append("·")
+                    col += 1
+            elif ch in FEN_TO_CHINESE:
+                piece = FEN_TO_CHINESE[ch]
+                # 红方用红色，黑方用蓝色
+                if ch.isupper():
+                    cells.append(f"[red]{piece}[/red]")
+                else:
+                    cells.append(f"[blue]{piece}[/blue]")
+                col += 1
+        table.add_row(*cells)
+
+    return table
+
+
+# 被吃子解析用的映射（FEN中大写=红子, 小写=黑子）
+RED_PIECE_CHINESE = {
+    "R": "車",
+    "H": "馬",
+    "E": "象",
+    "A": "士",
+    "K": "帥",
+    "C": "炮",
+    "P": "兵",
+}
+BLACK_PIECE_CHINESE = {
+    "r": "车",
+    "h": "马",
+    "e": "相",
+    "a": "仕",
+    "k": "将",
+    "c": "砲",
+    "p": "卒",
+}
+
+
+def parse_captured_pieces(fen: str) -> tuple[str, str]:
+    """解析 FEN 中的被吃子信息，返回 (红方吃的黑子, 黑方吃的红子)
+
+    FEN 被吃子格式: 红方被吃:黑方被吃
+    - 大写 = 明子被吃
+    - 小写 = 暗子被吃（吃的人知道身份）
+    - ? = 暗子被吃（不知道身份）
+    """
+    parts = fen.split(" ")
+    if len(parts) < 2:
+        return "", ""
+
+    captured_part = parts[1]  # 格式: 红方被吃:黑方被吃
+    if captured_part == "-:-":
+        return "", ""
+
+    red_captured, black_captured = "", ""
+    if ":" in captured_part:
+        red_lost, black_lost = captured_part.split(":")
+        # 红方被吃（红子）= 黑方吃的
+        # 大小写表示明/暗，但都是红子
+        for ch in red_lost:
+            if ch == "?":
+                black_captured += "暗"  # 未知被吃子
+            elif ch.upper() in RED_PIECE_CHINESE:
+                black_captured += RED_PIECE_CHINESE[ch.upper()]
+        # 黑方被吃（黑子）= 红方吃的
+        # 大小写表示明/暗，但都是黑子
+        for ch in black_lost:
+            if ch == "?":
+                red_captured += "暗"  # 未知被吃子
+            elif ch.lower() in BLACK_PIECE_CHINESE:
+                red_captured += BLACK_PIECE_CHINESE[ch.lower()]
+
+    return red_captured, black_captured
+
+
+# 揭棋初始位置（暗子只能在这些位置）
+# 红方初始位置
+RED_STARTING_POSITIONS = {
+    (0, 0),
+    (0, 1),
+    (0, 2),
+    (0, 3),
+    (0, 4),
+    (0, 5),
+    (0, 6),
+    (0, 7),
+    (0, 8),  # row 0
+    (2, 1),
+    (2, 7),  # row 2
+    (3, 0),
+    (3, 2),
+    (3, 4),
+    (3, 6),
+    (3, 8),  # row 3
+}
+# 黑方初始位置
+BLACK_STARTING_POSITIONS = {
+    (9, 0),
+    (9, 1),
+    (9, 2),
+    (9, 3),
+    (9, 4),
+    (9, 5),
+    (9, 6),
+    (9, 7),
+    (9, 8),  # row 9
+    (7, 1),
+    (7, 7),  # row 7
+    (6, 0),
+    (6, 2),
+    (6, 4),
+    (6, 6),
+    (6, 8),  # row 6
+}
+
+# 每种棋子的最大数量
+PIECE_MAX_COUNTS = {
+    "K": 1,
+    "k": 1,  # 将/帅
+    "A": 2,
+    "a": 2,  # 士/仕
+    "E": 2,
+    "e": 2,  # 象/相
+    "H": 2,
+    "h": 2,  # 马
+    "R": 2,
+    "r": 2,  # 车
+    "C": 2,
+    "c": 2,  # 炮
+    "P": 5,
+    "p": 5,  # 兵/卒
+}
+
+
+def validate_fen(fen: str, move_num: int = 0) -> None:
+    """验证 FEN 是否合法，不合法则抛出异常
+
+    检查项：
+    1. 棋盘格式正确（10行，每行9列）
+    2. 暗子只能在初始位置
+    3. 每种棋子数量不超过最大值
+    4. 必须有且只有1个将/帅
+    5. 棋盘棋子 + 被吃棋子 <= 32
+    """
+    parts = fen.split(" ")
+    if len(parts) != 4:
+        raise ValueError(f"[Move #{move_num}] Invalid FEN format: {fen}")
+
+    board_str, captured_str, turn, viewer = parts
+
+    # 解析棋盘
+    rows = board_str.split("/")
+    if len(rows) != 10:
+        raise ValueError(f"[Move #{move_num}] FEN must have 10 rows, got {len(rows)}: {fen}")
+
+    # 统计棋子
+    piece_counts: dict[str, int] = {}
+    hidden_red = 0
+    hidden_black = 0
+    board_pieces = 0
+
+    for row_idx, row_str in enumerate(rows):
+        # FEN 从上到下是 row 9 到 row 0
+        row = 9 - row_idx
+        col = 0
+
+        for ch in row_str:
+            if col >= 9:
+                raise ValueError(f"[Move #{move_num}] Row {row} has too many columns: {fen}")
+
+            if ch.isdigit():
+                col += int(ch)
+            elif ch == "X":
+                # 红方暗子
+                if (row, col) not in RED_STARTING_POSITIONS:
+                    raise ValueError(
+                        f"[Move #{move_num}] Red hidden piece at invalid position ({row}, {col}): {fen}"
+                    )
+                hidden_red += 1
+                board_pieces += 1
+                col += 1
+            elif ch == "x":
+                # 黑方暗子
+                if (row, col) not in BLACK_STARTING_POSITIONS:
+                    raise ValueError(
+                        f"[Move #{move_num}] Black hidden piece at invalid position ({row}, {col}): {fen}"
+                    )
+                hidden_black += 1
+                board_pieces += 1
+                col += 1
+            elif ch.isalpha():
+                # 明子
+                piece_counts[ch] = piece_counts.get(ch, 0) + 1
+                board_pieces += 1
+                col += 1
+            else:
+                raise ValueError(f"[Move #{move_num}] Invalid character '{ch}' in FEN: {fen}")
+
+        if col != 9:
+            raise ValueError(f"[Move #{move_num}] Row {row} has {col} columns, expected 9: {fen}")
+
+    # 检查每种棋子数量
+    for piece, count in piece_counts.items():
+        max_count = PIECE_MAX_COUNTS.get(piece)
+        if max_count and count > max_count:
+            raise ValueError(
+                f"[Move #{move_num}] Too many '{piece}' pieces: {count} > {max_count}: {fen}"
+            )
+
+    # 检查将/帅存在（可能是暗子）
+    red_king = piece_counts.get("K", 0)
+    black_king = piece_counts.get("k", 0)
+    if red_king > 1:
+        raise ValueError(f"[Move #{move_num}] Multiple red kings: {fen}")
+    if black_king > 1:
+        raise ValueError(f"[Move #{move_num}] Multiple black kings: {fen}")
+
+    # 统计被吃棋子
+    captured_count = 0
+    if captured_str != "-:-":
+        red_lost, black_lost = captured_str.split(":")
+        if red_lost != "-":
+            captured_count += len(red_lost)
+        if black_lost != "-":
+            captured_count += len(black_lost)
+
+    # 检查总数
+    total_pieces = board_pieces + captured_count
+    if total_pieces > 32:
+        raise ValueError(
+            f"[Move #{move_num}] Total pieces ({board_pieces} on board + {captured_count} captured = {total_pieces}) exceeds 32: {fen}"
+        )
+
+    # 红方总数检查（棋盘上明子 + 暗子 + 被吃）
+    red_on_board = sum(count for piece, count in piece_counts.items() if piece.isupper())
+    red_captured = len(captured_str.split(":")[0]) if captured_str.split(":")[0] != "-" else 0
+    red_total = red_on_board + hidden_red + red_captured
+    if red_total > 16:
+        raise ValueError(
+            f"[Move #{move_num}] Red pieces ({red_on_board} revealed + {hidden_red} hidden + {red_captured} captured = {red_total}) exceeds 16: {fen}"
+        )
+
+    black_on_board = sum(count for piece, count in piece_counts.items() if piece.islower())
+    black_captured = len(captured_str.split(":")[1]) if captured_str.split(":")[1] != "-" else 0
+    black_total = black_on_board + hidden_black + black_captured
+    if black_total > 16:
+        raise ValueError(
+            f"[Move #{move_num}] Black pieces ({black_on_board} revealed + {hidden_black} hidden + {black_captured} captured = {black_total}) exceeds 16: {fen}"
+        )
 
 
 def calculate_elo(
@@ -177,28 +519,79 @@ def _run_game_impl(
         view = game.get_view(current_turn)
         fen_before = to_fen(view)
 
+        # 验证输入 FEN
+        validate_fen(fen_before, move_count + 1)
+
         # 计时并获取最佳走法
         start_time = time.time()
-        candidates = current_ai.get_best_moves(fen_before, n=5)
+        if verbose:
+            # verbose 模式获取搜索统计
+            candidates, nodes, nps = current_ai.get_best_moves_with_stats(fen_before, n=20)
+        else:
+            candidates = current_ai.get_best_moves(fen_before, n=20)
+            nodes, nps = 0, 0.0
         elapsed_ms = (time.time() - start_time) * 1000
 
         if not candidates:
             break
 
-        move_str, score = candidates[0]
-        move, _ = parse_move(move_str)
+        # 选择走法：避免重复局面导致和棋
+        move_str, score = None, None
+        move = None
+        selected_index = 0  # 从 top-N 中选的第几个（0-based）
+        for idx, (candidate_str, candidate_score) in enumerate(candidates):
+            candidate_move, _ = parse_move(candidate_str)
+            if candidate_move is None:
+                continue
+
+            # 模拟执行，检查是否会导致重复局面
+            piece = game.board.get_piece(candidate_move.from_pos)
+            was_hidden_temp = piece.is_hidden if piece else False
+            success = game.make_move(candidate_move)
+            if not success:
+                continue
+
+            # 检查重复次数（如果已经出现 max-1 次，这步会触发和棋）
+            would_draw = game.get_position_count() >= game.config.max_repetitions
+            game.undo_move()  # 撤销模拟
+
+            if would_draw and len(candidates) > 1:
+                # 跳过会导致和棋的走法（如果还有其他选择）
+                continue
+
+            # 选择这个走法
+            move_str, score = candidate_str, candidate_score
+            move = candidate_move
+            selected_index = idx
+            break
+
+        # 如果所有走法都会导致和棋，选第一个
+        if move is None:
+            move_str, score = candidates[0]
+            move, _ = parse_move(move_str)
+            selected_index = 0
 
         if move is None:
-            break
+            raise RuntimeError(f"AI {ai_name} returned unparseable move: {move_str}")
 
         # 执行走法前检查是否是揭子走法
         piece = game.board.get_piece(move.from_pos)
         was_hidden = piece.is_hidden if piece else False
 
+        # 执行走法前检查目标位置是否有棋子（吃子）
+        target_piece = game.board.get_piece(move.to_pos)
+        captured_info = None
+        if target_piece:
+            captured_info = {
+                "type": target_piece.actual_type,  # 可能为 None（暗子）
+                "color": target_piece.color,
+                "was_hidden": target_piece.is_hidden,
+            }
+
         # 执行走法
         success = game.make_move(move)
         if not success:
-            break
+            raise RuntimeError(f"AI {ai_name} returned illegal move: {move_str}, FEN: {fen_before}")
 
         move_count += 1
 
@@ -210,28 +603,64 @@ def _run_game_impl(
                 last_record = game.move_history[-1]
                 revealed_type = last_record.revealed_type
 
-        # 获取走完后的 FEN
-        fen_after = to_fen(game.get_view(game.current_turn))
+        # 如果吃了暗子，从走法记录中获取揭开后的类型
+        if captured_info and captured_info["was_hidden"] and game.move_history:
+            last_record = game.move_history[-1]
+            if last_record.captured and last_record.captured.actual_type:
+                captured_info["type"] = last_record.captured.actual_type
 
-        # 估算搜索节点数（Rust AI 不返回这个，用时间估算）
-        # 假设每秒搜索 10000 节点
-        estimated_nodes = int(elapsed_ms * 10)
-        nps = int(estimated_nodes / (elapsed_ms / 1000)) if elapsed_ms > 0 else 0
+        # 获取走完后的 FEN（保持当前方视角，与输入 FEN 一致）
+        fen_after = to_fen(game.get_view(current_turn))
 
-        # 更新统计
+        # 验证输出 FEN
+        validate_fen(fen_after, move_count)
+
+        # 更新统计（使用 Rust AI 返回的真实节点数）
         if player == "red":
-            stats["red_nodes"] += estimated_nodes
+            stats["red_nodes"] += nodes
         else:
-            stats["black_nodes"] += estimated_nodes
+            stats["black_nodes"] += nodes
 
         # Verbose 输出
         if verbose:
-            color_tag = "[red]" if player == "red" else "[blue]"
-            revealed_info = f"  → revealed: {revealed_type}" if revealed_type else ""
+            color_tag = "red" if player == "red" else "blue"
+
+            # 构建揭子信息（revealed_type 是字符串如 "rook"，需要转换为 PieceType）
+            reveal_str = ""
+            if revealed_type:
+                # 揭的是自己的棋子
+                revealed_piece_type = PieceType(revealed_type)
+                reveal_str = f" 揭:{piece_to_chinese_colored(revealed_piece_type, current_turn)}"
+
+            # 构建吃子信息
+            capture_str = ""
+            if captured_info and captured_info["type"]:
+                capture_str = f" 吃:{piece_to_chinese_colored(captured_info['type'], captured_info['color'], captured_info['was_hidden'])}"
+
+            # 输出格式:
+            # #步数 颜色 AI名称
+            #       输入FEN
+            #       走法 选第几个/总数 score 耗时 nodes nps [揭:xxx] [吃:xxx]
+            console.print(f"#{move_count:3d} [{color_tag}]{player:5}[/{color_tag}] {ai_name}")
+            console.print(f"    [dim]IN:  {fen_before}[/dim]")
+            # 格式化 nodes 和 nps
+            nodes_str = f"{nodes:,}" if nodes > 0 else "0"
+            nps_str = f"{nps:,.0f}" if nps > 0 else "0"
             console.print(
-                f"#{move_count:3d}  {color_tag}{player:5}[/{color_tag[1:]}  "
-                f"{ai_name:10}  {move_str:8}  score={score:6.1f}  {elapsed_ms:6.0f}ms{revealed_info}"
+                f"    {move_str:8} {selected_index + 1}/{len(candidates)}  score={score:7.1f}  {elapsed_ms:5.0f}ms  "
+                f"[dim]nodes={nodes_str} nps={nps_str}[/dim]{reveal_str}{capture_str}"
             )
+            console.print(fen_to_board_table(fen_after))
+            # 显示累计吃掉的棋子
+            red_captured, black_captured = parse_captured_pieces(fen_after)
+            if red_captured or black_captured:
+                captured_parts = []
+                if red_captured:
+                    captured_parts.append(f"[red]红吃:[/red] [blue]{red_captured}[/blue]")
+                if black_captured:
+                    captured_parts.append(f"[blue]黑吃:[/blue] [red]{black_captured}[/red]")
+                console.print("    " + "  ".join(captured_parts))
+            console.print(f"    [dim]FEN: {fen_after}[/dim]")
 
         # 记录日志
         if log_file:
@@ -242,7 +671,7 @@ def _run_game_impl(
                 "ai_name": ai_name,
                 "move": move_str,
                 "score": score,
-                "nodes": estimated_nodes,
+                "nodes": nodes,
                 "nps": nps,
                 "depth": 3,
                 "elapsed_ms": elapsed_ms,
@@ -450,8 +879,7 @@ def list_ai():
     descriptions = {
         "random": "Random move selection (weakest)",
         "greedy": "Greedy capture strategy",
-        "minimax": "Minimax with alpha-beta pruning",
-        "iterative": "Iterative deepening search",
+        "iterative": "Iterative deepening with alpha-beta pruning",
         "mcts": "Monte Carlo Tree Search",
         "muses": "Advanced hybrid strategy (recommended)",
     }

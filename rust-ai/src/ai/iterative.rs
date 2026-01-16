@@ -8,7 +8,7 @@ use std::cmp::Ordering as CmpOrdering;
 use std::sync::atomic::Ordering as AtomicOrdering;
 use std::time::{Duration, Instant};
 
-use super::minimax::NODE_COUNT;
+use super::NODE_COUNT;
 
 /// Iterative Deepening AI - 迭代加深搜索
 pub struct IterativeDeepeningAI {
@@ -84,6 +84,18 @@ impl IterativeDeepeningAI {
         }
 
         score
+    }
+
+    /// 静态评估一个棋盘局面（不搜索）
+    pub fn evaluate_static(board: &Board, color: Color) -> f64 {
+        let config = AIConfig {
+            depth: 1,
+            randomness: 0.0,
+            seed: None,
+            time_limit: None,
+        };
+        let ai = IterativeDeepeningAI::new(&config);
+        ai.evaluate_position(board, color)
     }
 
     /// Negamax 搜索
