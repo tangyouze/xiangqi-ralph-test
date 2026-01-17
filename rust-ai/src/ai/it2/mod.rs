@@ -155,7 +155,7 @@ impl IT2AI {
         }
     }
 
-    /// 评估局面（使用动态期望价值）
+    /// 评估局面（纯子力判断）
     fn evaluate(&self, board: &Board, color: Color) -> f64 {
         let mut score = 0.0;
 
@@ -181,32 +181,6 @@ impl IT2AI {
                 score += value;
             } else {
                 score -= value;
-            }
-        }
-
-        // 位置奖励
-        for piece in board.get_all_pieces(Some(color)) {
-            // 中心控制
-            let center_bonus = 5.0 - (4.0 - piece.position.col as f64).abs();
-            score += center_bonus;
-
-            // 前进奖励（兵）
-            if piece.get_movement_type() == PieceType::Pawn {
-                let progress = if color == Color::Red {
-                    piece.position.row as f64
-                } else {
-                    (9 - piece.position.row) as f64
-                };
-                score += progress * 5.0;
-            }
-
-            // 活跃度奖励（车、炮、马）
-            match piece.get_movement_type() {
-                PieceType::Rook | PieceType::Cannon | PieceType::Horse => {
-                    let activity = 3.0 - (4.5 - piece.position.row as f64).abs() * 0.5;
-                    score += activity;
-                }
-                _ => {}
             }
         }
 
