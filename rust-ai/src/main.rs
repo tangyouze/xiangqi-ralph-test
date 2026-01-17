@@ -597,10 +597,33 @@ fn get_opposite_moves(board: &Board, strategy: &str, depth: u32) -> (Option<Vec<
         return (None, None);
     }
 
-    // 获取 FEN
-    let fen = board.to_fen();
+    // depth=1 时直接用静态评估（叶子节点，不需要搜索）
+    if depth <= 1 {
+        let mut moves: Vec<SearchMoveBasic> = Vec::new();
+        for mv in &legal_moves {
+            let mv_str = mv.to_fen_str(None);
+            let move_type = if mv_str.starts_with('+') { "chance" } else { "move" };
 
-    // 创建 AI 搜索
+            let mut board_after = board.clone();
+            board_after.make_move(mv);
+            let eval = -IterativeDeepeningAI::evaluate_static(&board_after, board_after.current_turn());
+
+            moves.push(SearchMoveBasic {
+                mv: mv_str,
+                move_type: move_type.to_string(),
+                eval,
+                score: eval, // 叶子节点：score = eval
+            });
+        }
+
+        moves.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+        let top10: Vec<SearchMoveBasic> = moves.iter().take(10).cloned().collect();
+        let bottom10: Vec<SearchMoveBasic> = moves.iter().rev().take(10).cloned().collect();
+        return (Some(top10), Some(bottom10));
+    }
+
+    // depth > 1 时使用 AI 搜索
+    let fen = board.to_fen();
     let config = AIConfig {
         depth,
         randomness: 0.0,
@@ -613,7 +636,6 @@ fn get_opposite_moves(board: &Board, strategy: &str, depth: u32) -> (Option<Vec<
         Err(_) => return (None, None),
     };
 
-    // 获取所有走法的分数
     let search_results = match ai.select_moves_fen(&fen, legal_moves.len()) {
         Ok(r) => r,
         Err(_) => return (None, None),
