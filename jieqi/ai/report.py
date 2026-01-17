@@ -19,7 +19,7 @@ from jieqi.logging import logger
 # 默认评估场景
 EVAL_SCENARIOS: list[tuple[str, str]] = [
     # === 基础局面 ===
-    ("initial", "xxxxxxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXXXXXX -:- r r"),
+    ("initial", "xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXKXXXX -:- r r"),
     ("midgame_hidden", "xxxx1xxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXX1XXXX -:- r r"),
     # === 杀法练习 ===
     ("double_rook_mate", "4k4/9/9/9/9/9/9/9/4R4/3RK4 -:- r r"),
@@ -33,7 +33,7 @@ EVAL_SCENARIOS: list[tuple[str, str]] = [
     ("rook_pawn_vs_rook", "4k4/9/4r4/9/9/9/4P4/9/4R4/4K4 -:- r r"),
     ("double_cannon_advisor", "3ak4/4a4/9/9/9/9/9/4C4/4C4/4K4 -:- r r"),
     # === 揭棋特殊局面（暗子必须在标准初始位置）===
-    ("hidden_opening", "xxxxxxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXXXXXX -:- r r"),
+    ("hidden_opening", "xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXKXXXX -:- r r"),
     ("partial_revealed", "xxxx1xxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1C5C1/9/XXXX1XXXX -:- r r"),
     (
         "mixed_hidden_revealed",

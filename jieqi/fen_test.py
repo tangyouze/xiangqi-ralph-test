@@ -61,7 +61,7 @@ class TestBoardFen:
         board, captured, turn, viewer = parts
 
         # 棋盘部分
-        assert board == "xxxxxxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXXXXXX"
+        assert board == "xxxxxxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXXXXXX"  # 测试全暗子场景（非真实开局）
         assert captured == "-:-"
         assert turn == "r"
         assert viewer == "r"
@@ -509,7 +509,7 @@ class TestRoundTrip:
         assert regenerated == original
 
     def test_full_board(self):
-        """完整棋盘往返"""
+        """完整棋盘往返（测试全暗子场景）"""
         original = "xxxxxxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXXXXXX -:- r r"
         state = parse_fen(original)
         regenerated = fen_from_pieces(state.pieces, state.captured, state.turn, state.viewer)

@@ -380,18 +380,28 @@ mod tests {
 
     #[test]
     fn test_parse_initial_fen() {
-        let fen = "xxxxxxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXXXXXX -:- r r";
+        // 揭棋初始局面：将帅已揭，其他都是暗子
+        let fen = "xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXKXXXX -:- r r";
         let state = parse_fen(fen).unwrap();
 
         assert_eq!(state.pieces.len(), 32);
         assert_eq!(state.turn, Color::Red);
         assert_eq!(state.viewer, Color::Red);
 
-        // 所有棋子都是暗子
+        // 将帅是明子，其他都是暗子
+        let mut hidden_count = 0;
+        let mut king_count = 0;
         for piece in &state.pieces {
-            assert!(piece.is_hidden);
-            assert!(piece.piece_type.is_none());
+            if piece.is_hidden {
+                hidden_count += 1;
+                assert!(piece.piece_type.is_none());
+            } else {
+                king_count += 1;
+                assert_eq!(piece.piece_type, Some(PieceType::King));
+            }
         }
+        assert_eq!(hidden_count, 30); // 30 个暗子
+        assert_eq!(king_count, 2); // 2 个明将
     }
 
     #[test]
@@ -409,7 +419,8 @@ mod tests {
 
     #[test]
     fn test_fen_roundtrip() {
-        let fen = "xxxxxxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXXXXXX -:- r r";
+        // 揭棋初始局面
+        let fen = "xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXKXXXX -:- r r";
         let state = parse_fen(fen).unwrap();
         let regenerated = pieces_to_fen(&state.pieces, &state.captured, state.turn, state.viewer);
         assert_eq!(fen, regenerated);

@@ -5,7 +5,8 @@
 use xiangqi_ai::{Board, MinimaxAI, Color, PieceType};
 
 fn main() {
-    let opening_fen = "xxxxxxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXXXXXX -:- r r";
+    // 揭棋初始局面（将帅已揭）
+    let opening_fen = "xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXKXXXX -:- r r";
     
     println!("═══════════════════════════════════════════════");
     println!("调试揭将问题");

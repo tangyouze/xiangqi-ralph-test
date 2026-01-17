@@ -22,7 +22,7 @@ cargo build --release
 ### 获取合法走法
 
 ```bash
-./target/release/xiangqi-ai moves --fen "xxxxxxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXXXXXX -:- r r"
+./target/release/xiangqi-ai moves --fen "xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXKXXXX -:- r r"
 ```
 
 ### 获取 AI 推荐走法

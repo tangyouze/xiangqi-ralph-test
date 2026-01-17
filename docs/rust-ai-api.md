@@ -11,7 +11,7 @@ Rust AI 提供两种使用方式：
 ### moves - 获取合法走法
 
 ```bash
-xiangqi-ai moves --fen "xxxxxxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXXXXXX -:- r r"
+xiangqi-ai moves --fen "xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXKXXXX -:- r r"
 ```
 
 输出：
@@ -122,7 +122,7 @@ xiangqi-ai server
 
 请求：
 ```json
-{"cmd": "moves", "fen": "xxxxxxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXXXXXX -:- r r"}
+{"cmd": "moves", "fen": "xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXKXXXX -:- r r"}
 ```
 
 响应：

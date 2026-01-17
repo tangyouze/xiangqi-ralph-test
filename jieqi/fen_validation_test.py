@@ -192,7 +192,7 @@ class TestApplyMoveConsistency:
 
     def test_apply_move_piece_count(self):
         """执行走法后棋子数量"""
-        fen = "xxxxxxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXXXXXX -:- r r"
+        fen = "xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXKXXXX -:- r r"
 
         moves = get_legal_moves_from_fen(fen)
         move_str = moves[0]  # 取第一个走法
@@ -211,7 +211,7 @@ class TestApplyMoveConsistency:
 
     def test_apply_reveal_move(self):
         """执行揭子走法"""
-        fen = "xxxxxxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXXXXXX -:- r r"
+        fen = "xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXKXXXX -:- r r"
 
         # 找一个揭子走法
         moves = get_legal_moves_from_fen(fen)

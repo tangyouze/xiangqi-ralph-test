@@ -868,7 +868,8 @@ mod tests {
 
     #[test]
     fn test_muses_with_time_limit() {
-        let fen = "xxxxxxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXXXXXX -:- r r";
+        // 揭棋初始局面（将帅已揭）
+        let fen = "xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXKXXXX -:- r r";
         let board = Board::from_fen(fen).unwrap();
         let config = AIConfig {
             depth: 3,

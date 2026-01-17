@@ -206,7 +206,8 @@ mod tests {
 
     #[test]
     fn test_random_ai() {
-        let fen = "xxxxxxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXXXXXX -:- r r";
+        // 揭棋初始局面（将帅已揭）
+        let fen = "xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXKXXXX -:- r r";
         let ai = AIEngine::random(Some(42));
         let moves = ai.select_moves_fen(fen, 5).unwrap();
         assert_eq!(moves.len(), 5);
@@ -214,7 +215,8 @@ mod tests {
 
     #[test]
     fn test_greedy_ai() {
-        let fen = "xxxxxxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXXXXXX -:- r r";
+        // 揭棋初始局面（将帅已揭）
+        let fen = "xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXKXXXX -:- r r";
         let config = AIConfig::default();
         let ai = AIEngine::greedy(&config);
         let moves = ai.select_moves_fen(fen, 5).unwrap();

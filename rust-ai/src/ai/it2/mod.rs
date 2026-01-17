@@ -431,15 +431,15 @@ mod tests {
 
     #[test]
     fn test_hidden_piece_distribution() {
-        // 初始局面：全是暗子
-        let fen = "xxxxxxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXXXXXX -:- r r";
+        // 揭棋初始局面：将帅已揭，其他暗子
+        let fen = "xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXKXXXX -:- r r";
         let board = Board::from_fen(fen).unwrap();
 
         let dist = HiddenPieceDistribution::from_board(&board, Color::Red);
-        assert_eq!(dist.total, 16); // 16 个暗子
+        assert_eq!(dist.total, 15); // 15 个暗子（将已揭）
 
         let possible = dist.possible_types();
-        assert_eq!(possible.len(), 7); // 7 种可能
+        assert_eq!(possible.len(), 6); // 6 种可能（不含将）
 
         // 验证概率
         let total_prob: f64 = possible.iter().map(|(_, p)| p).sum();
@@ -448,17 +448,18 @@ mod tests {
 
     #[test]
     fn test_expected_value() {
-        let fen = "xxxxxxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXXXXXX -:- r r";
+        // 揭棋初始局面
+        let fen = "xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXKXXXX -:- r r";
         let board = Board::from_fen(fen).unwrap();
 
         let dist = HiddenPieceDistribution::from_board(&board, Color::Red);
         let ev = dist.expected_value();
 
-        // 期望价值应该是所有棋子价值的加权平均
-        // (1*100000 + 2*200 + 2*200 + 2*400 + 2*900 + 2*450 + 5*100) / 16
-        // = (100000 + 400 + 400 + 800 + 1800 + 900 + 500) / 16
-        // = 104800 / 16 = 6550
-        assert_eq!(ev, 6550);
+        // 期望价值应该是所有棋子价值的加权平均（不含将）
+        // (2*200 + 2*200 + 2*400 + 2*900 + 2*450 + 5*100) / 15
+        // = (400 + 400 + 800 + 1800 + 900 + 500) / 15
+        // = 4800 / 15 = 320
+        assert_eq!(ev, 320);
     }
 
     #[test]

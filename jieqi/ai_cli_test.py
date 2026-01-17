@@ -26,7 +26,7 @@ runner = CliRunner()
 # 开局阶段（30 个）- 大量暗子
 OPENING_SCENARIOS = [
     # 初始局面
-    ("initial", "xxxxxxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXXXXXX -:- r r"),
+    ("initial", "xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXKXXXX -:- r r"),
     # 红方第一步后
     ("opening_1", "xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/2P6/X1X1X1X1X/1X5X1/9/XXXXKXXXX -:- b r"),
     # 黑方应手
@@ -34,11 +34,11 @@ OPENING_SCENARIOS = [
     # 炮二平五型
     ("cannon_center", "xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/4C4/9/XXXXKXXXX -:- b r"),
     # 中局初期（揭开几个子）
-    ("early_mid_1", "xxxxxxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1C5x1/9/XXXXXXXXX -:- r r"),
+    ("early_mid_1", "xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1C5x1/9/XXXXKXXXX -:- r r"),
     ("early_mid_2", "xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXKXXXX -:- r r"),
     ("early_mid_3", "rxxxxxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/RXXXXXXXX -:- b r"),
-    ("early_mid_4", "xxxxxxxxx/9/1c5x1/x1x1x1x1x/9/9/X1X1X1X1X/1C5X1/9/XXXXXXXXX -:- r r"),
-    ("early_mid_5", "xxxxxxxxx/9/1x5c1/x1x1x1x1x/9/9/X1X1X1X1X/1X5C1/9/XXXXXXXXX -:- b r"),
+    ("early_mid_4", "xxxxkxxxx/9/1c5x1/x1x1x1x1x/9/9/X1X1X1X1X/1C5X1/9/XXXXKXXXX -:- r r"),
+    ("early_mid_5", "xxxxkxxxx/9/1x5c1/x1x1x1x1x/9/9/X1X1X1X1X/1X5C1/9/XXXXKXXXX -:- b r"),
     # 更多开局变化
     ("opening_var_1", "xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXKXXXX -:- r r"),
     ("opening_var_2", "xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/4P4/X1X3X1X/1X5X1/9/XXXXKXXXX -:- b r"),
@@ -52,8 +52,8 @@ OPENING_SCENARIOS = [
     ("elephant_1", "xxxxkxxxx/9/1x3E1x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXKXXXX -:- b r"),
     ("elephant_2", "xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X3e3/9/XXXXKXXXX -:- r r"),
     # 仙人指路
-    ("pawn_advance_1", "xxxxxxxxx/9/1x5x1/x1x1x1x1x/9/4P4/X1X3X1X/1X5X1/9/XXXXXXXXX -:- b r"),
-    ("pawn_advance_2", "xxxxxxxxx/9/1x5x1/x1x1p1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXXXXXX -:- r r"),
+    ("pawn_advance_1", "xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/4P4/X1X3X1X/1X5X1/9/XXXXKXXXX -:- b r"),
+    ("pawn_advance_2", "xxxxkxxxx/9/1x5x1/x1x1p1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXKXXXX -:- r r"),
     # 对称开局
     ("symmetric_1", "xxxxkxxxx/9/1x5x1/x1x1x1x1x/4P4/4p4/X1X1X1X1X/1X5X1/9/XXXXKXXXX -:- r r"),
     ("symmetric_2", "xxxxkxxxx/9/1c5c1/x1x1x1x1x/9/9/X1X1X1X1X/1C5C1/9/XXXXKXXXX -:- r r"),
@@ -187,7 +187,7 @@ class TestBestCommand:
 
     def test_best_returns_legal_move(self):
         """测试返回的走法是合法的"""
-        fen = "xxxxxxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXXXXXX -:- r r"
+        fen = "xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXKXXXX -:- r r"
         result = runner.invoke(app, ["best", "--fen", fen, "-s", "greedy", "-n", "1"])
 
         assert result.exit_code == 0
@@ -195,7 +195,7 @@ class TestBestCommand:
 
     def test_best_with_time_limit(self):
         """测试时间限制参数"""
-        fen = "xxxxxxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXXXXXX -:- r r"
+        fen = "xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXKXXXX -:- r r"
         result = runner.invoke(app, ["best", "--fen", fen, "-s", "greedy", "-t", "0.5"])
 
         assert result.exit_code == 0
@@ -203,7 +203,7 @@ class TestBestCommand:
 
     def test_best_json_output(self):
         """测试 JSON 输出"""
-        fen = "xxxxxxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXXXXXX -:- r r"
+        fen = "xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXKXXXX -:- r r"
         result = runner.invoke(app, ["best", "--fen", fen, "-s", "greedy", "--json"])
 
         assert result.exit_code == 0
@@ -212,7 +212,7 @@ class TestBestCommand:
 
     def test_moves_are_legal(self):
         """测试所有返回的走法都是合法的"""
-        fen = "xxxxxxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXXXXXX -:- r r"
+        fen = "xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXKXXXX -:- r r"
 
         engine = UnifiedAIEngine(strategy="greedy")
         moves = engine.get_best_moves(fen, n=10)

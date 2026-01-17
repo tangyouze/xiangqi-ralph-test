@@ -807,7 +807,8 @@ mod tests {
 
     #[test]
     fn test_initial_board() {
-        let fen = "xxxxxxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXXXXXX -:- r r";
+        // 揭棋初始局面（将帅已揭）
+        let fen = "xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXKXXXX -:- r r";
         let board = Board::from_fen(fen).unwrap();
 
         assert_eq!(board.get_all_pieces(Some(Color::Red)).len(), 16);
@@ -817,11 +818,14 @@ mod tests {
 
     #[test]
     fn test_legal_moves_initial() {
-        let fen = "xxxxxxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXXXXXX -:- r r";
+        // 揭棋初始局面（将帅已揭）
+        let fen = "xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXKXXXX -:- r r";
         let board = Board::from_fen(fen).unwrap();
         let moves = board.get_legal_moves(Color::Red);
 
-        // 初始局面红方应该有 44 个合法走法
+        // 初始局面红方应该有 44 个合法走法（帅1 + 暗子43）
+        // 帅在 e0，可以走 d0, f0 (左右各1)
+        // 暗子走法不变
         assert_eq!(moves.len(), 44);
     }
 
@@ -866,9 +870,9 @@ mod tests {
     #[test]
     fn test_cannon_attack_with_multiple_screens() {
         // 测试炮隔了2个棋子的情况 - 不能攻击
-        // e列从下往上：e0红将 → e2红炮 → e3红兵 → e6黑兵 → e9黑将
+        // e列从下往上：e0红帅 → e2红炮 → e3红兵 → e6黑卒 → e9黑将
         // 炮在e2，隔了2个棋子（e3, e6），不能攻击e9
-        let fen = "xxxxxxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/4C2X1/9/XXXXXXXXX -:- b r";
+        let fen = "xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/4C2X1/9/XXXXKXXXX -:- b r";
         let board = Board::from_fen(fen).unwrap();
         
         // 黑方不应该被将军

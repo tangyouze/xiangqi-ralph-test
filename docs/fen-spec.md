@@ -12,9 +12,9 @@
 <棋盘> <被吃子> <回合> <视角>
 ```
 
-示例：
+示例（初始局面，将帅已揭）：
 ```
-xxxxxxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXXXXXX -:- r r
+xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXKXXXX -:- r r
 ```
 
 ---
@@ -39,9 +39,9 @@ xxxxxxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXXXXXX -:- r r
 
 ### 示例
 
-初始局面：
+初始局面（将帅已揭）：
 ```
-xxxxxxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXXXXXX
+xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXKXXXX
 ```
 
 混合局面（部分明子）：
@@ -146,10 +146,10 @@ RPha:??HC
 
 ## 5. 完整示例
 
-### 初始局面
+### 初始局面（将帅已揭）
 
 ```
-xxxxxxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXXXXXX -:- r r
+xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXKXXXX -:- r r
 ```
 
 ### 中局（红方视角）

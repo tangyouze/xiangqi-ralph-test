@@ -3,7 +3,8 @@
 use xiangqi_ai::{Board, Color, Position};
 
 fn main() {
-    let fen = "xxxxxxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/4C2X1/9/XXXXXXXXX -:- b r";
+    // 中局局面（将帅已揭，红炮在 e2）
+    let fen = "xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/4C2X1/9/XXXXKXXXX -:- b r";
     
     println!("FEN: {}", fen);
     println!();
