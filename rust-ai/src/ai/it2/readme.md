@@ -67,12 +67,24 @@ if alpha >= beta {
 
 ## 评估函数
 
-纯子力评估，不考虑位置：
+子力 + 吃子潜力：
 
+### 1. 子力评估
 - **明子**：使用实际棋子价值
 - **暗子**：使用动态期望价值（所有暗子价值相同，和位置无关）
   - 车炮原价，其他 7 折
   - 鼓励揭车/炮
+
+### 2. 吃子潜力（Capture Gain）
+简单的 quiescence 替代方案：
+
+```
+best_gain_us = max(被吃子价值) for 我方所有吃子走法
+best_gain_them = max(被吃子价值) for 对方所有吃子走法
+score += 0.3 * (best_gain_us - best_gain_them)
+```
+
+权重 0.3 避免过度估计吃子潜力。
 
 ## 与 iterative.rs 的区别
 

@@ -155,7 +155,7 @@ impl IT2AI {
         }
     }
 
-    /// 评估局面（纯子力判断）
+    /// 评估局面（子力 + 吃子潜力）
     fn evaluate(&self, board: &Board, color: Color) -> f64 {
         let mut score = 0.0;
 
@@ -184,7 +184,35 @@ impl IT2AI {
             }
         }
 
+        // 吃子潜力（capture gain）
+        let capture_weight = 0.3;
+        let my_best_capture = self.best_capture_value(board, color, my_ev);
+        let opp_best_capture = self.best_capture_value(board, color.opposite(), opp_ev);
+        score += capture_weight * (my_best_capture - opp_best_capture);
+
         score
+    }
+
+    /// 计算某方最佳吃子价值
+    fn best_capture_value(&self, board: &Board, color: Color, hidden_ev: f64) -> f64 {
+        let moves = board.get_legal_moves(color);
+        let mut best_gain: f64 = 0.0;
+
+        for mv in &moves {
+            if let Some(victim) = board.get_piece(mv.to_pos) {
+                // 被吃子的价值
+                let victim_value = if victim.is_hidden {
+                    hidden_ev
+                } else {
+                    victim.actual_type.map_or(0.0, |pt| pt.value() as f64)
+                };
+                if victim_value > best_gain {
+                    best_gain = victim_value;
+                }
+            }
+        }
+
+        best_gain
     }
 
     /// 终局评估
