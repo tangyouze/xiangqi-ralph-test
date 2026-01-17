@@ -171,8 +171,13 @@ class RustBackend(AIBackend):
         response = self._send_request({"cmd": "eval", "fen": fen})
         return response.get("eval", 0.0), response.get("color", "red")
 
-    def get_search_tree(self, fen: str, depth: int = 3) -> dict:
+    def get_search_tree(self, fen: str, depth: int = 3, strategy: str | None = None) -> dict:
         """获取搜索树调试信息
+
+        Args:
+            fen: FEN 字符串
+            depth: 搜索深度
+            strategy: AI 策略（默认使用当前引擎策略）
 
         Returns:
             {
@@ -192,7 +197,12 @@ class RustBackend(AIBackend):
                 "nodes": int
             }
         """
-        response = self._send_request({"cmd": "search", "fen": fen, "depth": depth})
+        request = {"cmd": "search", "fen": fen, "depth": depth}
+        if strategy:
+            request["strategy"] = strategy
+        else:
+            request["strategy"] = self.strategy_name
+        response = self._send_request(request)
         return response
 
     def list_strategies(self) -> list[str]:
@@ -304,17 +314,18 @@ class UnifiedAIEngine:
         """
         return self._backend.get_eval(fen)
 
-    def get_search_tree(self, fen: str, depth: int = 3) -> dict:
+    def get_search_tree(self, fen: str, depth: int = 3, strategy: str | None = None) -> dict:
         """获取搜索树调试信息
 
         Args:
             fen: FEN 字符串
             depth: 搜索深度
+            strategy: AI 策略（默认使用当前引擎策略）
 
         Returns:
             包含 first_moves、opposite_top10/bottom10 的详细搜索信息
         """
-        return self._backend.get_search_tree(fen, depth)
+        return self._backend.get_search_tree(fen, depth, strategy)
 
     def get_best_move(self, fen: str) -> tuple[str, float] | None:
         """获取最佳单一走法

@@ -33,6 +33,7 @@ AVAILABLE_STRATEGIES = [
     "muses2",
     "muses3",
     "muses4",
+    "it2",
 ]
 
 # FEN 英文到中文映射

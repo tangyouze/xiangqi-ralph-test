@@ -69,6 +69,10 @@ enum Commands {
         #[arg(long)]
         fen: String,
 
+        /// AI 策略
+        #[arg(long, default_value = "iterative")]
+        strategy: String,
+
         /// 搜索深度
         #[arg(long, default_value = "3")]
         depth: u32,
@@ -365,8 +369,8 @@ fn main() {
             }
         }
 
-        Commands::Search { fen, depth, json } => {
-            match do_search(&fen, depth) {
+        Commands::Search { fen, strategy, depth, json } => {
+            match do_search(&fen, &strategy, depth) {
                 Ok((eval_score, first_moves, nodes)) => {
                     if json {
                         let response = ServerResponse::success_search(
@@ -510,9 +514,10 @@ fn handle_eval_request(request: &ServerRequest) -> ServerResponse {
 
 /// 处理 search 命令（搜索树调试）
 fn handle_search_request(request: &ServerRequest) -> ServerResponse {
+    let strategy = request.strategy.as_deref().unwrap_or("iterative");
     let depth = request.depth.unwrap_or(3);
 
-    match do_search(&request.fen, depth) {
+    match do_search(&request.fen, strategy, depth) {
         Ok((eval_score, first_moves, nodes)) => {
             ServerResponse::success_search(request.fen.clone(), eval_score, depth, first_moves, nodes)
         }
@@ -521,7 +526,7 @@ fn handle_search_request(request: &ServerRequest) -> ServerResponse {
 }
 
 /// 执行搜索并返回详细信息
-fn do_search(fen: &str, depth: u32) -> Result<(f64, Vec<SearchMoveInfo>, u64), String> {
+fn do_search(fen: &str, strategy: &str, depth: u32) -> Result<(f64, Vec<SearchMoveInfo>, u64), String> {
     let board = Board::from_fen(fen)?;
     let color = board.current_turn();
 
@@ -543,7 +548,7 @@ fn do_search(fen: &str, depth: u32) -> Result<(f64, Vec<SearchMoveInfo>, u64), S
         seed: None,
         time_limit: None,
     };
-    let ai = AIEngine::from_strategy("iterative", &config)?;
+    let ai = AIEngine::from_strategy(strategy, &config)?;
 
     // 获取所有走法的搜索分数
     let search_results = ai.select_moves_fen(fen, legal_moves.len())?;
@@ -570,7 +575,7 @@ fn do_search(fen: &str, depth: u32) -> Result<(f64, Vec<SearchMoveInfo>, u64), S
 
         // 获取对手的应对（第二层）
         let (opposite_top10, opposite_bottom10) = if depth > 1 {
-            get_opposite_moves(&board_after, depth - 1)
+            get_opposite_moves(&board_after, strategy, depth - 1)
         } else {
             (None, None)
         };
@@ -593,7 +598,7 @@ fn do_search(fen: &str, depth: u32) -> Result<(f64, Vec<SearchMoveInfo>, u64), S
 }
 
 /// 获取对手的应对走法（top10 和 bottom10）
-fn get_opposite_moves(board: &Board, depth: u32) -> (Option<Vec<SearchMoveBasic>>, Option<Vec<SearchMoveBasic>>) {
+fn get_opposite_moves(board: &Board, strategy: &str, depth: u32) -> (Option<Vec<SearchMoveBasic>>, Option<Vec<SearchMoveBasic>>) {
     let color = board.current_turn();
     let legal_moves = board.get_legal_moves(color);
 
@@ -612,7 +617,7 @@ fn get_opposite_moves(board: &Board, depth: u32) -> (Option<Vec<SearchMoveBasic>
         time_limit: None,
     };
 
-    let ai = match AIEngine::from_strategy("iterative", &config) {
+    let ai = match AIEngine::from_strategy(strategy, &config) {
         Ok(ai) => ai,
         Err(_) => return (None, None),
     };

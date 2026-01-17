@@ -20,7 +20,7 @@ from jieqi.types import Color
 # =============================================================================
 
 PRESET_POSITIONS = {
-    "Initial (all hidden)": "xxxxxxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXXXXXX -:- r r",
+    "Initial (Kings revealed)": "xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXKXXXX -:- r r",
     "Mid-game (mixed)": "1pxxkxxAx/1p5r1/9/x1x1x1x1x/9/9/X1X1X1X1X/A8/9/1XXXKXXXX P:ap r r",
     "Simple capture": "4k4/9/9/9/4c4/4R4/9/9/9/4K4 -:- r r",
 }

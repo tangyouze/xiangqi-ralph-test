@@ -3,6 +3,7 @@
 //! 提供多种 AI 策略实现，包括随机、贪婪、迭代加深等
 
 mod greedy;
+mod it2;
 mod iterative;
 mod mcts;
 mod muses;
@@ -11,6 +12,7 @@ mod muses3;
 mod random;
 
 pub use greedy::GreedyAI;
+pub use it2::IT2AI;
 pub use iterative::IterativeDeepeningAI;
 pub use mcts::MCTSAI;
 pub use muses::MusesAI;
@@ -153,6 +155,13 @@ impl AIEngine {
         }
     }
 
+    /// 创建 IT2 AI (Expectimax)
+    pub fn it2(config: &AIConfig) -> Self {
+        AIEngine {
+            strategy: Box::new(IT2AI::new(config)),
+        }
+    }
+
     /// 从策略名称创建
     pub fn from_strategy(name: &str, config: &AIConfig) -> Result<Self, String> {
         match name.to_lowercase().as_str() {
@@ -163,8 +172,9 @@ impl AIEngine {
             "muses" => Ok(Self::muses(config)),
             "muses2" => Ok(Self::muses2(config)),
             "muses3" => Ok(Self::muses3(config)),
+            "it2" => Ok(Self::it2(config)),
             _ => Err(format!(
-                "Unknown strategy: {}. Available: random, greedy, iterative, mcts, muses, muses2, muses3",
+                "Unknown strategy: {}. Available: random, greedy, iterative, mcts, muses, muses2, muses3, it2",
                 name
             )),
         }

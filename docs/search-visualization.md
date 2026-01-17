@@ -183,13 +183,13 @@ def get_probability_distribution(remaining: dict) -> list[tuple[str, float]]:
 
 UI 侧边栏应提供以下预设局面供快速选择：
 
-### 1. 初始局面
+### 1. 初始局面（将帅已揭）
 ```
-xxxxxxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXXXXXX -:- r r
+xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXKXXXX -:- r r
 ```
-- 全是暗子
-- 所有走法都是 CHANCE 节点
-- 用于验证概率分布计算
+- 将(k)和帅(K)是明的
+- 其他子都是暗子
+- 所有走法都是 CHANCE 节点（除了将帅移动）
 
 ### 2. 中局局面（红方有仕）
 ```

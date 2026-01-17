@@ -92,8 +92,8 @@ rustai-eval FEN:
     cd rust-ai && cargo run --release -- score --fen "{{FEN}}" --json
 
 # Search tree debug (two-layer info)
-rustai-search FEN DEPTH="3":
-    cd rust-ai && cargo run --release -- search --fen "{{FEN}}" --depth {{DEPTH}} --json
+rustai-search FEN STRATEGY="iterative" DEPTH="3":
+    cd rust-ai && cargo run --release -- search --fen "{{FEN}}" --strategy {{STRATEGY}} --depth {{DEPTH}} --json
 
 # Show help for Rust AI CLI
 rustai-help:
