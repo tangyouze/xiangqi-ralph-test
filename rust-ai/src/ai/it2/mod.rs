@@ -44,6 +44,125 @@ fn piece_type_to_index(pt: PieceType) -> usize {
     }
 }
 
+/// PST (Piece-Square Table) - 从红方视角，row 0 是红方底线
+/// 每格分数单位：兵=100 时，PST 分数约 0-30
+type PstTable = [[i32; 9]; 10];
+
+/// 将/帅：待在九宫，中心稍好
+const PST_KING: PstTable = [
+    [0, 0, 0, 5, 10, 5, 0, 0, 0],
+    [0, 0, 0, 5, 10, 5, 0, 0, 0],
+    [0, 0, 0, 5,  5, 5, 0, 0, 0],
+    [0, 0, 0, 0,  0, 0, 0, 0, 0],
+    [0, 0, 0, 0,  0, 0, 0, 0, 0],
+    [0, 0, 0, 0,  0, 0, 0, 0, 0],
+    [0, 0, 0, 0,  0, 0, 0, 0, 0],
+    [0, 0, 0, 0,  0, 0, 0, 0, 0],
+    [0, 0, 0, 0,  0, 0, 0, 0, 0],
+    [0, 0, 0, 0,  0, 0, 0, 0, 0],
+];
+
+/// 士/仕：守在九宫
+const PST_ADVISOR: PstTable = [
+    [0, 0, 0, 10, 0, 10, 0, 0, 0],
+    [0, 0, 0,  0,15,  0, 0, 0, 0],
+    [0, 0, 0, 10, 0, 10, 0, 0, 0],
+    [0, 0, 0, 0,  0, 0, 0, 0, 0],
+    [0, 0, 0, 0,  0, 0, 0, 0, 0],
+    [0, 0, 0, 0,  0, 0, 0, 0, 0],
+    [0, 0, 0, 0,  0, 0, 0, 0, 0],
+    [0, 0, 0, 0,  0, 0, 0, 0, 0],
+    [0, 0, 0, 0,  0, 0, 0, 0, 0],
+    [0, 0, 0, 0,  0, 0, 0, 0, 0],
+];
+
+/// 象/相：守住己方阵地
+const PST_ELEPHANT: PstTable = [
+    [0, 0, 10, 0, 0, 0, 10, 0, 0],
+    [0, 0,  0, 0, 0, 0,  0, 0, 0],
+    [5, 0,  0, 0,15, 0,  0, 0, 5],
+    [0, 0,  0, 0, 0, 0,  0, 0, 0],
+    [0, 0, 10, 0, 0, 0, 10, 0, 0],
+    [0, 0, 0, 0,  0, 0, 0, 0, 0],
+    [0, 0, 0, 0,  0, 0, 0, 0, 0],
+    [0, 0, 0, 0,  0, 0, 0, 0, 0],
+    [0, 0, 0, 0,  0, 0, 0, 0, 0],
+    [0, 0, 0, 0,  0, 0, 0, 0, 0],
+];
+
+/// 马：中心和前方价值高
+const PST_HORSE: PstTable = [
+    [ 0,  0,  5, 10, 10, 10,  5,  0,  0],
+    [ 0,  5, 10, 15, 15, 15, 10,  5,  0],
+    [ 5, 10, 15, 20, 20, 20, 15, 10,  5],
+    [ 5, 10, 15, 20, 25, 20, 15, 10,  5],
+    [ 5, 10, 15, 20, 25, 20, 15, 10,  5],
+    [ 5, 10, 15, 20, 25, 20, 15, 10,  5],
+    [10, 15, 20, 25, 30, 25, 20, 15, 10],
+    [10, 15, 20, 25, 30, 25, 20, 15, 10],
+    [ 5, 10, 15, 20, 25, 20, 15, 10,  5],
+    [ 0,  5, 10, 15, 20, 15, 10,  5,  0],
+];
+
+/// 车：开放线、前方价值高
+const PST_ROOK: PstTable = [
+    [10, 10, 10, 15, 15, 15, 10, 10, 10],
+    [10, 15, 15, 20, 20, 20, 15, 15, 10],
+    [10, 15, 15, 20, 20, 20, 15, 15, 10],
+    [10, 15, 15, 20, 20, 20, 15, 15, 10],
+    [10, 15, 15, 20, 20, 20, 15, 15, 10],
+    [15, 20, 20, 25, 25, 25, 20, 20, 15],
+    [15, 20, 20, 25, 25, 25, 20, 20, 15],
+    [20, 25, 25, 30, 30, 30, 25, 25, 20],
+    [20, 25, 25, 30, 30, 30, 25, 25, 20],
+    [15, 20, 20, 25, 25, 25, 20, 20, 15],
+];
+
+/// 炮：中间位置价值高
+const PST_CANNON: PstTable = [
+    [10, 10, 10, 15, 15, 15, 10, 10, 10],
+    [10, 15, 15, 20, 20, 20, 15, 15, 10],
+    [15, 20, 20, 25, 25, 25, 20, 20, 15],
+    [15, 20, 20, 25, 25, 25, 20, 20, 15],
+    [15, 20, 20, 25, 25, 25, 20, 20, 15],
+    [15, 20, 20, 25, 25, 25, 20, 20, 15],
+    [15, 20, 20, 25, 25, 25, 20, 20, 15],
+    [15, 20, 20, 25, 25, 25, 20, 20, 15],
+    [10, 15, 15, 20, 20, 20, 15, 15, 10],
+    [ 5, 10, 10, 15, 15, 15, 10, 10,  5],
+];
+
+/// 兵/卒：过河后价值大增，越前越好
+const PST_PAWN: PstTable = [
+    [ 0,  0,  0,  0,  0,  0,  0,  0,  0],
+    [ 0,  0,  0,  0,  0,  0,  0,  0,  0],
+    [ 0,  0,  0,  0,  0,  0,  0,  0,  0],
+    [ 5,  0, 10,  0, 15,  0, 10,  0,  5],
+    [10,  0, 15,  0, 20,  0, 15,  0, 10],
+    [15, 20, 25, 30, 35, 30, 25, 20, 15],
+    [20, 25, 30, 35, 40, 35, 30, 25, 20],
+    [25, 30, 35, 40, 45, 40, 35, 30, 25],
+    [30, 35, 40, 45, 50, 45, 40, 35, 30],
+    [35, 40, 45, 50, 55, 50, 45, 40, 35],
+];
+
+/// 获取 PST 分数
+#[inline]
+fn get_pst_score(piece_type: PieceType, row: usize, col: usize, is_red: bool) -> i32 {
+    // 黑方需要翻转棋盘（row 9 变 row 0）
+    let r = if is_red { row } else { 9 - row };
+
+    match piece_type {
+        PieceType::King => PST_KING[r][col],
+        PieceType::Advisor => PST_ADVISOR[r][col],
+        PieceType::Elephant => PST_ELEPHANT[r][col],
+        PieceType::Horse => PST_HORSE[r][col],
+        PieceType::Rook => PST_ROOK[r][col],
+        PieceType::Cannon => PST_CANNON[r][col],
+        PieceType::Pawn => PST_PAWN[r][col],
+    }
+}
+
 /// 剩余暗子池的概率分布
 #[derive(Debug, Clone)]
 pub struct HiddenPieceDistribution {
@@ -155,7 +274,7 @@ impl IT2AI {
         }
     }
 
-    /// 评估局面（子力 + 吃子潜力）
+    /// 评估局面（子力 + PST + 吃子潜力）
     fn evaluate(&self, board: &Board, color: Color) -> f64 {
         let mut score = 0.0;
 
@@ -164,23 +283,27 @@ impl IT2AI {
         let opp_ev =
             HiddenPieceDistribution::from_board(board, color.opposite()).expected_value() as f64;
 
-        // 棋子价值
+        // 棋子价值 + PST
         for piece in board.get_all_pieces(None) {
-            let value = if piece.is_hidden {
-                // 使用动态期望价值
-                if piece.color == color {
-                    my_ev
-                } else {
-                    opp_ev
-                }
+            let (value, pst) = if piece.is_hidden {
+                // 暗子：使用动态期望价值，不算 PST
+                let ev = if piece.color == color { my_ev } else { opp_ev };
+                (ev, 0.0)
+            } else if let Some(pt) = piece.actual_type {
+                // 明子：实际价值 + PST
+                let pos = piece.position;
+                let pst_score =
+                    get_pst_score(pt, pos.row as usize, pos.col as usize, piece.color == Color::Red)
+                        as f64;
+                (pt.value() as f64, pst_score)
             } else {
-                piece.actual_type.map_or(0.0, |pt| pt.value() as f64)
+                (0.0, 0.0)
             };
 
             if piece.color == color {
-                score += value;
+                score += value + pst;
             } else {
-                score -= value;
+                score -= value + pst;
             }
         }
 

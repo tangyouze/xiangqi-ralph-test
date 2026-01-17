@@ -34,6 +34,9 @@ from typing import Literal
 # 项目根目录
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 
+# 全局默认策略，修改这里即可切换所有地方的默认 AI
+DEFAULT_STRATEGY = "it2"
+
 
 @dataclass
 class UnifiedAIConfig:
@@ -243,7 +246,7 @@ class UnifiedAIEngine:
 
     def __init__(
         self,
-        strategy: str = "it2",
+        strategy: str = DEFAULT_STRATEGY,
         time_limit: float = 0.5,
         randomness: float = 0.0,
         seed: int | None = None,

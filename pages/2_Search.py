@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from jieqi.ai.unified import UnifiedAIEngine
+from jieqi.ai import DEFAULT_STRATEGY, UnifiedAIEngine
 from jieqi.game import JieqiGame
 from jieqi.types import Color
 
@@ -84,7 +84,7 @@ def render_sidebar():
         if st.button("Analyze", type="primary", use_container_width=True):
             with st.spinner("Searching..."):
                 try:
-                    engine = UnifiedAIEngine(strategy="iterative")
+                    engine = UnifiedAIEngine(strategy=DEFAULT_STRATEGY)
                     tree = engine.get_search_tree(fen_input, depth=depth)
                     st.session_state.search_tree = tree
                     st.session_state.selected_move_idx = None

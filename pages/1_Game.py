@@ -16,7 +16,7 @@ from enum import Enum
 
 import streamlit as st
 
-from jieqi.ai.unified import UnifiedAIEngine
+from jieqi.ai import DEFAULT_STRATEGY, UnifiedAIEngine
 from jieqi.fen import parse_move, to_fen
 from jieqi.game import GameConfig, JieqiGame
 from jieqi.types import ActionType, Color, GameResult, JieqiMove, PieceType, Position
@@ -70,7 +70,7 @@ def init_session_state():
         st.session_state.game_mode = GameMode.HUMAN_VS_AI
     # ai_backend 已移除，只使用Rust
     if "ai_strategy" not in st.session_state:
-        st.session_state.ai_strategy = "muses"
+        st.session_state.ai_strategy = DEFAULT_STRATEGY
     if "ai_thinking" not in st.session_state:
         st.session_state.ai_thinking = False
     if "pending_reveal" not in st.session_state:
