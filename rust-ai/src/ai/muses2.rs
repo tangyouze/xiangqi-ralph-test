@@ -10,7 +10,7 @@
 
 use super::{sort_and_truncate, AIConfig, AIStrategy, ScoredMove};
 use crate::board::Board;
-use crate::types::{ActionType, Color, JieqiMove, PieceType, Position, HIDDEN_PIECE_VALUE};
+use crate::types::{ActionType, Color, JieqiMove, PieceType, HIDDEN_PIECE_VALUE};
 use rand::prelude::*;
 use std::sync::atomic::Ordering as AtomicOrdering;
 use std::time::{Duration, Instant};
@@ -185,7 +185,8 @@ const MAX_DEPTH: u32 = 30;
 // const NULL_MOVE_REDUCTION: i32 = 3;
 // const NULL_MOVE_MIN_DEPTH: i32 = 3;
 
-// Futility Pruning 参数
+// Futility Pruning 参数（暂未使用）
+#[allow(dead_code)]
 const FUTILITY_MARGIN: [i32; 4] = [0, 200, 300, 500];
 
 // Aspiration Window 参数
@@ -561,7 +562,8 @@ impl Muses2AI {
         alpha
     }
 
-    /// 检查是否可以进行 Null Move Pruning
+    /// 检查是否可以进行 Null Move Pruning（暂未使用）
+    #[allow(dead_code)]
     fn can_do_null_move(&self, board: &Board, color: Color) -> bool {
         // 不在残局时才进行 null move
         let piece_count = board.get_all_pieces(Some(color)).len();
@@ -580,7 +582,7 @@ impl Muses2AI {
         ply: i32,
         is_pv: bool,
         prev_move: Option<JieqiMove>,
-        null_move_allowed: bool,
+        _null_move_allowed: bool,
     ) -> i32 {
         self.nodes_evaluated += 1;
         NODE_COUNT.fetch_add(1, AtomicOrdering::Relaxed);
@@ -682,7 +684,7 @@ impl Muses2AI {
             }
 
             // 计算搜索深度
-            let gives_check = board.is_in_check(color.opposite());
+            let _gives_check = board.is_in_check(color.opposite());
             let mut new_depth = depth - 1;
 
             // LMR: 后期走法缩减（与 muses 相同）
@@ -884,14 +886,12 @@ impl Muses2AI {
             // Aspiration Windows
             let scores = if let Some(prev) = prev_score {
                 // 使用期望窗口
-                let mut alpha = prev - ASPIRATION_WINDOW;
-                let mut beta = prev + ASPIRATION_WINDOW;
+                let alpha = prev - ASPIRATION_WINDOW;
+                let beta = prev + ASPIRATION_WINDOW;
                 let mut result = self.search_root_aspiration(board, &moves, depth, current_color, alpha, beta);
 
                 // 如果失败，扩大窗口重新搜索
                 if result.is_empty() || result.iter().all(|(_, s)| *s <= alpha || *s >= beta) {
-                    alpha = i32::MIN + 1;
-                    beta = i32::MAX - 1;
                     result = self.search_root_all(board, &moves, depth, current_color);
                 }
                 result

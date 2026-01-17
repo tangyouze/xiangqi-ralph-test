@@ -10,7 +10,7 @@ use clap::{Parser, Subcommand};
 use serde::{Deserialize, Serialize};
 use std::io::{self, BufRead, Write};
 use std::time::Instant;
-use xiangqi_ai::{get_legal_moves_from_fen, get_node_count, reset_node_count, get_depth_reached, reset_depth_reached, AIConfig, AIEngine, Board, IterativeDeepeningAI, Color};
+use xiangqi_ai::{get_legal_moves_from_fen, get_node_count, reset_node_count, get_depth_reached, reset_depth_reached, AIConfig, AIEngine, Board, IterativeDeepeningAI, Color, ActionType, HiddenPieceDistribution};
 
 #[derive(Parser)]
 #[command(name = "xiangqi-ai")]
@@ -561,21 +561,51 @@ fn do_search(fen: &str, strategy: &str, depth: u32) -> Result<(f64, Vec<SearchMo
 
     for mv in &legal_moves {
         let mv_str = mv.to_fen_str(None);
-        let move_type = if mv_str.starts_with('+') { "chance" } else { "move" };
+        let is_reveal = mv.action_type == ActionType::RevealAndMove;
+        let move_type = if is_reveal { "chance" } else { "move" };
 
-        // 走这一步后的局面
-        let mut board_after = board.clone();
-        board_after.make_move(mv);
+        // 走完后的静态评估
+        let eval_after = if is_reveal {
+            // 揭子走法：计算期望 eval（对所有可能类型加权平均）
+            let distribution = HiddenPieceDistribution::from_board(&board, color);
+            let possible_types = distribution.possible_types();
 
-        // 走完后的静态评估（从对手视角，所以取负）
-        let eval_after = -IterativeDeepeningAI::evaluate_static(&board_after, board_after.current_turn());
+            if possible_types.is_empty() {
+                // Fallback: 直接走
+                let mut board_after = board.clone();
+                board_after.make_move(mv);
+                -IterativeDeepeningAI::evaluate_static(&board_after, board_after.current_turn())
+            } else {
+                let mut expected_eval = 0.0;
+                for (piece_type, probability) in possible_types {
+                    let mut board_after = board.clone();
+                    board_after.make_move(mv);
+                    // make_move 后修正 actual_type（因为 make_move 用了 movement_type）
+                    if let Some(piece) = board_after.get_piece_mut(mv.to_pos) {
+                        piece.actual_type = Some(piece_type);
+                    }
+                    // 从对手视角评估，取负
+                    let eval = -IterativeDeepeningAI::evaluate_static(&board_after, board_after.current_turn());
+                    expected_eval += probability * eval;
+                }
+                expected_eval
+            }
+        } else {
+            // 普通走法：直接评估
+            let mut board_after = board.clone();
+            board_after.make_move(mv);
+            -IterativeDeepeningAI::evaluate_static(&board_after, board_after.current_turn())
+        };
 
         // 搜索分数
         let score = *search_map.get(&mv_str).unwrap_or(&eval_after);
 
         // 获取对手的应对（第二层）
+        // 注意：对于揭子走法，这里使用 movement_type 作为假设类型
         let (opposite_top10, opposite_bottom10) = if depth > 1 {
-            get_opposite_moves(&board_after, strategy, depth - 1)
+            let mut board_for_opposite = board.clone();
+            board_for_opposite.make_move(mv);
+            get_opposite_moves(&board_for_opposite, strategy, depth - 1)
         } else {
             (None, None)
         };

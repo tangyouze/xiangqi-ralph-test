@@ -137,7 +137,7 @@ impl Board {
     /// 获取某位置的棋子（可变）
     #[inline]
     #[allow(dead_code)]
-    fn get_piece_mut(&mut self, pos: Position) -> Option<&mut Piece> {
+    pub fn get_piece_mut(&mut self, pos: Position) -> Option<&mut Piece> {
         if !pos.is_valid() {
             return None;
         }

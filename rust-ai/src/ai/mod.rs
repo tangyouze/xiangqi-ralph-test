@@ -12,7 +12,7 @@ mod muses3;
 mod random;
 
 pub use greedy::GreedyAI;
-pub use it2::IT2AI;
+pub use it2::{HiddenPieceDistribution, IT2AI};
 pub use iterative::IterativeDeepeningAI;
 pub use mcts::MCTSAI;
 pub use muses::MusesAI;
