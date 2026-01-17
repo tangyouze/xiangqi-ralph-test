@@ -10,7 +10,7 @@ use clap::{Parser, Subcommand};
 use serde::{Deserialize, Serialize};
 use std::io::{self, BufRead, Write};
 use std::time::Instant;
-use xiangqi_ai::{get_legal_moves_from_fen, get_node_count, reset_node_count, get_depth_reached, reset_depth_reached, AIConfig, AIEngine, Board, IterativeDeepeningAI, Color, ActionType};
+use xiangqi_ai::{get_legal_moves_from_fen, get_node_count, reset_node_count, get_depth_reached, reset_depth_reached, AIConfig, AIEngine, Board, IterativeDeepeningAI, Color, ActionType, HiddenPieceDistribution};
 
 #[derive(Parser)]
 #[command(name = "xiangqi-ai")]
@@ -70,7 +70,7 @@ enum Commands {
         fen: String,
 
         /// AI 策略
-        #[arg(long, default_value = "iterative")]
+        #[arg(long, default_value = "it2")]
         strategy: String,
 
         /// 搜索深度
@@ -564,15 +564,42 @@ fn do_search(fen: &str, strategy: &str, depth: u32) -> Result<(f64, Vec<SearchMo
         let is_reveal = mv.action_type == ActionType::RevealAndMove;
         let move_type = if is_reveal { "chance" } else { "move" };
 
-        // 走完后的静态评估（使用 movement_type，和 AI 搜索保持一致）
-        let mut board_after = board.clone();
-        board_after.make_move(mv);
-        let eval_after = -IterativeDeepeningAI::evaluate_static(&board_after, board_after.current_turn());
+        // 走完后的静态评估
+        let eval_after = if is_reveal {
+            // 揭子走法：计算期望 eval（对所有可能类型加权平均）
+            let distribution = HiddenPieceDistribution::from_board(&board, color);
+            let possible_types = distribution.possible_types();
+
+            if possible_types.is_empty() {
+                let mut board_after = board.clone();
+                board_after.make_move(mv);
+                -IterativeDeepeningAI::evaluate_static(&board_after, board_after.current_turn())
+            } else {
+                let mut expected_eval = 0.0;
+                for (piece_type, probability) in possible_types {
+                    let mut board_after = board.clone();
+                    board_after.make_move(mv);
+                    // make_move 后修正 actual_type
+                    if let Some(piece) = board_after.get_piece_mut(mv.to_pos) {
+                        piece.actual_type = Some(piece_type);
+                    }
+                    let eval = -IterativeDeepeningAI::evaluate_static(&board_after, board_after.current_turn());
+                    expected_eval += probability * eval;
+                }
+                expected_eval
+            }
+        } else {
+            let mut board_after = board.clone();
+            board_after.make_move(mv);
+            -IterativeDeepeningAI::evaluate_static(&board_after, board_after.current_turn())
+        };
 
         // 搜索分数
         let score = *search_map.get(&mv_str).unwrap_or(&eval_after);
 
         // 获取对手的应对（第二层）
+        let mut board_after = board.clone();
+        board_after.make_move(mv);
         let (opposite_top10, opposite_bottom10) = if depth > 1 {
             get_opposite_moves(&board_after, strategy, depth - 1)
         } else {
