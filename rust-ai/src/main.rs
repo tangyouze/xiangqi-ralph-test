@@ -140,7 +140,7 @@ struct SearchMoveBasic {
     score: f64,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Default)]
 struct ServerResponse {
     ok: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -174,86 +174,58 @@ impl ServerResponse {
         Self {
             ok: true,
             moves: Some(moves),
-            legal_moves: None,
             depth: Some(depth),
             nodes: Some(nodes),
             nps: Some(nps),
             elapsed_ms: Some(elapsed_ms),
-            error: None,
-            eval: None,
-            color: None,
-            fen: None,
-            first_moves: None,
+            ..Default::default()
         }
     }
 
     fn success_legal_moves(legal_moves: Vec<String>) -> Self {
         Self {
             ok: true,
-            moves: None,
             legal_moves: Some(legal_moves),
-            depth: None,
-            nodes: None,
-            nps: None,
-            elapsed_ms: None,
-            error: None,
-            eval: None,
-            color: None,
-            fen: None,
-            first_moves: None,
+            ..Default::default()
         }
     }
 
     fn success_eval(eval_score: f64, color_str: &str) -> Self {
         Self {
             ok: true,
-            moves: None,
-            legal_moves: None,
-            depth: None,
-            nodes: None,
-            nps: None,
-            elapsed_ms: None,
-            error: None,
             eval: Some(eval_score),
             color: Some(color_str.to_string()),
-            fen: None,
-            first_moves: None,
+            ..Default::default()
         }
     }
 
     fn success_search(fen: String, eval_score: f64, depth: u32, first_moves: Vec<SearchMoveInfo>, nodes: u64) -> Self {
         Self {
             ok: true,
-            moves: None,
-            legal_moves: None,
             depth: Some(depth),
             nodes: Some(nodes),
-            nps: None,
-            elapsed_ms: None,
-            error: None,
             eval: Some(eval_score),
-            color: None,
             fen: Some(fen),
             first_moves: Some(first_moves),
+            ..Default::default()
         }
     }
 
     fn error(msg: &str) -> Self {
         Self {
             ok: false,
-            moves: None,
-            legal_moves: None,
-            depth: None,
-            nodes: None,
-            nps: None,
-            elapsed_ms: None,
             error: Some(msg.to_string()),
-            eval: None,
-            color: None,
-            fen: None,
-            first_moves: None,
+            ..Default::default()
         }
     }
+}
+
+fn color_to_str(color: Color) -> &'static str {
+    if color == Color::Red { "red" } else { "black" }
+}
+
+fn calc_nps(nodes: u64, elapsed_secs: f64) -> f64 {
+    if elapsed_secs > 0.0 { nodes as f64 / elapsed_secs } else { 0.0 }
 }
 
 fn main() {
@@ -307,11 +279,7 @@ fn main() {
                     let elapsed = start.elapsed().as_secs_f64();
                     let nodes = get_node_count();
                     let depth = get_depth_reached();
-                    let nps = if elapsed > 0.0 {
-                        nodes as f64 / elapsed
-                    } else {
-                        0.0
-                    };
+                    let nps = calc_nps(nodes, elapsed);
 
                     if json {
                         let response = MovesResponse {
@@ -353,13 +321,11 @@ fn main() {
                     if json {
                         println!(
                             "{{\"fen\": {:?}, \"color\": {:?}, \"score\": {:.2}}}",
-                            fen,
-                            if color == Color::Red { "red" } else { "black" },
-                            score
+                            fen, color_to_str(color), score
                         );
                     } else {
-                        let color_str = if color == Color::Red { "红方" } else { "黑方" };
-                        println!("局面评估 ({} 视角): {:.2}", color_str, score);
+                        let color_cn = if color == Color::Red { "红方" } else { "黑方" };
+                        println!("局面评估 ({} 视角): {:.2}", color_cn, score);
                     }
                 }
                 Err(e) => {
@@ -478,7 +444,7 @@ fn handle_best_request(request: &ServerRequest) -> ServerResponse {
             let elapsed = start.elapsed().as_secs_f64();
             let nodes = get_node_count();
             let depth = get_depth_reached();
-            let nps = if elapsed > 0.0 { nodes as f64 / elapsed } else { 0.0 };
+            let nps = calc_nps(nodes, elapsed);
 
             let move_results: Vec<MoveResult> = moves
                 .into_iter()
@@ -505,8 +471,7 @@ fn handle_eval_request(request: &ServerRequest) -> ServerResponse {
         Ok(board) => {
             let color = board.current_turn();
             let score = IterativeDeepeningAI::evaluate_static(&board, color);
-            let color_str = if color == Color::Red { "red" } else { "black" };
-            ServerResponse::success_eval(score, color_str)
+            ServerResponse::success_eval(score, color_to_str(color))
         }
         Err(e) => ServerResponse::error(&format!("Invalid FEN: {}", e)),
     }
@@ -514,8 +479,8 @@ fn handle_eval_request(request: &ServerRequest) -> ServerResponse {
 
 /// 处理 search 命令（搜索树调试）
 fn handle_search_request(request: &ServerRequest) -> ServerResponse {
-    let strategy = request.strategy.as_deref().unwrap_or("iterative");
-    let depth = request.depth.unwrap_or(3);
+    let strategy = request.strategy.as_deref().unwrap_or("it2");
+    let depth = request.depth.unwrap_or(2);
 
     match do_search(&request.fen, strategy, depth) {
         Ok((eval_score, first_moves, nodes)) => {
