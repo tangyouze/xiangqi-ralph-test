@@ -104,6 +104,7 @@ impl HiddenPieceDistribution {
     }
 
     /// 计算期望价值
+    /// 除了车和炮，其他暗子价值打 7 折（鼓励揭车/炮）
     pub fn expected_value(&self) -> i32 {
         let total_remaining: u8 = self.remaining.iter().sum();
         if total_remaining == 0 {
@@ -112,7 +113,14 @@ impl HiddenPieceDistribution {
 
         let mut sum: i64 = 0;
         for i in 0..PIECE_TYPE_COUNT {
-            sum += (self.remaining[i] as i64) * (PIECE_VALUES[i] as i64);
+            let base_value = PIECE_VALUES[i] as i64;
+            // 车(4)和炮(5)保持原价值，其他打7折
+            let value = if i == 4 || i == 5 {
+                base_value
+            } else {
+                base_value * 7 / 10
+            };
+            sum += (self.remaining[i] as i64) * value;
         }
 
         (sum / total_remaining as i64) as i32
@@ -455,11 +463,11 @@ mod tests {
         let dist = HiddenPieceDistribution::from_board(&board, Color::Red);
         let ev = dist.expected_value();
 
-        // 期望价值应该是所有棋子价值的加权平均（不含将）
-        // (2*200 + 2*200 + 2*400 + 2*900 + 2*450 + 5*100) / 15
-        // = (400 + 400 + 800 + 1800 + 900 + 500) / 15
-        // = 4800 / 15 = 320
-        assert_eq!(ev, 320);
+        // 期望价值（车炮原价，其他7折）
+        // Advisor: 2*140 + Elephant: 2*140 + Horse: 2*280 + Rook: 2*900 + Cannon: 2*450 + Pawn: 5*70
+        // = 280 + 280 + 560 + 1800 + 900 + 350 = 4170
+        // 4170 / 15 = 278
+        assert_eq!(ev, 278);
     }
 
     #[test]
