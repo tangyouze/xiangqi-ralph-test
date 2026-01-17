@@ -560,9 +560,6 @@ fn do_search(fen: &str, depth: u32) -> Result<(f64, Vec<SearchMoveInfo>, u64), S
 
         // 走这一步后的局面
         let mut board_after = board.clone();
-        let was_hidden = board_after
-            .get_piece(mv.from_pos)
-            .map_or(false, |p| p.is_hidden);
         board_after.make_move(mv);
 
         // 走完后的静态评估（从对手视角，所以取负）
