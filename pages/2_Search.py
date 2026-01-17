@@ -4,7 +4,7 @@
 展示 AI 搜索过程：
 - 静态评估 vs 搜索评估
 - MAX/MIN/CHANCE 节点
-- 揭子走法的概率分布
+- 对手最佳/最差应对
 """
 
 from __future__ import annotations
@@ -12,7 +12,6 @@ from __future__ import annotations
 import streamlit as st
 
 from jieqi.ai.unified import UnifiedAIEngine
-from jieqi.fen import parse_move, to_fen
 from jieqi.game import JieqiGame
 from jieqi.types import Color
 
@@ -26,48 +25,6 @@ PRESET_POSITIONS = {
     "Simple capture": "4k4/9/9/9/4c4/4R4/9/9/9/4K4 -:- r r",
 }
 
-# =============================================================================
-# 核心函数
-# =============================================================================
-
-
-def get_legal_moves(fen: str) -> list[str]:
-    """获取所有合法走法"""
-    engine = UnifiedAIEngine()
-    return engine.get_legal_moves(fen)
-
-
-def get_search_scores(fen: str, time_limit: float = 0.5) -> list[tuple[str, float]]:
-    """获取所有走法的搜索分数"""
-    engine = UnifiedAIEngine(strategy="iterative", time_limit=time_limit)
-    # 获取所有走法的分数
-    moves = engine.get_best_moves(fen, n=100)
-    return moves
-
-
-def apply_move(fen: str, move: str) -> str | None:
-    """执行走法，返回新 FEN"""
-    try:
-        game = JieqiGame.from_fen(fen)
-        mv, reveal_type = parse_move(move)
-        reveal_type_str = reveal_type.value if reveal_type else None
-        success = game.make_move(mv, reveal_type=reveal_type_str)
-        if success:
-            return to_fen(game.get_view(game.current_turn))
-        return None
-    except Exception:
-        return None
-
-
-def is_reveal_move(move: str) -> bool:
-    """判断是否是揭子走法（以 + 开头）"""
-    return move.startswith("+")
-
-
-def get_move_type(move: str) -> str:
-    """获取走法类型"""
-    return "CHANCE" if is_reveal_move(move) else "MOVE"
-
 
 # =============================================================================
 # UI
@@ -77,13 +34,11 @@ def get_move_type(move: str) -> str:
 def init_session_state():
     """初始化 session state"""
     if "search_fen" not in st.session_state:
-        st.session_state.search_fen = PRESET_POSITIONS["Initial (all hidden)"]
-    if "search_results" not in st.session_state:
-        st.session_state.search_results = None
-    if "selected_move" not in st.session_state:
-        st.session_state.selected_move = None
-    if "layer2_results" not in st.session_state:
-        st.session_state.layer2_results = None
+        st.session_state.search_fen = PRESET_POSITIONS["Simple capture"]
+    if "search_tree" not in st.session_state:
+        st.session_state.search_tree = None
+    if "selected_move_idx" not in st.session_state:
+        st.session_state.selected_move_idx = None
 
 
 def render_sidebar():
@@ -95,14 +50,14 @@ def render_sidebar():
         preset = st.selectbox(
             "Preset Position",
             options=list(PRESET_POSITIONS.keys()),
-            index=0,
+            index=2,  # Simple capture
         )
 
         if st.button("Load Preset"):
             st.session_state.search_fen = PRESET_POSITIONS[preset]
-            st.session_state.search_results = None
-            st.session_state.selected_move = None
-            st.session_state.layer2_results = None
+            st.session_state.search_tree = None
+            st.session_state.selected_move_idx = None
+            st.rerun()
 
         st.divider()
 
@@ -114,13 +69,13 @@ def render_sidebar():
         )
         st.session_state.search_fen = fen_input
 
-        # 搜索时间
-        time_limit = st.slider(
-            "Search Time (s)",
-            min_value=0.1,
-            max_value=3.0,
-            value=0.5,
-            step=0.1,
+        # 搜索深度
+        depth = st.slider(
+            "Search Depth",
+            min_value=1,
+            max_value=5,
+            value=3,
+            step=1,
         )
 
         st.divider()
@@ -129,37 +84,41 @@ def render_sidebar():
         if st.button("Analyze", type="primary", use_container_width=True):
             with st.spinner("Searching..."):
                 try:
-                    results = get_search_scores(fen_input, time_limit)
-                    st.session_state.search_results = results
-                    st.session_state.selected_move = None
-                    st.session_state.layer2_results = None
+                    engine = UnifiedAIEngine(strategy="iterative")
+                    tree = engine.get_search_tree(fen_input, depth=depth)
+                    st.session_state.search_tree = tree
+                    st.session_state.selected_move_idx = None
                 except Exception as e:
                     st.error(f"Error: {e}")
 
 
 def render_current_position():
     """渲染当前局面评估"""
-    results = st.session_state.search_results
-    if results is None:
+    tree = st.session_state.search_tree
+    if tree is None:
         st.info("Click 'Analyze' to start search")
         return
 
     st.subheader("Current Position")
 
-    if results:
-        best_move, best_score = results[0]
-        col1, col2 = st.columns(2)
+    first_moves = tree.get("first_moves", [])
+    if first_moves:
+        best = first_moves[0]
+        col1, col2, col3, col4 = st.columns(4)
         with col1:
-            st.metric("Best Move", best_move)
+            st.metric("Static Eval", f"{tree.get('eval', 0):+.1f}")
         with col2:
-            color = "green" if best_score > 0 else "red" if best_score < 0 else "gray"
-            st.metric("Search Score", f"{best_score:+.1f}")
+            st.metric("Best Move", best["move"])
+        with col3:
+            st.metric("Best Score", f"{best['score']:+.1f}")
+        with col4:
+            st.metric("Nodes", f"{tree.get('nodes', 0):,}")
 
         # 当前玩家
         try:
             game = JieqiGame.from_fen(st.session_state.search_fen)
             turn = "Red (MAX)" if game.current_turn == Color.RED else "Black (MAX)"
-            st.caption(f"Current turn: {turn}")
+            st.caption(f"Current turn: {turn} | Depth: {tree.get('depth', 0)}")
         except Exception:
             pass
     else:
@@ -168,21 +127,33 @@ def render_current_position():
 
 def render_layer1():
     """渲染第 1 层走法"""
-    results = st.session_state.search_results
-    if results is None:
+    tree = st.session_state.search_tree
+    if tree is None:
         return
 
-    st.subheader("Layer 1 - MAX (pick highest)")
+    first_moves = tree.get("first_moves", [])
+    if not first_moves:
+        return
+
+    st.subheader("Layer 1 - All Moves (sorted by score)")
 
     # 构建表格数据
     table_data = []
-    for move, score in results:
-        move_type = get_move_type(move)
+    for i, mv in enumerate(first_moves):
+        move_type = mv.get("type", "move").upper()
+        eval_score = mv.get("eval", 0)
+        search_score = mv.get("score", 0)
+        # 标记 eval 和 score 差异大的走法（可能是陷阱）
+        diff = abs(search_score - eval_score)
+        trap_marker = "⚠️" if diff > 100 else ""
         table_data.append(
             {
-                "Move": move,
+                "#": i + 1,
+                "Move": mv["move"],
                 "Type": move_type,
-                "Search Score": f"{score:+.1f}",
+                "Eval": f"{eval_score:+.1f}",
+                "Score": f"{search_score:+.1f}",
+                "Diff": f"{trap_marker}{diff:+.1f}" if diff > 50 else "",
             }
         )
 
@@ -191,70 +162,101 @@ def render_layer1():
         table_data,
         use_container_width=True,
         hide_index=True,
+        height=400,
     )
 
     # 选择走法展开第 2 层
     st.divider()
-    move_options = [m for m, _ in results[:10]]  # 只显示前 10 个
+    move_options = [(i, m["move"]) for i, m in enumerate(first_moves[:15])]
     if move_options:
         selected = st.selectbox(
-            "Select move to expand Layer 2",
-            options=["(none)"] + move_options,
+            "Select move to view opponent's responses",
+            options=["(none)"] + [f"{i + 1}. {m}" for i, m in move_options],
             index=0,
         )
 
-        if selected != "(none)" and st.button("Expand Layer 2"):
-            new_fen = apply_move(st.session_state.search_fen, selected)
-            if new_fen:
-                with st.spinner("Searching layer 2..."):
-                    layer2 = get_search_scores(new_fen, 0.3)
-                    st.session_state.selected_move = selected
-                    st.session_state.layer2_results = layer2
-            else:
-                st.error("Failed to apply move")
+        if selected != "(none)":
+            # 解析选中的索引
+            idx = int(selected.split(".")[0]) - 1
+            st.session_state.selected_move_idx = idx
 
 
 def render_layer2():
-    """渲染第 2 层走法"""
-    if st.session_state.selected_move is None:
+    """渲染第 2 层走法（对手应对）"""
+    tree = st.session_state.search_tree
+    if tree is None:
         return
 
-    results = st.session_state.layer2_results
-    if results is None:
+    idx = st.session_state.selected_move_idx
+    if idx is None:
+        st.info("Select a move from Layer 1 to see opponent's responses")
         return
 
-    move = st.session_state.selected_move
-    move_type = get_move_type(move)
+    first_moves = tree.get("first_moves", [])
+    if idx >= len(first_moves):
+        return
 
-    st.subheader(f"Layer 2 - MIN (after {move})")
+    mv_info = first_moves[idx]
+    move = mv_info["move"]
+    move_type = mv_info.get("type", "move").upper()
+
+    st.subheader(f"Layer 2 - After {move}")
 
     if move_type == "CHANCE":
-        st.caption("Note: CHANCE node - showing one possible outcome")
+        st.caption("CHANCE node - showing one possible outcome")
 
-    # 构建表格数据
-    table_data = []
-    for mv, score in results[:15]:  # 显示前 15 个
-        mv_type = get_move_type(mv)
-        # MIN 节点：对手视角，分数取反显示
-        table_data.append(
-            {
-                "Move": mv,
-                "Type": mv_type,
-                "Search Score": f"{score:+.1f}",
-                "Our View": f"{-score:+.1f}",
-            }
-        )
+    # 显示当前走法的详细信息
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Move", move)
+    with col2:
+        st.metric("Eval (after)", f"{mv_info.get('eval', 0):+.1f}")
+    with col3:
+        st.metric("Score", f"{mv_info.get('score', 0):+.1f}")
 
-    st.dataframe(
-        table_data,
-        use_container_width=True,
-        hide_index=True,
-    )
+    st.divider()
 
-    if results:
-        # MIN 选择最低分（对手最佳）
-        best_opp_move, best_opp_score = results[0]
-        st.caption(f"Opponent's best: {best_opp_move} (our view: {-best_opp_score:+.1f})")
+    # 对手最佳应对
+    top10 = mv_info.get("opposite_top10", [])
+    bottom10 = mv_info.get("opposite_bottom10", [])
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.markdown("**Opponent's Best Responses (Top 10)**")
+        if top10:
+            data = []
+            for m in top10:
+                data.append(
+                    {
+                        "Move": m["move"],
+                        "Type": m.get("type", "move").upper(),
+                        "Eval": f"{m.get('eval', 0):+.1f}",
+                        "Score": f"{m.get('score', 0):+.1f}",
+                        "Our View": f"{-m.get('score', 0):+.1f}",
+                    }
+                )
+            st.dataframe(data, use_container_width=True, hide_index=True)
+        else:
+            st.caption("No data (depth=1?)")
+
+    with col2:
+        st.markdown("**Opponent's Worst Responses (Bottom 10)**")
+        if bottom10:
+            data = []
+            for m in bottom10:
+                data.append(
+                    {
+                        "Move": m["move"],
+                        "Type": m.get("type", "move").upper(),
+                        "Eval": f"{m.get('eval', 0):+.1f}",
+                        "Score": f"{m.get('score', 0):+.1f}",
+                        "Our View": f"{-m.get('score', 0):+.1f}",
+                    }
+                )
+            st.dataframe(data, use_container_width=True, hide_index=True)
+        else:
+            st.caption("No data (depth=1?)")
 
 
 def main():
@@ -284,13 +286,20 @@ def main():
     with st.expander("About Search Scores"):
         st.markdown(
             """
-            - **MOVE**: Regular move (revealed piece)
-            - **CHANCE**: Reveal move (hidden piece) - AI considers all possible piece types
-            - **Search Score**: Score after searching N layers ahead
-            - **Our View**: Score from current player's perspective (negated for MIN layer)
+            **Column explanations:**
+            - **Eval**: Static evaluation after this move (no further search)
+            - **Score**: Search score (after looking N moves ahead)
+            - **Diff**: Difference between Eval and Score. Large diff (⚠️) may indicate a trap move!
+            - **Our View**: Score from current player's perspective (negated for opponent moves)
 
-            **MAX node**: Pick the move with highest score
-            **MIN node**: Opponent picks the move that minimizes our score
+            **Node types:**
+            - **MOVE**: Regular move with a revealed piece
+            - **CHANCE**: Reveal move (hidden piece) - AI considers all possible piece types
+
+            **Interpreting the data:**
+            - A move with high Eval but low Score is a "trap" - looks good but opponent has a strong response
+            - A move with low Eval but high Score is an "investment" - short-term sacrifice for long-term gain
+            - Opponent's best responses show why a move's Score might differ from its Eval
             """
         )
 

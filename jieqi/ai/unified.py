@@ -162,6 +162,39 @@ class RustBackend(AIBackend):
         nps = response.get("nps", 0.0)
         return moves, nodes, nps
 
+    def get_eval(self, fen: str) -> tuple[float, str]:
+        """静态评估（不搜索）
+
+        Returns:
+            (eval_score, color) - 评估分数、当前行棋方
+        """
+        response = self._send_request({"cmd": "eval", "fen": fen})
+        return response.get("eval", 0.0), response.get("color", "red")
+
+    def get_search_tree(self, fen: str, depth: int = 3) -> dict:
+        """获取搜索树调试信息
+
+        Returns:
+            {
+                "fen": str,
+                "eval": float,  # 当前局面静态评估
+                "depth": int,
+                "first_moves": [
+                    {
+                        "move": str,
+                        "type": "move" | "chance",
+                        "eval": float,  # 走完后静态评估
+                        "score": float,  # 搜索分数
+                        "opposite_top10": [...],
+                        "opposite_bottom10": [...]
+                    }
+                ],
+                "nodes": int
+            }
+        """
+        response = self._send_request({"cmd": "search", "fen": fen, "depth": depth})
+        return response
+
     def list_strategies(self) -> list[str]:
         # Rust 支持的策略
         return [
@@ -259,6 +292,29 @@ class UnifiedAIEngine:
             (moves, nodes, nps) - 走法列表、搜索节点数、每秒节点数
         """
         return self._backend.get_best_moves_with_stats(fen, n)
+
+    def get_eval(self, fen: str) -> tuple[float, str]:
+        """静态评估（不搜索）
+
+        Args:
+            fen: FEN 字符串
+
+        Returns:
+            (eval_score, color) - 评估分数、当前行棋方
+        """
+        return self._backend.get_eval(fen)
+
+    def get_search_tree(self, fen: str, depth: int = 3) -> dict:
+        """获取搜索树调试信息
+
+        Args:
+            fen: FEN 字符串
+            depth: 搜索深度
+
+        Returns:
+            包含 first_moves、opposite_top10/bottom10 的详细搜索信息
+        """
+        return self._backend.get_search_tree(fen, depth)
 
     def get_best_move(self, fen: str) -> tuple[str, float] | None:
         """获取最佳单一走法
