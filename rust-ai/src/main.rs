@@ -74,7 +74,7 @@ enum Commands {
         strategy: String,
 
         /// 搜索深度
-        #[arg(long, default_value = "3")]
+        #[arg(long, default_value = "2")]
         depth: u32,
 
         /// JSON 输出
