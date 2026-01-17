@@ -29,15 +29,15 @@
 xiangqi-ai best \
   --fen <FEN> \
   --strategy <STRATEGY> \
-  --depth <DEPTH> \
+  --time-limit <TIME> \
   --n <N> \
   --json
 ```
 
 **输入**：
 - `fen`: 当前局面
-- `strategy`: AI策略 (minimax, muses, greedy, ...)
-- `depth`: 搜索深度
+- `strategy`: AI策略 (it2, muses, iterative, greedy, ...)
+- `time-limit`: 搜索时间限制（秒）
 - `n`: 返回走法数量
 
 **输出**（JSON）：
@@ -103,10 +103,10 @@ class UnifiedAIEngine:
         cmd = ["cargo", "run", "--release", "--",
                "best", fen,
                "--strategy", self.strategy,
-               "--depth", str(self.depth),
+               "--time-limit", str(self.time_limit),
                "--n", str(n),
                "--json"]
-        
+
         result = subprocess.run(cmd, capture_output=True, text=True)
         data = json.loads(result.stdout)
         return [(m["move"], m["score"]) for m in data["moves"]]

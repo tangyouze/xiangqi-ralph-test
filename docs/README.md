@@ -21,11 +21,11 @@ just test-py     # 只测Python
 # 获取走法
 just rustai-moves "FEN字符串"
 
-# 获取最佳走法（默认muses策略，0.5秒）
+# 获取最佳走法（默认it2策略，0.5秒）
 just rustai-best "FEN字符串"
 
 # 自定义参数
-just rustai-best "FEN字符串" minimax 1.0 5
+just rustai-best "FEN字符串" it2 1.0 5
 ```
 
 ### 启动UI

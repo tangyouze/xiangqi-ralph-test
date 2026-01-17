@@ -42,7 +42,7 @@ just test-python
 - 开局分数范围（-400 到 +500）
 
 ### 测试文件
-`rust-ai/src/ai/minimax.rs`
+`rust-ai/src/ai/iterative.rs`
 
 ```rust
 #[test]
@@ -133,7 +133,7 @@ def test_cli_json_output():
     result = subprocess.run([
         "cargo", "run", "--release", "--",
         "best", OPENING_FEN,
-        "--strategy", "minimax",
+        "--strategy", "iterative",
         "--time-limit", "0.1",  # 限时0.1秒
         "--n", "5",
         "--json"
@@ -145,7 +145,7 @@ def test_cli_json_output():
 
 def test_all_strategies():
     """验证所有策略都能调用"""
-    for strategy in ["minimax", "muses", "greedy"]:
+    for strategy in ["iterative", "muses", "greedy"]:
         result = subprocess.run([
             "cargo", "run", "--release", "--",
             "best", OPENING_FEN,
@@ -171,7 +171,7 @@ def test_all_strategies():
 ```python
 def test_engine_get_best_moves():
     """验证 UnifiedAIEngine 调用 Rust"""
-    engine = UnifiedAIEngine(strategy="minimax", time_limit=0.1)
+    engine = UnifiedAIEngine(strategy="iterative", time_limit=0.1)
     moves = engine.get_best_moves(OPENING_FEN, n=5)
     
     assert len(moves) == 5
@@ -183,13 +183,13 @@ def test_engine_get_best_moves():
 
 def test_different_strategies():
     """验证不同策略返回结果"""
-    minimax = UnifiedAIEngine(strategy="minimax", time_limit=0.1)
+    iterative = UnifiedAIEngine(strategy="iterative", time_limit=0.1)
     muses = UnifiedAIEngine(strategy="muses", time_limit=0.1)
     
-    minimax_moves = minimax.get_best_moves(OPENING_FEN, n=3)
+    iterative_moves = iterative.get_best_moves(OPENING_FEN, n=3)
     muses_moves = muses.get_best_moves(OPENING_FEN, n=3)
     
-    assert len(minimax_moves) == 3
+    assert len(iterative_moves) == 3
     assert len(muses_moves) == 3
 ```
 
@@ -207,7 +207,7 @@ def test_different_strategies():
 def test_game_with_ai():
     """验证 Python 引擎 + Rust AI 协作"""
     game = JieqiGame()
-    engine = UnifiedAIEngine(strategy="minimax", time_limit=0.1)
+    engine = UnifiedAIEngine(strategy="iterative", time_limit=0.1)
     
     # 模拟10回合
     for _ in range(10):

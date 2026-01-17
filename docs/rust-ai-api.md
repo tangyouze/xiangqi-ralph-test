@@ -36,7 +36,7 @@ xiangqi-ai best --fen "4k4/9/9/9/4c4/4R4/9/9/9/4K4 -:- r r" \
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `--fen` | string | 必填 | FEN 字符串 |
-| `--strategy` | string | muses | AI 策略 |
+| `--strategy` | string | it2 | AI 策略 |
 | `--time-limit` | float | 无 | 时间限制（秒） |
 | `--n` | int | 1 | 返回走法数量 |
 | `--json` | flag | false | JSON 输出 |
@@ -68,14 +68,15 @@ xiangqi-ai score --fen "4k4/9/9/9/4c4/4R4/9/9/9/4K4 -:- r r" --json
 ### search - 搜索树调试（两层详细信息）
 
 ```bash
-xiangqi-ai search --fen "4k4/9/9/9/4c4/4R4/9/9/9/4K4 -:- r r" --depth 3 --json
+xiangqi-ai search --fen "4k4/9/9/9/4c4/4R4/9/9/9/4K4 -:- r r" --depth 2 --json
 ```
 
 参数：
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `--fen` | string | 必填 | FEN 字符串 |
-| `--depth` | int | 3 | 搜索深度 |
+| `--strategy` | string | it2 | AI 策略 |
+| `--depth` | int | 2 | 搜索深度 |
 | `--json` | flag | false | JSON 输出 |
 
 输出（JSON）：见 Server 协议中的 `search` 命令。
@@ -150,7 +151,7 @@ xiangqi-ai server
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `fen` | string | 必填 | FEN 字符串 |
-| `strategy` | string | muses | AI 策略 |
+| `strategy` | string | it2 | AI 策略 |
 | `time_limit` | float | 无 | 时间限制（秒） |
 | `n` | int | 5 | 返回走法数量 |
 
@@ -203,7 +204,7 @@ xiangqi-ai server
 {
   "cmd": "search",
   "fen": "4k4/9/9/9/4c4/4R4/9/9/9/4K4 -:- r r",
-  "depth": 3
+  "depth": 2
 }
 ```
 
@@ -211,7 +212,8 @@ xiangqi-ai server
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `fen` | string | 必填 | FEN 字符串 |
-| `depth` | int | 3 | 搜索深度 |
+| `strategy` | string | it2 | AI 策略 |
+| `depth` | int | 2 | 搜索深度 |
 
 响应：
 ```json

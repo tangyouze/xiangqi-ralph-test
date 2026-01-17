@@ -16,7 +16,7 @@
 - 可走位置用绿色高亮
 
 #### 3. AI 设置
-- Strategy 选择：muses (默认), iterative, random 等
+- Strategy 选择：it2 (默认), muses, iterative, random 等
 - Time 滑块：0.1 - 10 秒
 
 #### 4. AI 统计显示

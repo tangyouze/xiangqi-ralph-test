@@ -182,7 +182,7 @@ def verify_rules():
     })
     
     # 2. 开局分数范围
-    engine = UnifiedAIEngine(strategy="minimax", time_limit=0.1)
+    engine = UnifiedAIEngine(strategy="it2", time_limit=0.1)
     moves = engine.get_best_moves(fen, n=44)
     scores = [s for _, s in moves]
     
