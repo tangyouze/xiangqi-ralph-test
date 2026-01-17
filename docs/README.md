@@ -4,9 +4,6 @@
 - [architecture.md](./architecture.md) - 系统架构和分层设计
 - [testing.md](./testing.md) - 测试策略
 
-## 历史文档
-- [archived_strategies.md](./archived_strategies.md) - 已归档的Python AI策略
-
 ## 快速开始
 
 ### 运行测试
