@@ -65,6 +65,21 @@ xiangqi-ai score --fen "4k4/9/9/9/4c4/4R4/9/9/9/4K4 -:- r r" --json
 {"fen": "4k4/9/9/9/4c4/4R4/9/9/9/4K4 -:- r r", "color": "red", "score": 120.50}
 ```
 
+### search - 搜索树调试（两层详细信息）
+
+```bash
+xiangqi-ai search --fen "4k4/9/9/9/4c4/4R4/9/9/9/4K4 -:- r r" --depth 3 --json
+```
+
+参数：
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `--fen` | string | 必填 | FEN 字符串 |
+| `--depth` | int | 3 | 搜索深度 |
+| `--json` | flag | false | JSON 输出 |
+
+输出（JSON）：见 Server 协议中的 `search` 命令。
+
 ### server - 启动服务模式
 
 ```bash
@@ -163,38 +178,32 @@ xiangqi-ai server
 
 无响应，进程退出。
 
----
-
-## 待实现的接口
-
-以下接口用于 debug 和可视化，尚未实现：
-
-### eval - 静态评估（不搜索）
+#### eval - 静态评估（不搜索）
 
 请求：
 ```json
-{"cmd": "eval", "fen": "..."}
+{"cmd": "eval", "fen": "4k4/9/9/9/4c4/4R4/9/9/9/4K4 -:- r r"}
 ```
 
 响应：
 ```json
 {
   "ok": true,
-  "eval": 120.5,
+  "eval": 462.75,
   "color": "red"
 }
 ```
 
 说明：直接评估局面，不进行搜索。用于对比静态分数和搜索分数。
 
-### search - 搜索树调试接口
+#### search - 搜索树调试接口
 
 请求：
 ```json
 {
   "cmd": "search",
-  "fen": "...",
-  "depth": 5
+  "fen": "4k4/9/9/9/4c4/4R4/9/9/9/4K4 -:- r r",
+  "depth": 3
 }
 ```
 
@@ -202,7 +211,7 @@ xiangqi-ai server
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `fen` | string | 必填 | FEN 字符串 |
-| `depth` | int | 必填 | 搜索深度 |
+| `depth` | int | 3 | 搜索深度 |
 
 响应：
 ```json

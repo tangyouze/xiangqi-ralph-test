@@ -63,6 +63,21 @@ enum Commands {
         json: bool,
     },
 
+    /// 搜索树调试（返回两层详细信息）
+    Search {
+        /// FEN 字符串
+        #[arg(long)]
+        fen: String,
+
+        /// 搜索深度
+        #[arg(long, default_value = "3")]
+        depth: u32,
+
+        /// JSON 输出
+        #[arg(long)]
+        json: bool,
+    },
+
     /// 启动 server 模式（stdin/stdout 通信）
     Server,
 }
@@ -92,6 +107,33 @@ struct ServerRequest {
     time_limit: Option<f64>,
     #[serde(default)]
     n: Option<usize>,
+    #[serde(default)]
+    depth: Option<u32>,
+}
+
+// search 命令的响应结构
+#[derive(Serialize, Deserialize)]
+struct SearchMoveInfo {
+    #[serde(rename = "move")]
+    mv: String,
+    #[serde(rename = "type")]
+    move_type: String,
+    eval: f64,
+    score: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    opposite_top10: Option<Vec<SearchMoveBasic>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    opposite_bottom10: Option<Vec<SearchMoveBasic>>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+struct SearchMoveBasic {
+    #[serde(rename = "move")]
+    mv: String,
+    #[serde(rename = "type")]
+    move_type: String,
+    eval: f64,
+    score: f64,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -111,6 +153,16 @@ struct ServerResponse {
     elapsed_ms: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     error: Option<String>,
+    // eval 命令的字段
+    #[serde(skip_serializing_if = "Option::is_none")]
+    eval: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    color: Option<String>,
+    // search 命令的字段
+    #[serde(skip_serializing_if = "Option::is_none")]
+    fen: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    first_moves: Option<Vec<SearchMoveInfo>>,
 }
 
 impl ServerResponse {
@@ -124,6 +176,10 @@ impl ServerResponse {
             nps: Some(nps),
             elapsed_ms: Some(elapsed_ms),
             error: None,
+            eval: None,
+            color: None,
+            fen: None,
+            first_moves: None,
         }
     }
 
@@ -137,6 +193,44 @@ impl ServerResponse {
             nps: None,
             elapsed_ms: None,
             error: None,
+            eval: None,
+            color: None,
+            fen: None,
+            first_moves: None,
+        }
+    }
+
+    fn success_eval(eval_score: f64, color_str: &str) -> Self {
+        Self {
+            ok: true,
+            moves: None,
+            legal_moves: None,
+            depth: None,
+            nodes: None,
+            nps: None,
+            elapsed_ms: None,
+            error: None,
+            eval: Some(eval_score),
+            color: Some(color_str.to_string()),
+            fen: None,
+            first_moves: None,
+        }
+    }
+
+    fn success_search(fen: String, eval_score: f64, depth: u32, first_moves: Vec<SearchMoveInfo>, nodes: u64) -> Self {
+        Self {
+            ok: true,
+            moves: None,
+            legal_moves: None,
+            depth: Some(depth),
+            nodes: Some(nodes),
+            nps: None,
+            elapsed_ms: None,
+            error: None,
+            eval: Some(eval_score),
+            color: None,
+            fen: Some(fen),
+            first_moves: Some(first_moves),
         }
     }
 
@@ -150,6 +244,10 @@ impl ServerResponse {
             nps: None,
             elapsed_ms: None,
             error: Some(msg.to_string()),
+            eval: None,
+            color: None,
+            fen: None,
+            first_moves: None,
         }
     }
 }
@@ -267,6 +365,38 @@ fn main() {
             }
         }
 
+        Commands::Search { fen, depth, json } => {
+            match do_search(&fen, depth) {
+                Ok((eval_score, first_moves, nodes)) => {
+                    if json {
+                        let response = ServerResponse::success_search(
+                            fen.clone(),
+                            eval_score,
+                            depth,
+                            first_moves,
+                            nodes,
+                        );
+                        println!("{}", serde_json::to_string_pretty(&response).unwrap());
+                    } else {
+                        println!("Search result (depth={}):", depth);
+                        println!("Current eval: {:.2}", eval_score);
+                        println!("\nFirst moves ({}):", first_moves.len());
+                        for mv_info in &first_moves {
+                            println!(
+                                "  {} [{}]: eval={:.2}, score={:.2}",
+                                mv_info.mv, mv_info.move_type, mv_info.eval, mv_info.score
+                            );
+                        }
+                        println!("\nNodes: {}", nodes);
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Error: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        }
+
         Commands::Server => {
             run_server();
         }
@@ -305,6 +435,8 @@ fn run_server() {
         let response = match request.cmd.as_str() {
             "best" => handle_best_request(&request),
             "moves" => handle_moves_request(&request),
+            "eval" => handle_eval_request(&request),
+            "search" => handle_search_request(&request),
             "quit" => break,
             _ => ServerResponse::error(&format!("Unknown command: {}", request.cmd)),
         };
@@ -361,4 +493,168 @@ fn handle_moves_request(request: &ServerRequest) -> ServerResponse {
         Ok(moves) => ServerResponse::success_legal_moves(moves),
         Err(e) => ServerResponse::error(&format!("Invalid FEN: {}", e)),
     }
+}
+
+/// 处理 eval 命令（静态评估）
+fn handle_eval_request(request: &ServerRequest) -> ServerResponse {
+    match Board::from_fen(&request.fen) {
+        Ok(board) => {
+            let color = board.current_turn();
+            let score = IterativeDeepeningAI::evaluate_static(&board, color);
+            let color_str = if color == Color::Red { "red" } else { "black" };
+            ServerResponse::success_eval(score, color_str)
+        }
+        Err(e) => ServerResponse::error(&format!("Invalid FEN: {}", e)),
+    }
+}
+
+/// 处理 search 命令（搜索树调试）
+fn handle_search_request(request: &ServerRequest) -> ServerResponse {
+    let depth = request.depth.unwrap_or(3);
+
+    match do_search(&request.fen, depth) {
+        Ok((eval_score, first_moves, nodes)) => {
+            ServerResponse::success_search(request.fen.clone(), eval_score, depth, first_moves, nodes)
+        }
+        Err(e) => ServerResponse::error(&format!("Search error: {}", e)),
+    }
+}
+
+/// 执行搜索并返回详细信息
+fn do_search(fen: &str, depth: u32) -> Result<(f64, Vec<SearchMoveInfo>, u64), String> {
+    let board = Board::from_fen(fen)?;
+    let color = board.current_turn();
+
+    // 当前局面的静态评估
+    let current_eval = IterativeDeepeningAI::evaluate_static(&board, color);
+
+    // 获取所有合法走法
+    let legal_moves = board.get_legal_moves(color);
+    if legal_moves.is_empty() {
+        return Ok((current_eval, Vec::new(), 0));
+    }
+
+    reset_node_count();
+
+    // 创建 AI 进行搜索
+    let config = AIConfig {
+        depth,
+        randomness: 0.0,
+        seed: None,
+        time_limit: None,
+    };
+    let ai = AIEngine::from_strategy("iterative", &config)?;
+
+    // 获取所有走法的搜索分数
+    let search_results = ai.select_moves_fen(fen, legal_moves.len())?;
+    let search_map: std::collections::HashMap<String, f64> = search_results
+        .into_iter()
+        .collect();
+
+    // 构建第一层走法信息
+    let mut first_moves: Vec<SearchMoveInfo> = Vec::new();
+
+    for mv in &legal_moves {
+        let mv_str = mv.to_fen_str(None);
+        let move_type = if mv_str.starts_with('+') { "chance" } else { "move" };
+
+        // 走这一步后的局面
+        let mut board_after = board.clone();
+        let was_hidden = board_after
+            .get_piece(mv.from_pos)
+            .map_or(false, |p| p.is_hidden);
+        board_after.make_move(mv);
+
+        // 走完后的静态评估（从对手视角，所以取负）
+        let eval_after = -IterativeDeepeningAI::evaluate_static(&board_after, board_after.current_turn());
+
+        // 搜索分数
+        let score = *search_map.get(&mv_str).unwrap_or(&eval_after);
+
+        // 获取对手的应对（第二层）
+        let (opposite_top10, opposite_bottom10) = if depth > 1 {
+            get_opposite_moves(&board_after, depth - 1)
+        } else {
+            (None, None)
+        };
+
+        first_moves.push(SearchMoveInfo {
+            mv: mv_str,
+            move_type: move_type.to_string(),
+            eval: eval_after,
+            score,
+            opposite_top10,
+            opposite_bottom10,
+        });
+    }
+
+    // 按分数排序
+    first_moves.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+
+    let nodes = get_node_count();
+    Ok((current_eval, first_moves, nodes))
+}
+
+/// 获取对手的应对走法（top10 和 bottom10）
+fn get_opposite_moves(board: &Board, depth: u32) -> (Option<Vec<SearchMoveBasic>>, Option<Vec<SearchMoveBasic>>) {
+    let color = board.current_turn();
+    let legal_moves = board.get_legal_moves(color);
+
+    if legal_moves.is_empty() {
+        return (None, None);
+    }
+
+    // 获取 FEN
+    let fen = board.to_fen();
+
+    // 创建 AI 搜索
+    let config = AIConfig {
+        depth,
+        randomness: 0.0,
+        seed: None,
+        time_limit: None,
+    };
+
+    let ai = match AIEngine::from_strategy("iterative", &config) {
+        Ok(ai) => ai,
+        Err(_) => return (None, None),
+    };
+
+    // 获取所有走法的分数
+    let search_results = match ai.select_moves_fen(&fen, legal_moves.len()) {
+        Ok(r) => r,
+        Err(_) => return (None, None),
+    };
+
+    // 构建走法信息
+    let mut moves: Vec<SearchMoveBasic> = Vec::new();
+
+    for (mv_str, score) in search_results {
+        let move_type = if mv_str.starts_with('+') { "chance" } else { "move" };
+
+        // 解析走法获取 eval
+        let eval = if let Some(mv) = legal_moves.iter().find(|m| m.to_fen_str(None) == mv_str) {
+            let mut board_after = board.clone();
+            board_after.make_move(mv);
+            -IterativeDeepeningAI::evaluate_static(&board_after, board_after.current_turn())
+        } else {
+            score
+        };
+
+        moves.push(SearchMoveBasic {
+            mv: mv_str,
+            move_type: move_type.to_string(),
+            eval,
+            score,
+        });
+    }
+
+    // 按分数排序
+    moves.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+
+    // 取 top10 和 bottom10
+    let top10: Vec<SearchMoveBasic> = moves.iter().take(10).cloned().collect();
+    let bottom10: Vec<SearchMoveBasic> = moves.iter().rev().take(10).cloned().collect();
+
+    (Some(top10), Some(bottom10))
 }

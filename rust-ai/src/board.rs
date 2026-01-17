@@ -168,6 +168,37 @@ impl Board {
         }
     }
 
+    /// 模拟揭子：将指定位置的暗子临时设置为指定类型
+    /// 返回原始状态用于恢复，如果不是暗子则返回 None
+    #[inline]
+    pub fn simulate_reveal(&mut self, pos: Position, piece_type: PieceType) -> Option<(Option<PieceType>, bool)> {
+        let idx = pos.to_index();
+        let piece = self.squares[idx].as_mut()?;
+
+        if !piece.is_hidden {
+            return None; // 不是暗子，无需模拟
+        }
+
+        // 保存原始状态：(original_actual_type, original_is_hidden)
+        let state = (piece.actual_type, piece.is_hidden);
+
+        // 模拟揭开
+        piece.is_hidden = false;
+        piece.actual_type = Some(piece_type);
+
+        Some(state)
+    }
+
+    /// 恢复模拟揭子前的状态
+    #[inline]
+    pub fn restore_simulated_reveal(&mut self, pos: Position, state: (Option<PieceType>, bool)) {
+        let idx = pos.to_index();
+        if let Some(piece) = self.squares[idx].as_mut() {
+            piece.actual_type = state.0;
+            piece.is_hidden = state.1;
+        }
+    }
+
     /// 执行走棋，返回被吃的棋子
     pub fn make_move(&mut self, mv: &JieqiMove) -> Option<Piece> {
         let from_idx = mv.from_pos.to_index();
@@ -708,6 +739,58 @@ impl Board {
         } else {
             GameResult::Ongoing
         }
+    }
+
+    /// 转换为 FEN 字符串
+    /// 注意：被吃子信息不可恢复，使用 "-:-" 占位
+    pub fn to_fen(&self) -> String {
+        let mut rows = Vec::new();
+
+        // 从 row 9 到 row 0
+        for row in (0..10).rev() {
+            let mut row_str = String::new();
+            let mut empty_count = 0;
+
+            for col in 0..9 {
+                let idx = row * 9 + col;
+                if let Some(piece) = &self.squares[idx] {
+                    if empty_count > 0 {
+                        row_str.push_str(&empty_count.to_string());
+                        empty_count = 0;
+                    }
+
+                    if piece.is_hidden {
+                        row_str.push(match piece.color {
+                            Color::Red => 'X',
+                            Color::Black => 'x',
+                        });
+                    } else if let Some(pt) = piece.actual_type {
+                        let ch = pt.to_fen_char();
+                        row_str.push(match piece.color {
+                            Color::Red => ch.to_ascii_uppercase(),
+                            Color::Black => ch,
+                        });
+                    }
+                } else {
+                    empty_count += 1;
+                }
+            }
+
+            if empty_count > 0 {
+                row_str.push_str(&empty_count.to_string());
+            }
+
+            rows.push(row_str);
+        }
+
+        let board_str = rows.join("/");
+
+        format!(
+            "{} -:- {} {}",
+            board_str,
+            self.current_turn.to_fen_char(),
+            self.viewer.to_fen_char()
+        )
     }
 }
 
