@@ -180,22 +180,21 @@ xiangqi-ai server
 ```json
 {
   "ok": true,
-  "score": 120.5,
+  "eval": 120.5,
   "color": "red"
 }
 ```
 
 说明：直接评估局面，不进行搜索。用于对比静态分数和搜索分数。
 
-### search - 固定深度搜索
+### search - 搜索树调试接口
 
 请求：
 ```json
 {
   "cmd": "search",
   "fen": "...",
-  "depth": 2,
-  "n": 10
+  "depth": 5
 }
 ```
 
@@ -203,23 +202,70 @@ xiangqi-ai server
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `fen` | string | 必填 | FEN 字符串 |
-| `depth` | int | 必填 | 搜索深度（固定） |
-| `n` | int | 5 | 返回走法数量 |
+| `depth` | int | 必填 | 搜索深度 |
 
 响应：
 ```json
 {
   "ok": true,
-  "moves": [
-    {"move": "e4e5", "score": 450.0},
-    {"move": "+b0c2", "score": 120.0}
+  "fen": "4k4/9/9/9/4c4/4R4/9/9/9/4K4 -:- r r",
+  "eval": 100.0,
+  "depth": 5,
+  "first_moves": [
+    {
+      "move": "e4e5",
+      "type": "move",
+      "eval": 400.0,
+      "score": 450.0,
+      "opposite_top10": [
+        {"move": "a9a8", "type": "move", "eval": -350.0, "score": -380.0},
+        {"move": "b9b8", "type": "move", "eval": -320.0, "score": -350.0}
+      ],
+      "opposite_bottom10": [
+        {"move": "h9h8", "type": "move", "eval": -100.0, "score": -50.0},
+        {"move": "g9g8", "type": "move", "eval": -80.0, "score": -40.0}
+      ]
+    },
+    {
+      "move": "+b0c2",
+      "type": "chance",
+      "eval": 120.0,
+      "score": 150.0,
+      "opposite_top10": [...],
+      "opposite_bottom10": [...]
+    }
   ],
-  "depth": 2,
-  "nodes": 500
+  "nodes": 5000
 }
 ```
 
-说明：搜索到固定深度，用于可视化搜索树的每一层。
+响应字段说明：
+
+| 字段 | 说明 |
+|------|------|
+| `fen` | 当前局面 |
+| `eval` | 当前局面的静态评估（不搜索） |
+| `depth` | 搜索深度 |
+| `first_moves` | 第一步所有走法（**完整列表，不能省略**） |
+| `nodes` | 搜索节点数 |
+
+> **注意**：`first_moves` 必须返回所有合法走法，不能只返回部分。这是为了完整展示搜索树第一层。
+
+每个走法的字段：
+
+| 字段 | 说明 |
+|------|------|
+| `move` | 走法字符串 |
+| `type` | `move`（普通走法）或 `chance`（揭子走法） |
+| `eval` | 走完这步后的静态评估（不搜索） |
+| `score` | 走完这步后的搜索分数（搜索 depth-1 层） |
+| `opposite_top10` | 对手最好的 10 个应对 |
+| `opposite_bottom10` | 对手最差的 10 个应对 |
+
+说明：
+- 返回两层信息：第一步（所有走法）+ 对手应对（top10/bottom10）
+- `eval` vs `score`：对比可发现"陷阱走法"（eval 高但 score 低）
+- `type: chance` 表示揭子走法，涉及概率计算
 
 ---
 
