@@ -35,8 +35,8 @@ enum Commands {
         #[arg(long)]
         fen: String,
 
-        /// AI 策略 (random, greedy, minimax, iterative, mcts, muses)
-        #[arg(long, default_value = "muses")]
+        /// AI 策略 (random, greedy, minimax, iterative, mcts, muses, it2)
+        #[arg(long, default_value = "it2")]
         strategy: String,
 
         /// 时间限制（秒）
@@ -453,7 +453,7 @@ fn run_server() {
 
 /// 处理 best 命令
 fn handle_best_request(request: &ServerRequest) -> ServerResponse {
-    let strategy = request.strategy.as_deref().unwrap_or("muses");
+    let strategy = request.strategy.as_deref().unwrap_or("it2");
     let time_limit = request.time_limit;
     let n = request.n.unwrap_or(5);
 

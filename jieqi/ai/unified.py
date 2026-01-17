@@ -243,7 +243,7 @@ class UnifiedAIEngine:
 
     def __init__(
         self,
-        strategy: str = "muses",
+        strategy: str = "it2",
         time_limit: float = 0.5,
         randomness: float = 0.0,
         seed: int | None = None,
@@ -363,7 +363,7 @@ def get_legal_moves(fen: str) -> list[str]:
 def get_best_moves(
     fen: str,
     n: int = 5,
-    strategy: str = "muses",
+    strategy: str = "it2",
     time_limit: float = 0.5,
 ) -> list[tuple[str, float]]:
     """获取最佳走法（便捷函数）"""
