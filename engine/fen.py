@@ -759,6 +759,137 @@ FULL_PIECE_COUNT = {
 # =============================================================================
 
 
+def _parse_board_positions(board_str: str) -> dict[tuple[int, int], str]:
+    """解析棋盘字符串为位置->棋子的字典
+
+    Args:
+        board_str: FEN 棋盘部分
+
+    Returns:
+        {(row, col): piece_char} 字典，row 0-9 (0是底部红方)，col 0-8
+    """
+    positions: dict[tuple[int, int], str] = {}
+    rows = board_str.split("/")
+    for row_idx, row in enumerate(rows):
+        row_num = 9 - row_idx  # FEN 从上到下，转为从下到上
+        col = 0
+        for char in row:
+            if char.isdigit():
+                col += int(char)
+            else:
+                positions[(row_num, col)] = char
+                col += 1
+    return positions
+
+
+def _can_red_attack_position(
+    positions: dict[tuple[int, int], str], target_row: int, target_col: int
+) -> tuple[bool, str]:
+    """检查红方是否能攻击到指定位置
+
+    Args:
+        positions: 棋盘位置字典
+        target_row: 目标行 (0-9)
+        target_col: 目标列 (0-8)
+
+    Returns:
+        (can_attack, attacker_description)
+    """
+    target = (target_row, target_col)
+
+    for (row, col), piece in positions.items():
+        # 只检查红方棋子（大写）
+        if not piece.isupper():
+            continue
+
+        # 车 - 直线攻击
+        if piece == "R":
+            if row == target_row:  # 同行
+                # 检查中间无子
+                min_col, max_col = min(col, target_col), max(col, target_col)
+                blocked = False
+                for c in range(min_col + 1, max_col):
+                    if (row, c) in positions:
+                        blocked = True
+                        break
+                if not blocked:
+                    return True, f"车({row},{col})"
+            elif col == target_col:  # 同列
+                min_row, max_row = min(row, target_row), max(row, target_row)
+                blocked = False
+                for r in range(min_row + 1, max_row):
+                    if (r, col) in positions:
+                        blocked = True
+                        break
+                if not blocked:
+                    return True, f"车({row},{col})"
+
+        # 马 - 日字跳（需检查蹩腿）
+        elif piece == "H":
+            # 马的 8 个可能位置及对应的蹩腿位置
+            horse_moves = [
+                ((2, 1), (1, 0)),  # 上右
+                ((2, -1), (1, 0)),  # 上左
+                ((-2, 1), (-1, 0)),  # 下右
+                ((-2, -1), (-1, 0)),  # 下左
+                ((1, 2), (0, 1)),  # 右上
+                ((-1, 2), (0, 1)),  # 右下
+                ((1, -2), (0, -1)),  # 左上
+                ((-1, -2), (0, -1)),  # 左下
+            ]
+            for (dr, dc), (br, bc) in horse_moves:
+                if (row + dr, col + dc) == target:
+                    # 检查蹩腿
+                    block_pos = (row + br, col + bc)
+                    if block_pos not in positions:
+                        return True, f"马({row},{col})"
+
+        # 炮 - 需要一个炮架
+        elif piece == "C":
+            if row == target_row:  # 同行
+                min_col, max_col = min(col, target_col), max(col, target_col)
+                count = 0
+                for c in range(min_col + 1, max_col):
+                    if (row, c) in positions:
+                        count += 1
+                if count == 1:  # 正好一个炮架
+                    return True, f"炮({row},{col})"
+            elif col == target_col:  # 同列
+                min_row, max_row = min(row, target_row), max(row, target_row)
+                count = 0
+                for r in range(min_row + 1, max_row):
+                    if (r, col) in positions:
+                        count += 1
+                if count == 1:
+                    return True, f"炮({row},{col})"
+
+        # 兵 - 前进或左右（过河后）
+        elif piece == "P":
+            # 红兵在 row 0-4 为己方，5-9 为过河
+            # 红兵只能向上走 (row+1) 或过河后左右
+            if row + 1 == target_row and col == target_col:
+                # 向前一步
+                return True, f"兵({row},{col})"
+            if row >= 5:  # 过河
+                if row == target_row and abs(col - target_col) == 1:
+                    # 左右一步
+                    return True, f"兵({row},{col})"
+
+        # 帅 - 对面将军（已在 validate_fen 中检查，这里也加上）
+        elif piece == "K":
+            if col == target_col:
+                min_row, max_row = min(row, target_row), max(row, target_row)
+                blocked = False
+                for r in range(min_row + 1, max_row):
+                    if (r, col) in positions:
+                        blocked = True
+                        break
+                if not blocked:
+                    return True, f"帅({row},{col})"
+
+    return False, ""
+
+
 def validate_fen(fen: str) -> tuple[bool, str]:
     """验证 FEN 是否合法
 
@@ -840,13 +971,22 @@ def validate_fen(fen: str) -> tuple[bool, str]:
         if not has_blocker:
             return False, "帅将对面（非法局面）"
 
-    # 验证回合
-    if turn_str not in ("r", "b"):
-        return False, f"回合标记错误：{turn_str}"
+    # 验证回合（必须是红方走）
+    if turn_str != "r":
+        return False, f"必须是红方走，当前是：{'黑方' if turn_str == 'b' else turn_str}"
 
     # 验证视角
     if viewer_str not in ("r", "b"):
         return False, f"视角标记错误：{viewer_str}"
+
+    # 检查黑方是否被将军（红方能否直接吃将）
+    if black_king_pos:
+        positions = _parse_board_positions(board_str)
+        can_attack, attacker = _can_red_attack_position(
+            positions, black_king_pos[0], black_king_pos[1]
+        )
+        if can_attack:
+            return False, f"黑方被将军（{attacker}可吃将），非法局面"
 
     return True, "OK"
 
