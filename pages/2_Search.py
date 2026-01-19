@@ -10,7 +10,9 @@
 from __future__ import annotations
 
 import streamlit as st
+import streamlit.components.v1 as components
 
+from engine.fen import fen_to_canvas_html
 from engine.games.endgames import ALL_ENDGAMES
 from engine.game import JieqiGame
 from engine.rust_ai import DEFAULT_STRATEGY, UnifiedAIEngine
@@ -32,6 +34,23 @@ def init_session_state():
         st.session_state.selected_move_idx = None
     if "endgame_idx" not in st.session_state:
         st.session_state.endgame_idx = 0
+    if "search_depth" not in st.session_state:
+        st.session_state.search_depth = 2
+    if "pending_analyze" not in st.session_state:
+        st.session_state.pending_analyze = False
+
+
+def do_analyze():
+    """执行分析"""
+    try:
+        engine = UnifiedAIEngine(strategy=DEFAULT_STRATEGY)
+        tree = engine.get_search_tree(
+            st.session_state.search_fen, depth=st.session_state.search_depth
+        )
+        st.session_state.search_tree = tree
+        st.session_state.selected_move_idx = None
+    except Exception as e:
+        st.error(f"Error: {e}")
 
 
 def render_sidebar():
@@ -49,12 +68,13 @@ def render_sidebar():
             key="endgame_selector",
         )
 
-        # 选择变化时更新 FEN
+        # 选择变化时更新 FEN 并触发分析
         if selected_idx != st.session_state.endgame_idx:
             st.session_state.endgame_idx = selected_idx
             st.session_state.search_fen = ALL_ENDGAMES[selected_idx].fen
             st.session_state.search_tree = None
             st.session_state.selected_move_idx = None
+            st.session_state.pending_analyze = True
             st.rerun()
 
         st.divider()
@@ -65,30 +85,45 @@ def render_sidebar():
             value=st.session_state.search_fen,
             height=80,
         )
+        # FEN 变化时触发分析
         if fen_input != st.session_state.search_fen:
             st.session_state.search_fen = fen_input
+            st.session_state.search_tree = None
+            st.session_state.selected_move_idx = None
+            st.session_state.pending_analyze = True
+
+        # 图形化棋盘展示
+        try:
+            html = fen_to_canvas_html(st.session_state.search_fen)
+            components.html(html, height=230)
+        except Exception:
+            pass  # FEN 无效时不显示
+
+        st.divider()
 
         # 搜索深度
         depth = st.slider(
             "Search Depth",
             min_value=1,
             max_value=5,
-            value=3,
+            value=st.session_state.search_depth,
             step=1,
         )
+        if depth != st.session_state.search_depth:
+            st.session_state.search_depth = depth
 
         st.divider()
 
         # 分析按钮
         if st.button("Analyze", type="primary", use_container_width=True):
             with st.spinner("Searching..."):
-                try:
-                    engine = UnifiedAIEngine(strategy=DEFAULT_STRATEGY)
-                    tree = engine.get_search_tree(st.session_state.search_fen, depth=depth)
-                    st.session_state.search_tree = tree
-                    st.session_state.selected_move_idx = None
-                except Exception as e:
-                    st.error(f"Error: {e}")
+                do_analyze()
+
+        # 自动分析（FEN 变化后）
+        if st.session_state.pending_analyze:
+            st.session_state.pending_analyze = False
+            with st.spinner("Searching..."):
+                do_analyze()
 
 
 def render_current_position():
