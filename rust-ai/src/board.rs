@@ -171,7 +171,11 @@ impl Board {
     /// 模拟揭子：将指定位置的暗子临时设置为指定类型
     /// 返回原始状态用于恢复，如果不是暗子则返回 None
     #[inline]
-    pub fn simulate_reveal(&mut self, pos: Position, piece_type: PieceType) -> Option<(Option<PieceType>, bool)> {
+    pub fn simulate_reveal(
+        &mut self,
+        pos: Position,
+        piece_type: PieceType,
+    ) -> Option<(Option<PieceType>, bool)> {
         let idx = pos.to_index();
         let piece = self.squares[idx].as_mut()?;
 
@@ -536,7 +540,7 @@ impl Board {
         // 检查车/炮攻击（直线）
         for (dr, dc) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
             let mut pos = target_pos.offset(dr, dc);
-            let mut screen_count = 0;  // 记录中间棋子数量
+            let mut screen_count = 0; // 记录中间棋子数量
             while pos.is_valid() {
                 if let Some(piece) = self.get_piece(pos) {
                     if piece.color == attacker_color {
@@ -874,28 +878,31 @@ mod tests {
         // 炮在e2，隔了2个棋子（e3, e6），不能攻击e9
         let fen = "xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/4C2X1/9/XXXXKXXXX -:- b r";
         let board = Board::from_fen(fen).unwrap();
-        
+
         // 黑方不应该被将军
-        assert!(!board.is_in_check(Color::Black), "黑方不应该被将军（炮隔了2个棋子）");
-        
+        assert!(
+            !board.is_in_check(Color::Black),
+            "黑方不应该被将军（炮隔了2个棋子）"
+        );
+
         // 黑方应该有合法走法
         let moves = board.get_legal_moves(Color::Black);
         assert!(moves.len() > 0, "黑方应该有合法走法，实际: {}", moves.len());
         assert_eq!(moves.len(), 45, "黑方应该有45个合法走法");
     }
-    
+
     #[test]
     fn test_cannon_attack_with_one_screen() {
         // 测试炮隔了1个棋子的情况 - 可以攻击
         // 红炮在e2，红兵在e3，黑将在e4（测试用的特殊局面）
         let fen = "5k3/9/9/9/9/4K4/9/4p4/4C4/9 -:- r r";
         let board = Board::from_fen(fen).unwrap();
-        
+
         // 检查炮是否能攻击e3的黑兵（隔着e4的黑将？不对，让我重新设计）
         // 实际：e2炮 → e3黑兵 → e4空...
         // 让我用更简单的例子
     }
-    
+
     #[test]
     fn test_cannon_attack_correct() {
         // 红炮e5，红兵e6，黑将e7 - 炮隔一子攻击
@@ -903,7 +910,10 @@ mod tests {
         let board = Board::from_fen(fen).unwrap();
 
         // 黑将在e7，被e5的炮(隔着e6红兵)攻击
-        assert!(board.is_in_check(Color::Black), "黑方应该被将军（炮隔一子攻击）");
+        assert!(
+            board.is_in_check(Color::Black),
+            "黑方应该被将军（炮隔一子攻击）"
+        );
     }
 
     // ========== 兵攻击测试 ==========
@@ -915,10 +925,7 @@ mod tests {
         let fen = "9/9/9/4k4/4P4/9/9/9/9/4K4 -:- b r";
         let board = Board::from_fen(fen).unwrap();
 
-        assert!(
-            board.is_in_check(Color::Black),
-            "红兵应该能向前攻击黑将"
-        );
+        assert!(board.is_in_check(Color::Black), "红兵应该能向前攻击黑将");
     }
 
     #[test]
@@ -928,10 +935,7 @@ mod tests {
         let fen = "4k4/9/9/9/9/4p4/4K4/9/9/9 -:- r r";
         let board = Board::from_fen(fen).unwrap();
 
-        assert!(
-            board.is_in_check(Color::Red),
-            "黑卒应该能向前攻击红将"
-        );
+        assert!(board.is_in_check(Color::Red), "黑卒应该能向前攻击红将");
     }
 
     #[test]
@@ -942,10 +946,7 @@ mod tests {
         let fen = "9/9/9/9/4P4/4k4/9/9/9/3K5 -:- b r";
         let board = Board::from_fen(fen).unwrap();
 
-        assert!(
-            !board.is_in_check(Color::Black),
-            "红兵不应该能向后攻击黑将"
-        );
+        assert!(!board.is_in_check(Color::Black), "红兵不应该能向后攻击黑将");
     }
 
     #[test]
@@ -981,10 +982,7 @@ mod tests {
         let fen = "4k4/9/9/9/9/4pK3/9/9/9/9 -:- r r";
         let board = Board::from_fen(fen).unwrap();
 
-        assert!(
-            board.is_in_check(Color::Red),
-            "过河黑卒应该能左右攻击红将"
-        );
+        assert!(board.is_in_check(Color::Red), "过河黑卒应该能左右攻击红将");
     }
 
     // ========== 马蹩腿测试 ==========
@@ -997,10 +995,7 @@ mod tests {
         let fen = "9/9/5k3/9/4H4/9/9/9/9/4K4 -:- b r";
         let board = Board::from_fen(fen).unwrap();
 
-        assert!(
-            board.is_in_check(Color::Black),
-            "无蹩腿时马应该能攻击黑将"
-        );
+        assert!(board.is_in_check(Color::Black), "无蹩腿时马应该能攻击黑将");
     }
 
     #[test]
@@ -1011,10 +1006,7 @@ mod tests {
         let fen = "9/9/5k3/4p4/4H4/9/9/9/9/4K4 -:- b r";
         let board = Board::from_fen(fen).unwrap();
 
-        assert!(
-            !board.is_in_check(Color::Black),
-            "蹩腿时马不应该能攻击黑将"
-        );
+        assert!(!board.is_in_check(Color::Black), "蹩腿时马不应该能攻击黑将");
     }
 
     #[test]
@@ -1023,22 +1015,20 @@ mod tests {
         // 红马在 e5，测试各个方向
         let test_cases = [
             // (将的位置FEN后缀, 蹩腿位置, 预期能否攻击)
-            ("f7", Some("e6"), false),  // 上右，e6蹩腿
-            ("d7", Some("e6"), false),  // 上左，e6蹩腿
-            ("f3", Some("e4"), false),  // 下右，e4蹩腿
-            ("d3", Some("e4"), false),  // 下左，e4蹩腿
-            ("g6", Some("f5"), false),  // 右上，f5蹩腿
-            ("g4", Some("f5"), false),  // 右下，f5蹩腿
-            ("c6", Some("d5"), false),  // 左上，d5蹩腿
-            ("c4", Some("d5"), false),  // 左下，d5蹩腿
+            ("f7", Some("e6"), false), // 上右，e6蹩腿
+            ("d7", Some("e6"), false), // 上左，e6蹩腿
+            ("f3", Some("e4"), false), // 下右，e4蹩腿
+            ("d3", Some("e4"), false), // 下左，e4蹩腿
+            ("g6", Some("f5"), false), // 右上，f5蹩腿
+            ("g4", Some("f5"), false), // 右下，f5蹩腿
+            ("c6", Some("d5"), false), // 左上，d5蹩腿
+            ("c4", Some("d5"), false), // 左下，d5蹩腿
         ];
 
         for (king_pos, leg_block, can_attack) in test_cases {
             let blocker = if leg_block.is_some() { "p" } else { "1" };
             // 简化测试：只测试一个方向
-            let fen = format!(
-                "9/9/9/4H4/9/9/9/9/9/4K4 -:- b r"
-            );
+            let fen = format!("9/9/9/4H4/9/9/9/9/9/4K4 -:- b r");
             let board = Board::from_fen(&fen).unwrap();
             // 这个测试验证马的基本功能
             assert!(board.get_all_pieces(Some(Color::Red)).len() >= 1);
@@ -1055,7 +1045,12 @@ mod tests {
         let moves = board.get_horse_moves(horse);
 
         // 马在中心位置应该有8个可能走法
-        assert_eq!(moves.len(), 8, "中心位置马应该有8个走法，实际: {}", moves.len());
+        assert_eq!(
+            moves.len(),
+            8,
+            "中心位置马应该有8个走法，实际: {}",
+            moves.len()
+        );
     }
 
     #[test]
@@ -1068,7 +1063,12 @@ mod tests {
         let moves = board.get_horse_moves(horse);
 
         // e6蹩腿阻止 d7 和 f7 两个走法
-        assert_eq!(moves.len(), 6, "蹩腿后马应该有6个走法，实际: {}", moves.len());
+        assert_eq!(
+            moves.len(),
+            6,
+            "蹩腿后马应该有6个走法，实际: {}",
+            moves.len()
+        );
     }
 
     // ========== 象塞眼测试 ==========
@@ -1083,7 +1083,11 @@ mod tests {
         let moves = board.get_elephant_moves(elephant);
 
         // 红象在e2，可以走到 c0, g0, c4, g4（4个位置，但c0和g0可能超出范围）
-        assert!(moves.len() >= 2, "象应该至少有2个走法，实际: {}", moves.len());
+        assert!(
+            moves.len() >= 2,
+            "象应该至少有2个走法，实际: {}",
+            moves.len()
+        );
     }
 
     #[test]
@@ -1097,11 +1101,8 @@ mod tests {
 
         // d3塞眼阻止走到 c4
         // 检查 c4 不在走法列表中
-        let blocked_pos = Position::new(4, 2);  // c4
-        assert!(
-            !moves.contains(&blocked_pos),
-            "象眼被塞时不应该能走到 c4"
-        );
+        let blocked_pos = Position::new(4, 2); // c4
+        assert!(!moves.contains(&blocked_pos), "象眼被塞时不应该能走到 c4");
     }
 
     #[test]
@@ -1115,10 +1116,7 @@ mod tests {
 
         // 所有走法都应该在己方半场
         for mv in &moves {
-            assert!(
-                mv.row <= 4,
-                "红象不应该能过河，但可以走到 row={}", mv.row
-            );
+            assert!(mv.row <= 4, "红象不应该能过河，但可以走到 row={}", mv.row);
         }
     }
 
@@ -1133,10 +1131,7 @@ mod tests {
 
         // 所有走法都应该在己方半场
         for mv in &moves {
-            assert!(
-                mv.row >= 5,
-                "黑象不应该能过河，但可以走到 row={}", mv.row
-            );
+            assert!(mv.row >= 5, "黑象不应该能过河，但可以走到 row={}", mv.row);
         }
     }
 

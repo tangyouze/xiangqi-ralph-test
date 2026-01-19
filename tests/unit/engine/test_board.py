@@ -4,8 +4,8 @@
 
 import pytest
 
-from jieqi.board import JieqiBoard
-from jieqi.types import (
+from engine.board import JieqiBoard
+from engine.types import (
     Color,
     GameResult,
     JieqiMove,

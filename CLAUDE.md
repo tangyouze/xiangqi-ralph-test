@@ -97,3 +97,13 @@ just fast-battle RED BLACK GAMES
 - `rust-ai/src/ai/muses2.rs` - Muses2 (PVS+)
 - `rust-ai/src/ai/muses3.rs` - Muses3 (PVS++)
 - `rust-ai/src/ai/it2/mod.rs` - IT2 (Expectimax)
+
+
+# language fix, streamlit, no use following function again
+
+2026-01-19 06:42:32.306 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+

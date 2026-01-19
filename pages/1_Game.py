@@ -16,10 +16,10 @@ from enum import Enum
 
 import streamlit as st
 
-from jieqi.ai import DEFAULT_STRATEGY, UnifiedAIEngine
-from jieqi.fen import parse_move, to_fen
-from jieqi.game import GameConfig, JieqiGame
-from jieqi.types import ActionType, Color, GameResult, JieqiMove, PieceType, Position
+from engine.rust_ai import DEFAULT_STRATEGY, UnifiedAIEngine
+from engine.fen import parse_move, to_fen
+from engine.game import GameConfig, JieqiGame
+from engine.types import ActionType, Color, GameResult, JieqiMove, PieceType, Position
 
 # =============================================================================
 # 常量

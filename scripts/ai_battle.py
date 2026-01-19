@@ -15,10 +15,10 @@ from rich.console import Console
 from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn
 from rich.table import Table
 
-from jieqi.ai.unified import UnifiedAIEngine
-from jieqi.fen import parse_move, to_fen
-from jieqi.game import JieqiGame
-from jieqi.types import ActionType, Color, GameResult, PieceType
+from engine.rust_ai import UnifiedAIEngine
+from engine.fen import parse_move, to_fen
+from engine.game import JieqiGame
+from engine.types import ActionType, Color, GameResult, PieceType
 
 console = Console()
 app = typer.Typer()

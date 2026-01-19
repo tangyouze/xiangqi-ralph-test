@@ -2,7 +2,7 @@
 揭棋类型测试
 """
 
-from jieqi.types import (
+from engine.types import (
     INITIAL_POSITIONS,
     ActionType,
     Color,

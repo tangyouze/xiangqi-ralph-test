@@ -29,22 +29,28 @@ pub const EARLY_1: &str = "XXXXKXXXX/9/1X5X1/X1X1X1X1X/9/4X4/x1x1x1x1x/1x5x1/9/x
 pub const EARLY_2: &str = "XXXXKXXXX/9/1X5X1/X1X1X1X1X/4x4/4X4/x1x1x1x1x/1x5x1/9/xxxxkxxxx -:- r r";
 
 /// 红方第二步: 马二进三
-pub const EARLY_3: &str = "XXXXKXXXX/9/1X5X1/X1X1X1X1X/4x4/2X1X4/x1x1x1x1x/1x5x1/9/xxxxkxxxx -:- b r";
+pub const EARLY_3: &str =
+    "XXXXKXXXX/9/1X5X1/X1X1X1X1X/4x4/2X1X4/x1x1x1x1x/1x5x1/9/xxxxkxxxx -:- b r";
 
 /// 黑方回应: 马8进7
-pub const EARLY_4: &str = "XXXXKXXXX/9/1X5X1/X1X1X1X1X/4x4/2X1X4/x1x1x1x1x/9/1x5x1/xxxxkxxxx -:- r r";
+pub const EARLY_4: &str =
+    "XXXXKXXXX/9/1X5X1/X1X1X1X1X/4x4/2X1X4/x1x1x1x1x/9/1x5x1/xxxxkxxxx -:- r r";
 
 /// 5步后的典型开局局面
-pub const EARLY_5: &str = "XXXXKXXXX/9/1X5X1/X1X1X1X1X/4x4/2X1X1X2/x1x1x1x1x/9/1x3x1x1/xxxxkxxxx -:- b r";
+pub const EARLY_5: &str =
+    "XXXXKXXXX/9/1X5X1/X1X1X1X1X/4x4/2X1X1X2/x1x1x1x1x/9/1x3x1x1/xxxxkxxxx -:- b r";
 
 /// 炮换马后的早期局面 (有明子)
-pub const EARLY_6: &str = "XXXXKXXXX/9/1X5X1/X1X1C1X1X/4x4/2X5X/x1x1x1x1x/9/1x3x1x1/xxxxkxxxx C:h r r";
+pub const EARLY_6: &str =
+    "XXXXKXXXX/9/1X5X1/X1X1C1X1X/4x4/2X5X/x1x1x1x1x/9/1x3x1x1/xxxxkxxxx C:h r r";
 
 /// 双方都有明子的早期局面
-pub const EARLY_7: &str = "XXXXKXXXX/9/1R5X1/X1X1C1X1X/4x4/2X5X/x1x1c1x1x/9/1r3x1x1/xxxxkxxxx C:h r r";
+pub const EARLY_7: &str =
+    "XXXXKXXXX/9/1R5X1/X1X1C1X1X/4x4/2X5X/x1x1c1x1x/9/1r3x1x1/xxxxkxxxx C:h r r";
 
 /// 中炮对屏风马
-pub const EARLY_8: &str = "XXXXKXXXX/9/1X5X1/X1X1X1X1X/9/4X4/x1x1x1x1x/1x3x3/2x3x2/xxxxkxxxx -:- r r";
+pub const EARLY_8: &str =
+    "XXXXKXXXX/9/1X5X1/X1X1X1X1X/9/4X4/x1x1x1x1x/1x3x3/2x3x2/xxxxkxxxx -:- r r";
 
 /// 仙人指路开局
 pub const EARLY_9: &str = "XXXXKXXXX/9/1X5X1/X1X1X1X1X/9/2X6/x1x1x1x1x/1x5x1/9/xxxxkxxxx -:- b r";
@@ -274,46 +280,38 @@ pub const SPECIAL_10: &str = "XXXXKxxxx/9/1X5x1/X1X1x1X1x/9/9/x1x1X1x1X/1x5X1/9/
 
 /// 所有早期局面
 pub const EARLY_POSITIONS: [&str; 20] = [
-    EARLY_1, EARLY_2, EARLY_3, EARLY_4, EARLY_5,
-    EARLY_6, EARLY_7, EARLY_8, EARLY_9, EARLY_10,
-    EARLY_11, EARLY_12, EARLY_13, EARLY_14, EARLY_15,
-    EARLY_16, EARLY_17, EARLY_18, EARLY_19, EARLY_20,
+    EARLY_1, EARLY_2, EARLY_3, EARLY_4, EARLY_5, EARLY_6, EARLY_7, EARLY_8, EARLY_9, EARLY_10,
+    EARLY_11, EARLY_12, EARLY_13, EARLY_14, EARLY_15, EARLY_16, EARLY_17, EARLY_18, EARLY_19,
+    EARLY_20,
 ];
 
 /// 所有中期局面
 pub const MID_POSITIONS: [&str; 30] = [
-    MID_1, MID_2, MID_3, MID_4, MID_5,
-    MID_6, MID_7, MID_8, MID_9, MID_10,
-    MID_11, MID_12, MID_13, MID_14, MID_15,
-    MID_16, MID_17, MID_18, MID_19, MID_20,
-    MID_21, MID_22, MID_23, MID_24, MID_25,
+    MID_1, MID_2, MID_3, MID_4, MID_5, MID_6, MID_7, MID_8, MID_9, MID_10, MID_11, MID_12, MID_13,
+    MID_14, MID_15, MID_16, MID_17, MID_18, MID_19, MID_20, MID_21, MID_22, MID_23, MID_24, MID_25,
     MID_26, MID_27, MID_28, MID_29, MID_30,
 ];
 
 /// 所有残局局面
 pub const END_POSITIONS: [&str; 20] = [
-    END_1, END_2, END_3, END_4, END_5,
-    END_6, END_7, END_8, END_9, END_10,
-    END_11, END_12, END_13, END_14, END_15,
-    END_16, END_17, END_18, END_19, END_20,
+    END_1, END_2, END_3, END_4, END_5, END_6, END_7, END_8, END_9, END_10, END_11, END_12, END_13,
+    END_14, END_15, END_16, END_17, END_18, END_19, END_20,
 ];
 
 /// 所有将军测试局面
 pub const CHECK_POSITIONS: [&str; 10] = [
-    CHECK_1, CHECK_2, CHECK_3, CHECK_4, CHECK_5,
-    CHECK_6, CHECK_7, CHECK_8, CHECK_9, CHECK_10,
+    CHECK_1, CHECK_2, CHECK_3, CHECK_4, CHECK_5, CHECK_6, CHECK_7, CHECK_8, CHECK_9, CHECK_10,
 ];
 
 /// 所有杀棋测试局面
 pub const MATE_POSITIONS: [&str; 10] = [
-    MATE_1, MATE_2, MATE_3, MATE_4, MATE_5,
-    MATE_6, MATE_7, MATE_8, MATE_9, MATE_10,
+    MATE_1, MATE_2, MATE_3, MATE_4, MATE_5, MATE_6, MATE_7, MATE_8, MATE_9, MATE_10,
 ];
 
 /// 所有特殊测试局面
 pub const SPECIAL_POSITIONS: [&str; 10] = [
-    SPECIAL_1, SPECIAL_2, SPECIAL_3, SPECIAL_4, SPECIAL_5,
-    SPECIAL_6, SPECIAL_7, SPECIAL_8, SPECIAL_9, SPECIAL_10,
+    SPECIAL_1, SPECIAL_2, SPECIAL_3, SPECIAL_4, SPECIAL_5, SPECIAL_6, SPECIAL_7, SPECIAL_8,
+    SPECIAL_9, SPECIAL_10,
 ];
 
 #[cfg(test)]
@@ -371,7 +369,12 @@ mod tests {
     fn test_all_special_positions_valid() {
         for (i, fen) in SPECIAL_POSITIONS.iter().enumerate() {
             let board = Board::from_fen(fen);
-            assert!(board.is_ok(), "SPECIAL_{} invalid: {:?}", i + 1, board.err());
+            assert!(
+                board.is_ok(),
+                "SPECIAL_{} invalid: {:?}",
+                i + 1,
+                board.err()
+            );
         }
     }
 }

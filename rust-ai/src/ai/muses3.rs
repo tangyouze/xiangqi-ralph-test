@@ -295,7 +295,11 @@ impl Muses3AI {
             }
 
             let value = if piece.is_hidden {
-                if is_mine { my_ev } else { opp_ev }
+                if is_mine {
+                    my_ev
+                } else {
+                    opp_ev
+                }
             } else {
                 piece.actual_type.map_or(0, |pt| pt.value())
             };
@@ -369,7 +373,9 @@ impl Muses3AI {
     #[inline]
     fn mvv_lva_score(&self, board: &Board, mv: &JieqiMove) -> i32 {
         let victim = board.get_piece(mv.to_pos).map_or(0, Self::get_piece_value);
-        let attacker = board.get_piece(mv.from_pos).map_or(0, Self::get_piece_value);
+        let attacker = board
+            .get_piece(mv.from_pos)
+            .map_or(0, Self::get_piece_value);
         victim * 10 - attacker
     }
 
@@ -662,7 +668,8 @@ impl Muses3AI {
                 let mut best_move = None;
                 let mut best_score = i32::MIN + 1;
 
-                for mv in legal_moves.iter().take(10) { // 只看前10个走法
+                for mv in legal_moves.iter().take(10) {
+                    // 只看前10个走法
                     let piece = match board.get_piece(mv.from_pos) {
                         Some(p) => p,
                         None => continue,
@@ -1042,7 +1049,8 @@ impl Muses3AI {
             let scores = if let Some(prev) = prev_score {
                 let alpha = prev - ASPIRATION_WINDOW;
                 let beta = prev + ASPIRATION_WINDOW;
-                let mut result = self.search_root_aspiration(board, &moves, depth, current_color, alpha, beta);
+                let mut result =
+                    self.search_root_aspiration(board, &moves, depth, current_color, alpha, beta);
 
                 // 如果失败（窗口太窄），重新用完整窗口搜索
                 if result.is_empty() || result.iter().all(|(_, s)| *s <= alpha || *s >= beta) {

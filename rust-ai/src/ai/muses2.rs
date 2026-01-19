@@ -314,7 +314,11 @@ impl Muses2AI {
         for piece in board.get_all_pieces(None) {
             let value = if piece.is_hidden {
                 // 使用期望价值而非固定值
-                if piece.color == color { my_ev } else { opp_ev }
+                if piece.color == color {
+                    my_ev
+                } else {
+                    opp_ev
+                }
             } else {
                 piece.actual_type.map_or(0, |pt| pt.value())
             };
@@ -355,7 +359,9 @@ impl Muses2AI {
     #[inline]
     fn mvv_lva_score(&self, board: &Board, mv: &JieqiMove) -> i32 {
         let victim = board.get_piece(mv.to_pos).map_or(0, Self::get_piece_value);
-        let attacker = board.get_piece(mv.from_pos).map_or(0, Self::get_piece_value);
+        let attacker = board
+            .get_piece(mv.from_pos)
+            .map_or(0, Self::get_piece_value);
         victim * 10 - attacker
     }
 
@@ -888,7 +894,8 @@ impl Muses2AI {
                 // 使用期望窗口
                 let alpha = prev - ASPIRATION_WINDOW;
                 let beta = prev + ASPIRATION_WINDOW;
-                let mut result = self.search_root_aspiration(board, &moves, depth, current_color, alpha, beta);
+                let mut result =
+                    self.search_root_aspiration(board, &moves, depth, current_color, alpha, beta);
 
                 // 如果失败，扩大窗口重新搜索
                 if result.is_empty() || result.iter().all(|(_, s)| *s <= alpha || *s >= beta) {

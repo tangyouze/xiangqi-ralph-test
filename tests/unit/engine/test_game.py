@@ -4,8 +4,8 @@
 
 import pytest
 
-from jieqi.game import GameConfig, JieqiGame
-from jieqi.types import ActionType, Color, GameResult, JieqiMove, Position
+from engine.game import GameConfig, JieqiGame
+from engine.types import ActionType, Color, GameResult, JieqiMove, Position
 
 
 class TestJieqiGameInit:

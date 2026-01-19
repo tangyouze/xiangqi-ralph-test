@@ -24,8 +24,10 @@ test-py:
 
 # === 服务命令 ===
 
-# Start streamlit dashboard
+# Start streamlit dashboard (kills existing on same port)
 streamlit:
+    -lsof -ti:6704 | xargs kill 2>/dev/null
+    sleep 1
     uv run streamlit run streamlit_app.py --server.port 6704
 
 # Restart with overmind
@@ -98,17 +100,3 @@ rustai-search FEN STRATEGY="it2" DEPTH="2":
 # Show help for Rust AI CLI
 rustai-help:
     cd rust-ai && cargo run --release -- --help
-
-# === AI 评估命令 ===
-
-# Generate AI evaluation report
-ai-report STRATEGY="muses":
-    uv run python scripts/ai_eval.py report --strategy {{STRATEGY}}
-
-# Generate AI evaluation report with win rate testing
-ai-report-winrate STRATEGY="muses" GAMES="5":
-    uv run python scripts/ai_eval.py report --strategy {{STRATEGY}} --winrate --winrate-games {{GAMES}}
-
-# List evaluation scenarios
-ai-scenarios:
-    uv run python scripts/ai_eval.py list-scenarios

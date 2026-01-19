@@ -11,19 +11,10 @@ from __future__ import annotations
 
 import streamlit as st
 
-from jieqi.ai import DEFAULT_STRATEGY, UnifiedAIEngine
-from jieqi.game import JieqiGame
-from jieqi.types import Color
-
-# =============================================================================
-# 预设局面
-# =============================================================================
-
-PRESET_POSITIONS = {
-    "Initial (Kings revealed)": "xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXKXXXX -:- r r",
-    "Mid-game (mixed)": "1pxxkxxAx/1p5r1/9/x1x1x1x1x/9/9/X1X1X1X1X/A8/9/1XXXKXXXX P:ap r r",
-    "Simple capture": "4k4/9/9/9/4c4/4R4/9/9/9/4K4 -:- r r",
-}
+from engine.games.endgames import ALL_ENDGAMES
+from engine.game import JieqiGame
+from engine.rust_ai import DEFAULT_STRATEGY, UnifiedAIEngine
+from engine.types import Color
 
 
 # =============================================================================
@@ -34,11 +25,13 @@ PRESET_POSITIONS = {
 def init_session_state():
     """初始化 session state"""
     if "search_fen" not in st.session_state:
-        st.session_state.search_fen = PRESET_POSITIONS["Simple capture"]
+        st.session_state.search_fen = ALL_ENDGAMES[0].fen
     if "search_tree" not in st.session_state:
         st.session_state.search_tree = None
     if "selected_move_idx" not in st.session_state:
         st.session_state.selected_move_idx = None
+    if "endgame_idx" not in st.session_state:
+        st.session_state.endgame_idx = 0
 
 
 def render_sidebar():
@@ -46,28 +39,34 @@ def render_sidebar():
     with st.sidebar:
         st.header("Settings")
 
-        # 预设局面选择
-        preset = st.selectbox(
-            "Preset Position",
-            options=list(PRESET_POSITIONS.keys()),
-            index=2,  # Simple capture
+        # 残局选择（显示 ID + 名称 + 分类）
+        options = [f"{e.id} - {e.name} ({e.category})" for e in ALL_ENDGAMES]
+        selected_idx = st.selectbox(
+            "Position",
+            options=range(len(options)),
+            format_func=lambda i: options[i],
+            index=st.session_state.endgame_idx,
+            key="endgame_selector",
         )
 
-        if st.button("Load Preset"):
-            st.session_state.search_fen = PRESET_POSITIONS[preset]
+        # 选择变化时更新 FEN
+        if selected_idx != st.session_state.endgame_idx:
+            st.session_state.endgame_idx = selected_idx
+            st.session_state.search_fen = ALL_ENDGAMES[selected_idx].fen
             st.session_state.search_tree = None
             st.session_state.selected_move_idx = None
             st.rerun()
 
         st.divider()
 
-        # FEN 输入
+        # FEN 输入（可手动编辑）
         fen_input = st.text_area(
             "FEN",
             value=st.session_state.search_fen,
             height=80,
         )
-        st.session_state.search_fen = fen_input
+        if fen_input != st.session_state.search_fen:
+            st.session_state.search_fen = fen_input
 
         # 搜索深度
         depth = st.slider(
@@ -85,7 +84,7 @@ def render_sidebar():
             with st.spinner("Searching..."):
                 try:
                     engine = UnifiedAIEngine(strategy=DEFAULT_STRATEGY)
-                    tree = engine.get_search_tree(fen_input, depth=depth)
+                    tree = engine.get_search_tree(st.session_state.search_fen, depth=depth)
                     st.session_state.search_tree = tree
                     st.session_state.selected_move_idx = None
                 except Exception as e:

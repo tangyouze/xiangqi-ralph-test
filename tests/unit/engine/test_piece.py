@@ -4,9 +4,9 @@
 
 import pytest
 
-from jieqi.board import JieqiBoard
-from jieqi.piece import create_jieqi_piece
-from jieqi.types import Color, PieceType, Position
+from engine.board import JieqiBoard
+from engine.piece import create_jieqi_piece
+from engine.types import Color, PieceType, Position
 
 
 class TestJieqiPiece:
