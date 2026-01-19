@@ -478,7 +478,7 @@ def render_board():
                     btn_text,
                     key=key,
                     disabled=not can_click,
-                    use_container_width=True,
+                    width="stretch",
                 ):
                     handle_cell_click(row, col)
                     st.rerun()
@@ -625,7 +625,7 @@ def render_sidebar():
         st.divider()
 
         # 新游戏按钮
-        if st.button("New Game", type="primary", use_container_width=True):
+        if st.button("New Game", type="primary", width="stretch"):
             create_new_game()
             st.rerun()
 
@@ -636,10 +636,10 @@ def render_sidebar():
 
             col1, col2 = st.columns(2)
             with col1:
-                if st.button("Start", use_container_width=True):
+                if st.button("Start", width="stretch"):
                     st.session_state.auto_play = True
             with col2:
-                if st.button("Stop", use_container_width=True):
+                if st.button("Stop", width="stretch"):
                     st.session_state.auto_play = False
 
 

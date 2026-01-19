@@ -115,7 +115,7 @@ def render_sidebar():
         st.divider()
 
         # 分析按钮
-        if st.button("Analyze", type="primary", use_container_width=True):
+        if st.button("Analyze", type="primary", width="stretch"):
             with st.spinner("Searching..."):
                 do_analyze()
 
@@ -194,7 +194,7 @@ def render_layer1():
     # 显示表格
     st.dataframe(
         table_data,
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
         height=400,
     )
@@ -270,7 +270,7 @@ def render_layer2():
                         "Our View": f"{-m.get('score', 0):+.1f}",
                     }
                 )
-            st.dataframe(data, use_container_width=True, hide_index=True)
+            st.dataframe(data, width="stretch", hide_index=True)
         else:
             st.caption("No data (depth=1?)")
 
@@ -288,7 +288,7 @@ def render_layer2():
                         "Our View": f"{-m.get('score', 0):+.1f}",
                     }
                 )
-            st.dataframe(data, use_container_width=True, hide_index=True)
+            st.dataframe(data, width="stretch", hide_index=True)
         else:
             st.caption("No data (depth=1?)")
 
