@@ -133,11 +133,16 @@ def render_sidebar():
     with st.sidebar:
         # 残局选择
         options = [f"{e.id} - {e.name}" for e in ALL_ENDGAMES]
+        # 确保索引有效（HumanGame 可能设置 -1 表示标准开局）
+        current_idx = st.session_state.endgame_idx
+        if current_idx < 0 or current_idx >= len(options):
+            current_idx = 0
+            st.session_state.endgame_idx = 0
         selected_idx = st.selectbox(
             "Position",
             options=range(len(options)),
             format_func=lambda i: options[i],
-            index=st.session_state.endgame_idx,
+            index=current_idx,
             key="endgame_selector",
         )
 

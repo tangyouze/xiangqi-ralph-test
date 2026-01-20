@@ -207,19 +207,25 @@ def render_board():
     sel = st.session_state.selected
     targets = get_targets(fen, sel[0], sel[1]) if sel else []
 
-    # 棋盘 CSS - 圆形棋子样式
+    # 棋盘 CSS - 圆形棋子样式，限制宽度
     st.markdown("""
     <style>
+    /* 限制棋盘区域宽度 */
+    [data-testid="stMainBlockContainer"] > div {
+        max-width: 600px !important;
+    }
     /* 强制按钮变成圆形棋子 */
     [data-testid="stHorizontalBlock"] {
-        gap: 2px !important;
+        gap: 0 !important;
+        justify-content: center !important;
     }
     .stButton > button {
         border-radius: 50% !important;
-        width: 44px !important;
-        height: 44px !important;
-        min-width: 44px !important;
-        min-height: 44px !important;
+        width: 48px !important;
+        height: 48px !important;
+        min-width: 48px !important;
+        max-width: 48px !important;
+        min-height: 48px !important;
         padding: 0 !important;
         font-size: 20px !important;
         font-weight: bold !important;
@@ -237,39 +243,41 @@ def render_board():
         border: 2px solid #654321 !important;
         color: #1a1a1a !important;
     }
-    /* 空位 - 小圆点 */
+    /* 空位 */
     .stButton [data-testid="stBaseButton-secondary"]:has(p:empty),
     .stButton button:has(p:empty) {
         background: transparent !important;
         border: none !important;
         box-shadow: none !important;
     }
-    /* 目标点 - 绿色圆圈 */
-    .stButton button p:contains("·") {
-        color: #228b22 !important;
-    }
     .board-label {
         text-align: center;
         font-weight: bold;
         color: #8b4513;
-        font-size: 14px;
-        line-height: 44px;
+        font-size: 12px;
+        line-height: 48px;
+        width: 24px !important;
     }
     /* 楚河汉界 */
     .river-row {
         text-align: center;
-        font-size: 18px;
+        font-size: 16px;
         color: #8b4513;
         font-weight: bold;
-        letter-spacing: 20px;
-        padding: 8px 0;
+        letter-spacing: 12px;
+        padding: 4px 0;
         background: #f5deb3;
+        max-width: 500px;
+        margin: 0 auto;
     }
     </style>
     """, unsafe_allow_html=True)
 
+    # 使用固定宽度列配置
+    col_widths = [0.3] + [1] * 9 + [0.3]
+
     # 列标签
-    label_cols = st.columns([0.5] + [1] * 9 + [0.5])
+    label_cols = st.columns(col_widths)
     label_cols[0].write("")
     for i, c in enumerate("abcdefghi"):
         label_cols[i + 1].markdown(f"<div class='board-label'>{c}</div>", unsafe_allow_html=True)
@@ -281,7 +289,7 @@ def render_board():
         if row == 5:
             st.markdown("<div class='river-row'>楚 河 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 汉 界</div>", unsafe_allow_html=True)
 
-        cols = st.columns([0.5] + [1] * 9 + [0.5])
+        cols = st.columns(col_widths)
         cols[0].markdown(f"<div class='board-label'>{9-row}</div>", unsafe_allow_html=True)
 
         for col in range(9):
