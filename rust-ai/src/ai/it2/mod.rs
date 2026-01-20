@@ -19,6 +19,13 @@ const INITIAL_COUNT: [u8; PIECE_TYPE_COUNT] = [1, 2, 2, 2, 2, 2, 5];
 /// 棋子价值
 const PIECE_VALUES: [i32; PIECE_TYPE_COUNT] = [100000, 200, 200, 400, 900, 450, 100];
 
+/// Mate score (胜负分)
+const MATE_SCORE: f64 = 100000.0;
+
+/// Ply penalty multiplier for Mate Distance Bonus
+/// 乘以 10 让不同步数的胜负分数差距更明显
+const PLY_PENALTY: i32 = 10;
+
 /// 所有棋子类型
 const ALL_PIECE_TYPES: [PieceType; PIECE_TYPE_COUNT] = [
     PieceType::King,
@@ -246,6 +253,39 @@ impl HiddenPieceDistribution {
     }
 }
 
+/// 搜索上下文（减少参数传递）
+#[derive(Clone, Copy)]
+struct SearchContext {
+    /// 剩余搜索深度
+    depth: i32,
+    /// 从根节点开始的步数
+    ply: i32,
+    /// Alpha-Beta 窗口
+    alpha: f64,
+    beta: f64,
+}
+
+impl SearchContext {
+    fn new(depth: i32) -> Self {
+        Self {
+            depth,
+            ply: 0,
+            alpha: f64::NEG_INFINITY,
+            beta: f64::INFINITY,
+        }
+    }
+
+    /// 进入下一层（对手视角）
+    fn next_ply(&self) -> Self {
+        Self {
+            depth: self.depth - 1,
+            ply: self.ply + 1,
+            alpha: -self.beta,
+            beta: -self.alpha,
+        }
+    }
+}
+
 /// IT2 AI - Expectimax 搜索
 pub struct IT2AI {
     max_depth: u32,
@@ -342,21 +382,25 @@ impl IT2AI {
     }
 
     /// 终局评估
-    fn terminal_eval(&self, board: &Board, color: Color) -> f64 {
+    /// ply: 从根节点开始的步数（半回合数），用于 Mate Distance Bonus
+    fn terminal_eval(&self, board: &Board, color: Color, ply: i32) -> f64 {
         let result = board.get_game_result(None);
+        let ply_bonus = (ply * PLY_PENALTY) as f64;
         match result {
             GameResult::RedWin => {
                 if color == Color::Red {
-                    100000.0
+                    // 赢得越快分数越高（ply 小 → 扣分少 → 分数高）
+                    MATE_SCORE - ply_bonus
                 } else {
-                    -100000.0
+                    // 输得越慢分数越高（负数越接近 0）
+                    -MATE_SCORE + ply_bonus
                 }
             }
             GameResult::BlackWin => {
                 if color == Color::Black {
-                    100000.0
+                    MATE_SCORE - ply_bonus
                 } else {
-                    -100000.0
+                    -MATE_SCORE + ply_bonus
                 }
             }
             GameResult::Draw => 0.0,
@@ -365,7 +409,7 @@ impl IT2AI {
     }
 
     /// Expectimax 搜索（Negamax 风格）
-    fn expectimax(&self, board: &mut Board, depth: i32, mut alpha: f64, beta: f64) -> f64 {
+    fn expectimax(&self, board: &mut Board, ctx: SearchContext) -> f64 {
         // 节点计数
         NODE_COUNT.fetch_add(1, AtomicOrdering::Relaxed);
 
@@ -373,25 +417,26 @@ impl IT2AI {
         let legal_moves = board.get_legal_moves(current_color);
 
         // 终止条件
-        if depth <= 0 || legal_moves.is_empty() {
-            return self.terminal_eval(board, current_color);
+        if ctx.depth <= 0 || legal_moves.is_empty() {
+            return self.terminal_eval(board, current_color, ctx.ply);
         }
 
         let mut max_eval = f64::NEG_INFINITY;
+        let mut alpha = ctx.alpha;
 
         for mv in &legal_moves {
             let eval = if mv.action_type == ActionType::RevealAndMove {
                 // 揭子走法：进入 Chance 节点
-                self.chance_node(board, mv, depth, alpha, beta, current_color)
+                self.chance_node(board, mv, ctx, current_color)
             } else {
                 // 普通走法：直接递归
-                self.apply_move_and_recurse(board, mv, depth, alpha, beta)
+                self.apply_move_and_recurse(board, mv, ctx)
             };
 
             max_eval = max_eval.max(eval);
             alpha = alpha.max(eval);
 
-            if alpha >= beta {
+            if alpha >= ctx.beta {
                 break; // Beta 剪枝
             }
         }
@@ -404,9 +449,7 @@ impl IT2AI {
         &self,
         board: &mut Board,
         mv: &JieqiMove,
-        depth: i32,
-        alpha: f64,
-        beta: f64,
+        ctx: SearchContext,
         color: Color,
     ) -> f64 {
         // 计算揭子方的剩余暗子分布
@@ -415,10 +458,11 @@ impl IT2AI {
 
         if possible_types.is_empty() {
             // 理论上不应该发生，作为 fallback 直接递归
-            return self.apply_move_and_recurse(board, mv, depth, alpha, beta);
+            return self.apply_move_and_recurse(board, mv, ctx);
         }
 
         let mut expected_value = 0.0;
+        let next_ctx = ctx.next_ply();
 
         for (piece_type, probability) in possible_types {
             // 1. 模拟揭成该类型
@@ -428,8 +472,8 @@ impl IT2AI {
             let was_hidden = reveal_state.is_some();
             let captured = board.make_move(mv);
 
-            // 3. 递归搜索（对手视角，取负值）
-            let child_value = -self.expectimax(board, depth - 1, -beta, -alpha);
+            // 3. 递归搜索（对手视角）
+            let child_value = -self.expectimax(board, next_ctx);
 
             // 4. 撤销走棋
             board.undo_move(mv, captured, was_hidden);
@@ -451,14 +495,13 @@ impl IT2AI {
         &self,
         board: &mut Board,
         mv: &JieqiMove,
-        depth: i32,
-        alpha: f64,
-        beta: f64,
+        ctx: SearchContext,
     ) -> f64 {
         let was_hidden = board.get_piece(mv.from_pos).map_or(false, |p| p.is_hidden);
         let captured = board.make_move(mv);
 
-        let value = -self.expectimax(board, depth - 1, -beta, -alpha);
+        // next_ply: depth-1, ply+1, 窗口翻转
+        let value = -self.expectimax(board, ctx.next_ply());
 
         board.undo_move(mv, captured, was_hidden);
 
@@ -500,23 +543,13 @@ impl IT2AI {
                 let mut board_copy = board.clone();
 
                 // 揭子走法使用 Chance 节点
+                let root_ctx = SearchContext::new(depth as i32);
                 let score = if mv.action_type == ActionType::RevealAndMove {
-                    self.chance_node(
-                        &mut board_copy,
-                        &mv,
-                        depth as i32,
-                        f64::NEG_INFINITY,
-                        f64::INFINITY,
-                        board.current_turn(),
-                    )
+                    self.chance_node(&mut board_copy, &mv, root_ctx, board.current_turn())
                 } else {
                     board_copy.make_move(&mv);
-                    -self.expectimax(
-                        &mut board_copy,
-                        (depth - 1) as i32,
-                        f64::NEG_INFINITY,
-                        f64::INFINITY,
-                    )
+                    // 走了一步后进入下一层
+                    -self.expectimax(&mut board_copy, root_ctx.next_ply())
                 };
 
                 current_scores.push((mv, score));

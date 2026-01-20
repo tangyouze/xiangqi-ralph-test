@@ -732,13 +732,11 @@ impl Board {
         };
 
         if moves.is_empty() {
-            if self.is_in_check(self.current_turn) {
-                match self.current_turn {
-                    Color::Red => GameResult::BlackWin,
-                    Color::Black => GameResult::RedWin,
-                }
-            } else {
-                GameResult::Draw
+            // 中国象棋规则：无子可走（困毙）= 输
+            // 不管是否被将军，只要无合法走法就输
+            match self.current_turn {
+                Color::Red => GameResult::BlackWin,
+                Color::Black => GameResult::RedWin,
             }
         } else {
             GameResult::Ongoing
