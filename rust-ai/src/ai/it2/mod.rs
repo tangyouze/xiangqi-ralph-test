@@ -523,17 +523,19 @@ impl IT2AI {
             let reveal_state = board.simulate_reveal(mv.from_pos, piece_type);
 
             // 2. 执行走棋
-            // 重要：simulate_reveal 后棋子已是明子，需要用 Move 类型避免 make_move 覆盖 actual_type
+            // 关键修复：构造一个 ActionType::Move 的走法，欺骗 Board 直接走棋
+            // 否则 Board::make_move 会看到 RevealAndMove 强制把棋子类型改成位置类型
+            let mut virtual_move = *mv;
+            virtual_move.action_type = ActionType::Move;
+
             let was_hidden = reveal_state.is_some();
-            let mut simulated_mv = *mv;
-            simulated_mv.action_type = ActionType::Move;
-            let captured = board.make_move(&simulated_mv);
+            let captured = board.make_move(&virtual_move);
 
             // 3. 递归搜索（对手视角）
             let child_value = -self.expectimax(board, next_ctx);
 
             // 4. 撤销走棋
-            board.undo_move(&simulated_mv, captured, was_hidden);
+            board.undo_move(&virtual_move, captured, was_hidden);
 
             // 5. 恢复揭子模拟
             if let Some(state) = reveal_state {
@@ -652,6 +654,7 @@ impl AIStrategy for IT2AI {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::Position;
 
     #[test]
     fn test_hidden_piece_distribution() {
@@ -700,5 +703,43 @@ mod tests {
         assert!(!moves.is_empty());
         // 最佳走法应该是吃炮
         assert_eq!(moves[0].mv.to_fen_str(None), "e4e5");
+    }
+
+    #[test]
+    fn test_reveal_logic_fix() {
+        // 构造一个局面：红方在 a0 (车位) 有一个暗子
+        // 我们想验证：当 simulate_reveal 把它设为兵时，make_move 是否把它当兵走（而不是变回家车）
+        let fen = "xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/X8XXXX -:- r r"; // a0 is X
+        let mut board = Board::from_fen(fen).unwrap();
+        
+        let from_pos = Position::new(0, 0); // a0
+        let to_pos = Position::new(3, 0);   // a3 (如果是车能走到，如果是兵走不到)
+        
+        // 我们手动模拟 chance_node 的逻辑
+        let mv = JieqiMove {
+            action_type: ActionType::RevealAndMove,
+            from_pos,
+            to_pos,
+        };
+        
+        // 1. 模拟这个暗子是兵 (Pawn)
+        // 兵在 a0 只能走到 1,0 (a1)
+        let reveal_state = board.simulate_reveal(from_pos, PieceType::Pawn);
+        assert!(reveal_state.is_some());
+        
+        // 2. 尝试用 ActionType::Move 走棋
+        // 如果我们用原来的 ActionType::RevealAndMove，Board 会把它变成车
+        let mut virtual_move = mv;
+        virtual_move.action_type = ActionType::Move;
+        
+        // 兵在 a0 只能走一格，走不到 a3。make_move 不做合法性检查，只负责搬运。
+        // 但我们需要验证搬运后的棋子类型是兵还是车。
+        board.make_move(&virtual_move);
+        
+        let moved_piece = board.get_piece(to_pos).unwrap();
+        // 修复前：它会变成 Rook (因为 a0 是车位)
+        // 修复后：它应该保持 Pawn (因为我们 simulate_reveal 设置了 Pawn)
+        assert_eq!(moved_piece.actual_type, Some(PieceType::Pawn));
+        assert!(!moved_piece.is_hidden);
     }
 }
