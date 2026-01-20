@@ -402,8 +402,8 @@ def render_debug_info():
         )
         st.caption(f"eval={eval_before:+.0f} → score={score:+.0f} ({rank}/{len(candidates)})")
 
-        # FEN（可复制）
-        st.code(step["fen_after"], language=None)
+        # FEN（走法前，可复制）
+        st.code(step["fen_before"], language=None)
 
         # 候选走法（默认折叠）
         with st.expander("Details", expanded=False):
