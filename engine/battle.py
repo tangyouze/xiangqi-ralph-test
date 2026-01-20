@@ -83,6 +83,94 @@ def select_move_avoiding_repetition(
     return candidates[0][0], candidates[0][1], 0
 
 
+def run_single_step(
+    current_fen: str,
+    strategy: str,
+    time_limit: float = 0.2,
+    position_counts: dict[str, int] | None = None,
+    max_repetitions: int = 3,
+) -> MoveResult | None:
+    """执行单步走法
+
+    Args:
+        current_fen: 当前 FEN
+        strategy: AI 策略
+        time_limit: 思考时间
+        position_counts: 历史局面计数（可选）
+        max_repetitions: 重复次数限制
+
+    Returns:
+        MoveResult 或 None（如果无法走棋）
+    """
+    state = parse_fen(current_fen)
+    player = "red" if state.turn == Color.RED else "black"
+    ai = UnifiedAIEngine(strategy=strategy, time_limit=time_limit)
+
+    if position_counts is None:
+        position_counts = {}
+
+    # 获取静态评估
+    try:
+        eval_before, _ = ai.get_eval(current_fen)
+    except Exception:
+        eval_before = 0.0
+
+    # 获取候选走法
+    try:
+        stats = ai.get_best_moves_full_stats(current_fen, n=20)
+        candidates = stats["moves"]
+        nodes = stats["nodes"]
+        nps = stats["nps"]
+        depth = stats["depth"]
+        elapsed_ms = stats["elapsed_ms"]
+    except Exception:
+        return None
+
+    if not candidates:
+        return None
+
+    # 选择走法：避免重复
+    move_str, score, selected_index = select_move_avoiding_repetition(
+        current_fen, candidates, position_counts, max_repetitions
+    )
+
+    # 执行走法
+    try:
+        new_fen, captured_info = apply_move_with_capture(current_fen, move_str)
+    except Exception:
+        return None
+
+    # 获取走法后评估
+    try:
+        eval_after, _ = ai.get_eval(new_fen)
+    except Exception:
+        eval_after = 0.0
+
+    # 解析揭子类型
+    revealed_type = None
+    if "=" in move_str:
+        revealed_type = move_str.split("=")[1].lower()
+
+    return MoveResult(
+        move_num=0,  # 调用者负责设置
+        player=player,
+        fen_before=current_fen,
+        fen_after=new_fen,
+        move=move_str,
+        score=score,
+        eval_before=eval_before,
+        eval_after=eval_after,
+        candidates=[{"move": m, "score": s} for m, s in candidates],
+        captured=captured_info,
+        revealed_type=revealed_type,
+        selected_index=selected_index,
+        nodes=nodes,
+        nps=nps,
+        time_ms=elapsed_ms,
+        depth=depth,
+    )
+
+
 def run_battle(
     start_fen: str,
     red_strategy: str,
