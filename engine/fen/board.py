@@ -233,18 +233,18 @@ def apply_move_with_capture(fen: str, move_str: str) -> tuple[str, dict | None]:
 
     Args:
         fen: 当前 FEN
-        move_str: 走法字符串（如 "a0a1" 或 "+a0a1"）
+        move_str: 走法字符串（如 "a0a1", "+a0a1", "+a0a1=R"）
 
     Returns:
         (新 FEN, 被吃子信息)
         被吃子信息格式: {"type": str, "color": str, "was_hidden": bool} 或 None
     """
-    # 解析走法
-    move, _ = parse_move(move_str)
+    # 解析走法和揭子类型
+    move, revealed_type = parse_move(move_str)
     if move is None:
         raise ValueError(f"Invalid move: {move_str}")
 
-    # 创建 SimulationBoard
+    # 创建 SimulationBoard 获取被吃子信息
     board = create_board_from_fen(fen)
 
     # 检查被吃子
@@ -263,20 +263,10 @@ def apply_move_with_capture(fen: str, move_str: str) -> tuple[str, dict | None]:
             "was_hidden": target.is_hidden,
         }
 
-    # 执行走法
-    board.make_move(move)
+    # 使用 apply_move_to_fen 生成新 FEN（它会正确处理揭子类型）
+    from engine.fen.move import apply_move_to_fen
 
-    # 从原始 FEN 提取被吃子和视角
-    parts = fen.split(" ")
-    current_captured = parts[1] if len(parts) > 1 else "-:-"
-    viewer_str = parts[3] if len(parts) > 3 else "r"
-    viewer = Color.RED if viewer_str == "r" else Color.BLACK
-
-    # 更新被吃子 FEN 部分
-    captured_fen = _update_captured_fen(current_captured, captured_info, viewer)
-
-    # 生成新 FEN
-    new_fen = simulation_board_to_fen(board, captured_fen, viewer)
+    new_fen = apply_move_to_fen(fen, move_str, revealed_type)
 
     return new_fen, captured_info
 

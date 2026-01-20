@@ -9,9 +9,12 @@
 
 from __future__ import annotations
 
+import random
+
 import streamlit as st
 
 from engine.fen import get_legal_moves_from_fen, apply_move_with_capture, parse_fen
+from engine.types import PieceType
 from engine.games.endgames import ALL_ENDGAMES
 from engine.games.midgames_revealed import ALL_MIDGAME_POSITIONS
 from engine.rust_ai import UnifiedAIEngine, DEFAULT_STRATEGY
@@ -47,6 +50,81 @@ COL_CHARS = "abcdefghi"
 
 # 揭棋标准开局 FEN
 STANDARD_FEN = "xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXKXXXX -:- r r"
+
+# 初始棋子数量（不含将/帅，因为将/帅总是在初始位置明示）
+INITIAL_PIECE_COUNT = {
+    "A": 2,  # 士
+    "E": 2,  # 象
+    "H": 2,  # 马
+    "R": 2,  # 车
+    "C": 2,  # 炮
+    "P": 5,  # 兵
+}
+
+# 棋子字符到 PieceType 的映射
+CHAR_TO_PIECE_TYPE = {
+    "A": PieceType.ADVISOR,
+    "E": PieceType.ELEPHANT,
+    "H": PieceType.HORSE,
+    "R": PieceType.ROOK,
+    "C": PieceType.CANNON,
+    "P": PieceType.PAWN,
+}
+
+
+def get_hidden_pool(fen: str, color: str) -> dict[str, int]:
+    """计算某方的暗子池
+
+    Args:
+        fen: 当前 FEN
+        color: "red" 或 "black"
+
+    Returns:
+        暗子池 {棋子字符: 剩余数量}
+    """
+    board_str = fen.split()[0]
+
+    # 统计已揭出的明子
+    revealed = {k: 0 for k in INITIAL_PIECE_COUNT}
+    for char in board_str:
+        # 红方用大写，黑方用小写
+        if color == "red" and char.isupper() and char in INITIAL_PIECE_COUNT:
+            revealed[char] += 1
+        elif color == "black" and char.islower() and char.upper() in INITIAL_PIECE_COUNT:
+            revealed[char.upper()] += 1
+
+    # 计算暗子池
+    pool = {}
+    for piece, initial in INITIAL_PIECE_COUNT.items():
+        remaining = initial - revealed[piece]
+        if remaining > 0:
+            pool[piece] = remaining
+
+    return pool
+
+
+def random_reveal(fen: str, color: str) -> str:
+    """从暗子池中随机选择一个棋子类型
+
+    Args:
+        fen: 当前 FEN
+        color: "red" 或 "black"
+
+    Returns:
+        棋子字符（如 "R", "C", "P"）
+    """
+    pool = get_hidden_pool(fen, color)
+    if not pool:
+        return "P"  # fallback
+
+    # 按数量加权随机选择
+    choices = []
+    weights = []
+    for piece, count in pool.items():
+        choices.append(piece)
+        weights.append(count)
+
+    return random.choices(choices, weights=weights, k=1)[0]
 
 
 # =============================================================================
@@ -128,12 +206,18 @@ def get_targets(fen: str, col: int, row: int) -> list[tuple[int, int]]:
 
 
 def make_move(fen: str, fc, fr, tc, tr) -> str:
-    """生成走法字符串，暗子需要 + 前缀"""
+    """生成走法字符串，暗子需要 + 前缀和揭子结果"""
     piece = get_piece(fen, fc, fr)
     base = f"{COL_CHARS[fc]}{9 - fr}{COL_CHARS[tc]}{9 - tr}"
-    # 暗子走法需要 + 前缀
-    if piece in ("X", "x"):
-        return "+" + base
+    # 暗子走法需要 + 前缀和揭子结果
+    if piece == "X":
+        # 红方暗子揭子
+        revealed = random_reveal(fen, "red")
+        return f"+{base}={revealed}"
+    elif piece == "x":
+        # 黑方暗子揭子
+        revealed = random_reveal(fen, "black")
+        return f"+{base}={revealed.lower()}"
     return base
 
 
