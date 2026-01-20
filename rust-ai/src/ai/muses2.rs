@@ -302,48 +302,61 @@ impl Muses2AI {
         }
     }
 
-    /// 评估局面 - 使用暗子期望价值
+    /// 评估函数（从 color 视角）
+    ///
+    /// 内部总是计算"红方 - 黑方"，最后根据视角翻转符号
     #[inline]
     fn evaluate(&self, board: &Board, color: Color) -> i32 {
-        let mut score: i32 = 0;
+        // 按颜色固定计算暗子期望（不依赖 color 参数）
+        let red_hidden_ev = self.hidden_piece_expected_value(board, Color::Red);
+        let black_hidden_ev = self.hidden_piece_expected_value(board, Color::Black);
 
-        // 计算双方的暗子期望价值
-        let my_ev = self.hidden_piece_expected_value(board, color);
-        let opp_ev = self.hidden_piece_expected_value(board, color.opposite());
+        // 内部总是计算：红方 - 黑方
+        let mut raw_score: i32 = 0;
 
         for piece in board.get_all_pieces(None) {
             let value = if piece.is_hidden {
-                // 使用期望价值而非固定值
-                if piece.color == color {
-                    my_ev
+                // 根据颜色使用对应的期望值
+                if piece.color == Color::Red {
+                    red_hidden_ev
                 } else {
-                    opp_ev
+                    black_hidden_ev
                 }
             } else {
                 piece.actual_type.map_or(0, |pt| pt.value())
             };
 
-            if piece.color == color {
-                score += value;
+            // 总是：红方加分，黑方减分
+            if piece.color == Color::Red {
+                raw_score += value;
                 // 中心控制奖励
                 let center_bonus = 5 - (4 - piece.position.col as i32).abs();
-                score += center_bonus;
+                raw_score += center_bonus;
 
                 // 前进奖励（兵）
                 if piece.get_movement_type() == PieceType::Pawn {
-                    let progress = if color == Color::Red {
-                        piece.position.row as i32
-                    } else {
-                        9 - piece.position.row as i32
-                    };
-                    score += progress * 5;
+                    let progress = piece.position.row as i32;
+                    raw_score += progress * 5;
                 }
             } else {
-                score -= value;
+                raw_score -= value;
+                // 黑方的中心控制和前进奖励
+                let center_bonus = 5 - (4 - piece.position.col as i32).abs();
+                raw_score -= center_bonus;
+
+                if piece.get_movement_type() == PieceType::Pawn {
+                    let progress = 9 - piece.position.row as i32;
+                    raw_score -= progress * 5;
+                }
             }
         }
 
-        score
+        // 最后根据视角翻转符号
+        if color == Color::Red {
+            raw_score
+        } else {
+            -raw_score
+        }
     }
 
     #[inline]

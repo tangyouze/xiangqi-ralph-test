@@ -274,78 +274,106 @@ impl Muses3AI {
         (total_value / remaining_count as i64) as i32
     }
 
-    /// 评估局面 - 增强版
+    /// 评估函数（从 color 视角）
+    ///
+    /// 内部总是计算"红方 - 黑方"，最后根据视角翻转符号
     fn evaluate(&self, board: &Board, color: Color) -> i32 {
-        let mut score: i32 = 0;
+        // 按颜色固定计算暗子期望（不依赖 color 参数）
+        let red_hidden_ev = self.hidden_piece_expected_value(board, Color::Red);
+        let black_hidden_ev = self.hidden_piece_expected_value(board, Color::Black);
 
-        let my_ev = self.hidden_piece_expected_value(board, color);
-        let opp_ev = self.hidden_piece_expected_value(board, color.opposite());
+        // 内部总是计算：红方 - 黑方
+        let mut raw_score: i32 = 0;
 
         // 统计双方棋子数量用于残局判断
-        let mut my_pieces = 0;
-        let mut opp_pieces = 0;
+        let mut red_pieces = 0;
+        let mut black_pieces = 0;
 
         for piece in board.get_all_pieces(None) {
-            let is_mine = piece.color == color;
+            let is_red = piece.color == Color::Red;
 
-            if is_mine {
-                my_pieces += 1;
+            if is_red {
+                red_pieces += 1;
             } else {
-                opp_pieces += 1;
+                black_pieces += 1;
             }
 
             let value = if piece.is_hidden {
-                if is_mine {
-                    my_ev
+                if is_red {
+                    red_hidden_ev
                 } else {
-                    opp_ev
+                    black_hidden_ev
                 }
             } else {
                 piece.actual_type.map_or(0, |pt| pt.value())
             };
 
-            if is_mine {
-                score += value;
+            // 总是：红方加分，黑方减分
+            if is_red {
+                raw_score += value;
 
                 // 中心控制奖励
                 let center_bonus = 5 - (4 - piece.position.col as i32).abs();
-                score += center_bonus;
+                raw_score += center_bonus;
 
-                // 前进奖励（兵）
+                // 前进奖励（兵）- 红方向上走
                 if piece.get_movement_type() == PieceType::Pawn {
-                    let progress = if color == Color::Red {
-                        piece.position.row as i32
-                    } else {
-                        9 - piece.position.row as i32
-                    };
-                    score += progress * 8; // 增加兵的前进奖励
+                    let progress = piece.position.row as i32;
+                    raw_score += progress * 8;
                 }
 
                 // 车的开放线奖励
                 if !piece.is_hidden && piece.actual_type == Some(PieceType::Rook) {
-                    score += 30;
+                    raw_score += 30;
                 }
 
                 // 炮有炮架时奖励
                 if !piece.is_hidden && piece.actual_type == Some(PieceType::Cannon) {
-                    score += 20;
+                    raw_score += 20;
                 }
             } else {
-                score -= value;
+                raw_score -= value;
+
+                // 黑方的位置奖励
+                let center_bonus = 5 - (4 - piece.position.col as i32).abs();
+                raw_score -= center_bonus;
+
+                // 黑方兵向下走
+                if piece.get_movement_type() == PieceType::Pawn {
+                    let progress = 9 - piece.position.row as i32;
+                    raw_score -= progress * 8;
+                }
+
+                if !piece.is_hidden && piece.actual_type == Some(PieceType::Rook) {
+                    raw_score -= 30;
+                }
+
+                if !piece.is_hidden && piece.actual_type == Some(PieceType::Cannon) {
+                    raw_score -= 20;
+                }
             }
         }
 
         // 残局调整：棋子少时，将/帅位置更重要
-        if my_pieces + opp_pieces <= 10 {
-            // 残局阶段，增加对将帅安全的考虑
-            if let Some(king_pos) = board.find_king(color) {
-                // 将帅在中心位置更安全
+        if red_pieces + black_pieces <= 10 {
+            // 红方将帅安全
+            if let Some(king_pos) = board.find_king(Color::Red) {
                 let king_center = 5 - (4 - king_pos.col as i32).abs();
-                score += king_center * 10;
+                raw_score += king_center * 10;
+            }
+            // 黑方将帅安全
+            if let Some(king_pos) = board.find_king(Color::Black) {
+                let king_center = 5 - (4 - king_pos.col as i32).abs();
+                raw_score -= king_center * 10;
             }
         }
 
-        score
+        // 最后根据视角翻转符号
+        if color == Color::Red {
+            raw_score
+        } else {
+            -raw_score
+        }
     }
 
     #[inline]
