@@ -441,10 +441,11 @@ class JieqiBoard:
         """
         new_board = JieqiBoard.__new__(JieqiBoard)
         new_board._pieces = {}
-        new_board._seed = self._seed
+        # 从当前 RNG 生成新 seed，确保副本的随机序列独立
+        new_seed = self._rng.randint(0, 2**31 - 1)
+        new_board._seed = new_seed
         new_board._delay_reveal = self._delay_reveal
-        # 使用相同种子创建新的 RNG，确保独立性
-        new_board._rng = random.Random(self._seed)
+        new_board._rng = random.Random(new_seed)
         # 深拷贝待分配类型池
         new_board._pending_types = {
             Color.RED: list(self._pending_types[Color.RED]),

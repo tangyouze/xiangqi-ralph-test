@@ -2,7 +2,7 @@
 
 import pytest
 
-from engine.fen import _parse_captured, validate_fen
+from engine.fen import _parse_captured_counts, validate_fen
 
 
 class TestParseCaptured:
@@ -10,49 +10,49 @@ class TestParseCaptured:
 
     def test_empty_captured(self):
         """空被吃"""
-        red, black, err = _parse_captured("-:-")
+        red, black, err = _parse_captured_counts("-:-")
         assert err is None
         assert red == 0
         assert black == 0
 
     def test_red_captured_only(self):
         """只有红方被吃"""
-        red, black, err = _parse_captured("RHP:-")
+        red, black, err = _parse_captured_counts("RHP:-")
         assert err is None
         assert red == 3
         assert black == 0
 
     def test_black_captured_only(self):
         """只有黑方被吃"""
-        red, black, err = _parse_captured("-:rhp")
+        red, black, err = _parse_captured_counts("-:rhp")
         assert err is None
         assert red == 0
         assert black == 3
 
     def test_both_captured(self):
         """双方都有被吃"""
-        red, black, err = _parse_captured("RP:rh")
+        red, black, err = _parse_captured_counts("RP:rh")
         assert err is None
         assert red == 2
         assert black == 2
 
     def test_unknown_captured(self):
         """暗子被吃（不知道身份）"""
-        red, black, err = _parse_captured("??:??")
+        red, black, err = _parse_captured_counts("??:??")
         assert err is None
         assert red == 2
         assert black == 2
 
     def test_mixed_captured(self):
         """混合情况"""
-        red, black, err = _parse_captured("RP??:raHC")
+        red, black, err = _parse_captured_counts("RP??:raHC")
         assert err is None
         assert red == 4
         assert black == 4
 
     def test_missing_colon(self):
         """缺少冒号"""
-        red, black, err = _parse_captured("RP")
+        red, black, err = _parse_captured_counts("RP")
         assert err is not None
         assert "冒号" in err
 

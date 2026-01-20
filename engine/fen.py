@@ -1047,8 +1047,8 @@ def _can_red_attack_position(
     return False, ""
 
 
-def _parse_captured(captured_str: str) -> tuple[int, int, str | None]:
-    """解析被吃棋子字符串
+def _parse_captured_counts(captured_str: str) -> tuple[int, int, str | None]:
+    """解析被吃棋子字符串，返回数量（用于验证）
 
     Args:
         captured_str: 如 "RP??:raHC" 或 "-:-"
@@ -1149,6 +1149,29 @@ def validate_fen(fen: str) -> tuple[bool, str]:
         if piece_count.get(piece, 0) > max_count:
             return False, f"{piece} 数量超标：最多 {max_count}，实际 {piece_count[piece]}"
 
+    # 检查暗子数量是否合理（暗子数 <= 未翻开的棋子数）
+    # 红方：已翻开明子 + 暗子 <= 16
+    red_revealed = sum(piece_count.get(p, 0) for p in ["K", "A", "E", "H", "R", "C", "P"])
+    red_hidden = piece_count.get("X", 0)
+    red_max_hidden = 16 - red_revealed  # 最多能有多少暗子
+    if red_hidden > red_max_hidden:
+        return (
+            False,
+            f"红方暗子数量错误: 明子{red_revealed}个，暗子{red_hidden}个，"
+            f"暗子最多{red_max_hidden}个",
+        )
+
+    # 黑方同理
+    black_revealed = sum(piece_count.get(p, 0) for p in ["k", "a", "e", "h", "r", "c", "p"])
+    black_hidden = piece_count.get("x", 0)
+    black_max_hidden = 16 - black_revealed
+    if black_hidden > black_max_hidden:
+        return (
+            False,
+            f"黑方暗子数量错误: 明子{black_revealed}个，暗子{black_hidden}个，"
+            f"暗子最多{black_max_hidden}个",
+        )
+
     # 检查帅将是否对面（同列且中间无子）
     if red_king_pos and black_king_pos and red_king_pos[1] == black_king_pos[1]:
         col = red_king_pos[1]
@@ -1181,7 +1204,7 @@ def validate_fen(fen: str) -> tuple[bool, str]:
         return False, f"视角标记错误：{viewer_str}"
 
     # 验证棋子数量一致性：每方恰好 16 个棋子（棋盘 + 被吃 = 16）
-    red_captured, black_captured, err = _parse_captured(captured_str)
+    red_captured, black_captured, err = _parse_captured_counts(captured_str)
     if err:
         return False, err
 
