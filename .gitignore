@@ -48,6 +48,7 @@ logs/
 *.log
 battle_logs/
 data/battle_logs/
+data/game_logs/
 .call_count
 .circuit_breaker_history
 .circuit_breaker_state
