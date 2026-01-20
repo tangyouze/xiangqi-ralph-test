@@ -127,8 +127,12 @@ def make_move(fen: str, fc, fr, tc, tr) -> str:
     return base
 
 
-def check_over(fen: str, history: list) -> str | None:
-    """检查游戏是否结束，包括和棋判断"""
+def check_over(fen: str, history: list, check_draw: bool = False) -> str | None:
+    """检查游戏是否结束
+
+    Args:
+        check_draw: 是否检查和棋（只对 AI 强制）
+    """
     board = fen.split()[0]
     if "K" not in board:
         return "black_win"
@@ -137,8 +141,8 @@ def check_over(fen: str, history: list) -> str | None:
     if not get_legal_moves_from_fen(fen):
         return "black_win" if parse_fen(fen).turn == Color.RED else "red_win"
 
-    # 和棋判断：同一局面出现3次
-    if len(history) >= 6:
+    # 和棋判断：同一局面出现3次（只对 AI 强制）
+    if check_draw and len(history) >= 6:
         fen_board = fen.split()[0]
         count = sum(1 for h_fen, _, _ in history if h_fen.split()[0] == fen_board)
         if count >= 3:
@@ -161,7 +165,7 @@ def ai_move():
         st.session_state.fen = new_fen
         st.session_state.history.append((new_fen, move, "black"))
         st.session_state.message = f"AI: {move} ({score:+.0f})"
-        over = check_over(new_fen, st.session_state.history)
+        over = check_over(new_fen, st.session_state.history, check_draw=True)
         if over:
             st.session_state.game_over = over
 
