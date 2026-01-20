@@ -11,8 +11,6 @@ AI 对战调试页面
 
 from __future__ import annotations
 
-import time
-
 import streamlit as st
 import streamlit.components.v1 as components
 
@@ -182,15 +180,24 @@ def run_full_battle(
         strategy_name = red_strategy if current_turn == Color.RED else black_strategy
         player = "red" if current_turn == Color.RED else "black"
 
-        # 计时并获取最佳走法
-        start_time = time.time()
+        # 获取走法前的静态评估
         try:
-            candidates, nodes, nps = current_ai.get_best_moves_with_stats(current_fen, n=20)
+            eval_before, _ = current_ai.get_eval(current_fen)
+        except Exception:
+            eval_before = 0.0
+
+        # 获取最佳走法及完整搜索统计
+        try:
+            stats = current_ai.get_best_moves_full_stats(current_fen, n=20)
+            candidates = stats["moves"]
+            nodes = stats["nodes"]
+            nps = stats["nps"]
+            depth = stats["depth"]
+            elapsed_ms = stats["elapsed_ms"]
         except Exception:
             # AI 报错，可能是游戏结束
             result = "draw"
             break
-        elapsed_ms = (time.time() - start_time) * 1000
 
         if not candidates:
             # 没有合法走法，判断输赢
@@ -216,6 +223,12 @@ def run_full_battle(
             result = "draw"
             break
 
+        # 获取走法后的静态评估
+        try:
+            eval_after, _ = current_ai.get_eval(new_fen)
+        except Exception:
+            eval_after = 0.0
+
         move_count += 1
 
         # 记录这一步
@@ -227,6 +240,9 @@ def run_full_battle(
             "fen_after": new_fen,
             "move": move_str,
             "score": score,
+            "eval_before": eval_before,
+            "eval_after": eval_after,
+            "depth": depth,
             "nodes": nodes,
             "nps": nps,
             "time_ms": elapsed_ms,
@@ -485,12 +501,16 @@ def render_debug_info():
         unsafe_allow_html=True,
     )
 
-    # IN: FEN
+    # IN: FEN + Eval
+    eval_before = step.get("eval_before", 0.0)
     st.code(f"IN:  {step['fen_before']}", language=None)
+    st.caption(f"Eval (before): {eval_before:+.1f}")
 
     # 走法信息
     move = step["move"]
     score = step["score"]
+    eval_after = step.get("eval_after", 0.0)
+    depth = step.get("depth", 0)
     time_ms = step["time_ms"]
     nodes = step["nodes"]
     nps = step["nps"]
@@ -528,10 +548,22 @@ def render_debug_info():
     nodes_str = f"{nodes:,}" if nodes else "0"
     nps_str = f"{nps:,.0f}" if nps else "0"
 
+    # 主走法行
     st.markdown(
-        f"`{move}` {rank}/{len(candidates)}  score=**{score:+.1f}**  {time_ms:.0f}ms  "
-        f"nodes={nodes_str} nps={nps_str}{reveal_str}{capture_str}"
+        f"`{move}` {rank}/{len(candidates)}  score=**{score:+.1f}**  eval=**{eval_after:+.1f}**  "
+        f"{reveal_str}{capture_str}"
     )
+
+    # 搜索统计行
+    st.caption(f"depth={depth}  {time_ms:.0f}ms  nodes={nodes_str}  nps={nps_str}")
+
+    # Top/Bottom candidates
+    if len(candidates) > 1:
+        top = candidates[0]
+        bottom = candidates[-1]
+        top_str = f"Top: `{top['move']}` {top['score']:+.1f}"
+        bottom_str = f"Bottom: `{bottom['move']}` {bottom['score']:+.1f}"
+        st.caption(f"{top_str}  |  {bottom_str}")
 
     # 被吃子累计
     red_captured, black_captured = parse_captured_pieces(step["fen_after"])

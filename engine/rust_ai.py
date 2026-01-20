@@ -143,6 +143,29 @@ class RustBackend:
         nps = response.get("nps", 0.0)
         return moves, nodes, nps
 
+    def get_best_moves_full_stats(self, fen: str, n: int = 5) -> dict:
+        """获取最佳走法及完整搜索统计
+
+        Returns:
+            dict with keys: moves, nodes, nps, depth, elapsed_ms
+        """
+        response = self._send_request(
+            {
+                "cmd": "best",
+                "fen": fen,
+                "strategy": self.strategy_name,
+                "time_limit": self.config.time_limit,
+                "n": n,
+            }
+        )
+        return {
+            "moves": [(m["move"], m["score"]) for m in response.get("moves", [])],
+            "nodes": response.get("nodes", 0),
+            "nps": response.get("nps", 0.0),
+            "depth": response.get("depth", 0),
+            "elapsed_ms": response.get("elapsed_ms", 0.0),
+        }
+
     def get_eval(self, fen: str) -> tuple[float, str]:
         """静态评估（不搜索）
 
@@ -236,6 +259,10 @@ class UnifiedAIEngine:
     ) -> tuple[list[tuple[str, float]], int, float]:
         """获取最佳走法及搜索统计"""
         return self._backend.get_best_moves_with_stats(fen, n)
+
+    def get_best_moves_full_stats(self, fen: str, n: int = 5) -> dict:
+        """获取最佳走法及完整搜索统计"""
+        return self._backend.get_best_moves_full_stats(fen, n)
 
     def get_eval(self, fen: str) -> tuple[float, str]:
         """静态评估（不搜索）"""
