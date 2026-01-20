@@ -343,13 +343,14 @@ def render_debug_info():
     step = history[idx]
 
     if idx == 0:
-        # 初始局面：只显示棋盘
+        # 初始局面：只显示棋盘和 FEN
         try:
             html = fen_to_canvas_html(step["fen_after"])
             components.html(html, height=280)
         except Exception:
             pass
         st.caption("Initial position")
+        st.code(step["fen_after"], language=None)
         return
 
     # 详细信息
@@ -400,6 +401,9 @@ def render_debug_info():
             f"{color_dot} **Step {move_num}** `{move}` {extra}",
         )
         st.caption(f"eval={eval_before:+.0f} → score={score:+.0f} ({rank}/{len(candidates)})")
+
+        # FEN（可复制）
+        st.code(step["fen_after"], language=None)
 
         # 候选走法（默认折叠）
         with st.expander("Details", expanded=False):
