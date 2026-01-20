@@ -351,9 +351,10 @@ impl IT2AI {
         }
 
         // 吃子潜力（capture gain）
+        // 注意：我方吃对方的暗子 → 用 opp_ev，对方吃我方的暗子 → 用 my_ev
         let capture_weight = 0.3;
-        let my_best_capture = self.best_capture_value(board, color, my_ev);
-        let opp_best_capture = self.best_capture_value(board, color.opposite(), opp_ev);
+        let my_best_capture = self.best_capture_value(board, color, opp_ev);
+        let opp_best_capture = self.best_capture_value(board, color.opposite(), my_ev);
         score += capture_weight * (my_best_capture - opp_best_capture);
 
         score
@@ -372,6 +373,12 @@ impl IT2AI {
                 } else {
                     victim.actual_type.map_or(0.0, |pt| pt.value() as f64)
                 };
+
+                // 排除吃 King（吃 King = 游戏结束，不应计入吃子潜力）
+                if victim.actual_type == Some(PieceType::King) {
+                    continue;
+                }
+
                 if victim_value > best_gain {
                     best_gain = victim_value;
                 }
@@ -386,6 +393,7 @@ impl IT2AI {
     fn terminal_eval(&self, board: &Board, color: Color, ply: i32) -> f64 {
         let result = board.get_game_result(None);
         let ply_bonus = (ply * PLY_PENALTY) as f64;
+
         match result {
             GameResult::RedWin => {
                 if color == Color::Red {
