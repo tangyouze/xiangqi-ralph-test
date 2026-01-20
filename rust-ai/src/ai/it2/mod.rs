@@ -513,14 +513,17 @@ impl IT2AI {
             let reveal_state = board.simulate_reveal(mv.from_pos, piece_type);
 
             // 2. 执行走棋
+            // 重要：simulate_reveal 后棋子已是明子，需要用 Move 类型避免 make_move 覆盖 actual_type
             let was_hidden = reveal_state.is_some();
-            let captured = board.make_move(mv);
+            let mut simulated_mv = *mv;
+            simulated_mv.action_type = ActionType::Move;
+            let captured = board.make_move(&simulated_mv);
 
             // 3. 递归搜索（对手视角）
             let child_value = -self.expectimax(board, next_ctx);
 
             // 4. 撤销走棋
-            board.undo_move(mv, captured, was_hidden);
+            board.undo_move(&simulated_mv, captured, was_hidden);
 
             // 5. 恢复揭子模拟
             if let Some(state) = reveal_state {
