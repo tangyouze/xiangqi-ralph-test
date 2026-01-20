@@ -61,3 +61,4 @@ status.json
 .overmind.sock
 .ruff_cache/
 .sisyphus/
+data/endgame_reports/
