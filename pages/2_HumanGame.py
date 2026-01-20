@@ -24,9 +24,22 @@ AVAILABLE_STRATEGIES = ["it2", "muses3", "muses2", "muses", "iterative", "greedy
 
 # 棋子符号（中文）
 PIECE_CN = {
-    "R": "車", "H": "馬", "E": "象", "A": "士", "K": "帥", "C": "炮", "P": "兵",
-    "r": "车", "h": "马", "e": "相", "a": "仕", "k": "将", "c": "砲", "p": "卒",
-    "X": "暗", "x": "暗",
+    "R": "車",
+    "H": "馬",
+    "E": "象",
+    "A": "士",
+    "K": "帥",
+    "C": "炮",
+    "P": "兵",
+    "r": "车",
+    "h": "马",
+    "e": "相",
+    "a": "仕",
+    "k": "将",
+    "c": "砲",
+    "p": "卒",
+    "X": "暗",
+    "x": "暗",
 }
 
 COL_CHARS = "abcdefghi"
@@ -38,6 +51,7 @@ STANDARD_FEN = "xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXKXXXX -:- 
 # =============================================================================
 # Session State
 # =============================================================================
+
 
 def init_state():
     if "fen" not in st.session_state:
@@ -74,6 +88,7 @@ def reset_game():
 # 游戏逻辑
 # =============================================================================
 
+
 def get_piece(fen: str, col: int, row: int) -> str | None:
     """获取位置的棋子"""
     rows = fen.split()[0].split("/")
@@ -105,14 +120,15 @@ def get_targets(fen: str, col: int, row: int) -> list[tuple[int, int]]:
 def make_move(fen: str, fc, fr, tc, tr) -> str:
     """生成走法字符串，暗子需要 + 前缀"""
     piece = get_piece(fen, fc, fr)
-    base = f"{COL_CHARS[fc]}{9-fr}{COL_CHARS[tc]}{9-tr}"
+    base = f"{COL_CHARS[fc]}{9 - fr}{COL_CHARS[tc]}{9 - tr}"
     # 暗子走法需要 + 前缀
     if piece in ("X", "x"):
         return "+" + base
     return base
 
 
-def check_over(fen: str) -> str | None:
+def check_over(fen: str, history: list) -> str | None:
+    """检查游戏是否结束，包括和棋判断"""
     board = fen.split()[0]
     if "K" not in board:
         return "black_win"
@@ -120,6 +136,14 @@ def check_over(fen: str) -> str | None:
         return "red_win"
     if not get_legal_moves_from_fen(fen):
         return "black_win" if parse_fen(fen).turn == Color.RED else "red_win"
+
+    # 和棋判断：同一局面出现3次
+    if len(history) >= 6:
+        fen_board = fen.split()[0]
+        count = sum(1 for h_fen, _, _ in history if h_fen.split()[0] == fen_board)
+        if count >= 3:
+            return "draw"
+
     return None
 
 
@@ -137,7 +161,7 @@ def ai_move():
         st.session_state.fen = new_fen
         st.session_state.history.append((new_fen, move, "black"))
         st.session_state.message = f"AI: {move} ({score:+.0f})"
-        over = check_over(new_fen)
+        over = check_over(new_fen, st.session_state.history)
         if over:
             st.session_state.game_over = over
 
@@ -177,7 +201,7 @@ def handle_click(col: int, row: int):
             st.session_state.history.append((new_fen, move, "red"))
             st.session_state.selected = None
             st.session_state.message = f"You: {move}"
-            over = check_over(new_fen)
+            over = check_over(new_fen, st.session_state.history)
             if over:
                 st.session_state.game_over = over
             else:
@@ -201,6 +225,7 @@ def handle_click(col: int, row: int):
 # UI
 # =============================================================================
 
+
 def render_board():
     """渲染棋盘 - 传统象棋棋盘样式"""
     fen = st.session_state.fen
@@ -208,7 +233,8 @@ def render_board():
     targets = get_targets(fen, sel[0], sel[1]) if sel else []
 
     # 棋盘 CSS - 圆形棋子样式，限制宽度
-    st.markdown("""
+    st.markdown(
+        """
     <style>
     /* 限制棋盘区域宽度 */
     [data-testid="stMainBlockContainer"] > div {
@@ -271,7 +297,9 @@ def render_board():
         margin: 0 auto;
     }
     </style>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
     # 使用固定宽度列配置
     col_widths = [0.3] + [1] * 9 + [0.3]
@@ -287,10 +315,13 @@ def render_board():
     for row in range(10):
         # 楚河汉界 - 在第5行之前
         if row == 5:
-            st.markdown("<div class='river-row'>楚 河 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 汉 界</div>", unsafe_allow_html=True)
+            st.markdown(
+                "<div class='river-row'>楚 河 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 汉 界</div>",
+                unsafe_allow_html=True,
+            )
 
         cols = st.columns(col_widths)
-        cols[0].markdown(f"<div class='board-label'>{9-row}</div>", unsafe_allow_html=True)
+        cols[0].markdown(f"<div class='board-label'>{9 - row}</div>", unsafe_allow_html=True)
 
         for col in range(9):
             piece = get_piece(fen, col, row)
@@ -314,7 +345,7 @@ def render_board():
                     handle_click(col, row)
                     st.rerun()
 
-        cols[10].markdown(f"<div class='board-label'>{9-row}</div>", unsafe_allow_html=True)
+        cols[10].markdown(f"<div class='board-label'>{9 - row}</div>", unsafe_allow_html=True)
 
 
 def render_sidebar():
@@ -347,7 +378,7 @@ def render_sidebar():
             history_text = []
             for i, (_, move, side) in enumerate(st.session_state.history):
                 prefix = "R" if side == "red" else "B"
-                history_text.append(f"{i+1}. {prefix}: {move}")
+                history_text.append(f"{i + 1}. {prefix}: {move}")
             # 显示最近10步
             st.text("\n".join(history_text[-10:]))
         else:
@@ -377,7 +408,12 @@ def main():
     init_state()
     render_sidebar()
 
-    # 标题栏
+    # AI 回合处理（先处理，避免 spinner 导致布局抖动）
+    if st.session_state.ai_pending:
+        ai_move()
+        st.rerun()
+
+    # 标题栏 - 固定高度避免抖动
     col1, col2, col3 = st.columns([2, 3, 2])
     with col1:
         st.markdown("### Human vs AI")
@@ -390,18 +426,21 @@ def main():
         if st.session_state.game_over:
             if st.session_state.game_over == "red_win":
                 st.success("You Win!")
+            elif st.session_state.game_over == "draw":
+                st.warning("Draw!")
             else:
                 st.error("AI Wins!")
+        else:
+            # 占位符，保持布局稳定
+            st.markdown("&nbsp;", unsafe_allow_html=True)
 
-    # AI 回合处理
-    if st.session_state.ai_pending:
-        with st.spinner("AI thinking..."):
-            ai_move()
-            st.rerun()
-
-    # 状态消息
-    if not st.session_state.game_over and st.session_state.message:
-        st.caption(st.session_state.message)
+    # 状态消息 - 固定高度
+    msg_container = st.container()
+    with msg_container:
+        if not st.session_state.game_over and st.session_state.message:
+            st.caption(st.session_state.message)
+        else:
+            st.caption(" ")  # 占位符
 
     render_board()
 
