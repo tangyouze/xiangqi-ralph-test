@@ -207,30 +207,51 @@ def render_board():
     sel = st.session_state.selected
     targets = get_targets(fen, sel[0], sel[1]) if sel else []
 
-    # 自定义 CSS
+    # 自定义 CSS - 棋盘样式
     st.markdown("""
     <style>
-    .board-btn {
-        width: 40px !important;
-        height: 40px !important;
-        padding: 0 !important;
-        margin: 1px !important;
-        font-size: 18px !important;
-        border-radius: 50% !important;
+    /* 棋盘容器 */
+    [data-testid="stHorizontalBlock"] {
+        gap: 0 !important;
+    }
+    /* 红方棋子 - 红色文字 */
+    .stButton [data-testid="stBaseButton-primary"] {
+        color: #c41e3a !important;
+        font-weight: bold !important;
+        background: #fff8dc !important;
+        border: 2px solid #8b4513 !important;
+    }
+    /* 黑方棋子 - 黑色文字 */
+    .stButton [data-testid="stBaseButton-secondary"] {
+        color: #1a1a1a !important;
+        background: #fff8dc !important;
+        border: 1px solid #d2b48c !important;
+    }
+    /* 目标点样式 */
+    .stButton [data-testid="stBaseButton-secondary"]:has(p:contains("·")) {
+        color: #228b22 !important;
+        font-size: 24px !important;
+    }
+    /* 列标签样式 */
+    .col-label {
+        text-align: center;
+        font-weight: bold;
+        color: #8b4513;
+        font-size: 14px;
     }
     </style>
     """, unsafe_allow_html=True)
 
     # 列标签
-    cols = st.columns([0.5] + [1] * 9 + [0.5])
+    cols = st.columns([0.4] + [1] * 9 + [0.4])
     cols[0].write("")
     for i, c in enumerate("abcdefghi"):
-        cols[i + 1].markdown(f"<center>{c}</center>", unsafe_allow_html=True)
+        cols[i + 1].markdown(f"<div class='col-label'>{c}</div>", unsafe_allow_html=True)
 
     # 棋盘行
     for row in range(10):
-        cols = st.columns([0.5] + [1] * 9 + [0.5])
-        cols[0].markdown(f"<center>{9-row}</center>", unsafe_allow_html=True)
+        cols = st.columns([0.4] + [1] * 9 + [0.4])
+        cols[0].markdown(f"<div class='col-label'>{9-row}</div>", unsafe_allow_html=True)
 
         for col in range(9):
             piece = get_piece(fen, col, row)
@@ -243,27 +264,64 @@ def render_board():
                 label = PIECE_CN.get(piece, piece)
                 btn_type = "primary" if is_red else "secondary"
             else:
-                label = "·" if is_target else " "
+                label = "·" if is_target else "+"
                 btn_type = "secondary"
 
-            # 高亮选中
+            # 高亮选中 - 使用圆圈标记
             if is_selected:
-                label = f"[{label}]"
+                label = f"【{label}】"
 
             with cols[col + 1]:
-                if st.button(label, key=f"btn_{row}_{col}", type=btn_type, use_container_width=True):
+                if st.button(label, key=f"btn_{row}_{col}", type=btn_type, width="stretch"):
                     handle_click(col, row)
                     st.rerun()
 
-        cols[10].markdown(f"<center>{9-row}</center>", unsafe_allow_html=True)
+        cols[10].markdown(f"<div class='col-label'>{9-row}</div>", unsafe_allow_html=True)
 
 
 def render_sidebar():
     with st.sidebar:
+        st.subheader("Game")
+
+        # 按钮行
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("New", type="primary", width="stretch"):
+                reset_game()
+                st.rerun()
+        with col2:
+            if st.button("Undo", width="stretch", disabled=len(st.session_state.history) < 2):
+                st.session_state.history.pop()
+                st.session_state.history.pop()
+                if st.session_state.history:
+                    st.session_state.fen = st.session_state.history[-1][0]
+                else:
+                    reset_game()
+                st.session_state.selected = None
+                st.session_state.game_over = None
+                st.rerun()
+
+        st.divider()
+
+        # 走法历史
+        st.subheader("History")
+        if st.session_state.history:
+            history_text = []
+            for i, (_, move, side) in enumerate(st.session_state.history):
+                prefix = "R" if side == "red" else "B"
+                history_text.append(f"{i+1}. {prefix}: {move}")
+            # 显示最近10步
+            st.text("\n".join(history_text[-10:]))
+        else:
+            st.caption("No moves yet")
+
+        st.divider()
+
+        # 设置
         st.subheader("Settings")
 
         # 位置选择
-        options = ["Standard"] + [f"{e.id}" for e in ALL_ENDGAMES[:50]]  # 只显示前50个
+        options = ["Standard"] + [f"{e.id}" for e in ALL_ENDGAMES[:50]]
         idx = st.selectbox("Position", range(len(options)), format_func=lambda i: options[i])
         if idx - 1 != st.session_state.endgame_idx:
             st.session_state.endgame_idx = idx - 1
@@ -271,51 +329,47 @@ def render_sidebar():
             st.rerun()
 
         # AI 设置
-        st.session_state.strategy = st.selectbox("AI", AVAILABLE_STRATEGIES)
-        st.session_state.time_limit = st.slider("Time (s)", 0.1, 3.0, 1.0)
-
-        # 按钮
-        if st.button("New Game", type="primary", use_container_width=True):
-            reset_game()
-            st.rerun()
-
-        if st.button("Undo", use_container_width=True, disabled=len(st.session_state.history) < 2):
-            st.session_state.history.pop()
-            st.session_state.history.pop()
-            if st.session_state.history:
-                st.session_state.fen = st.session_state.history[-1][0]
-            else:
-                reset_game()
-            st.session_state.selected = None
-            st.rerun()
+        st.session_state.strategy = st.selectbox("AI Strategy", AVAILABLE_STRATEGIES)
+        st.session_state.time_limit = st.slider("Think Time (s)", 0.1, 3.0, 1.0, step=0.1)
 
 
 def main():
     st.set_page_config(page_title="Human vs AI", layout="wide")
-    st.title("Human vs AI")
-    st.caption("Red = You, Black = AI")
 
     init_state()
     render_sidebar()
-    ai_move()
 
-    # 状态显示
-    if st.session_state.game_over:
-        if st.session_state.game_over == "red_win":
-            st.success("You win!")
-        else:
-            st.error("AI wins!")
-    elif st.session_state.message:
-        st.info(st.session_state.message)
+    # 标题栏
+    col1, col2, col3 = st.columns([2, 3, 2])
+    with col1:
+        st.markdown("### Human vs AI")
+    with col2:
+        state = parse_fen(st.session_state.fen)
+        turn = "Red (You)" if state.turn == Color.RED else "Black (AI)"
+        moves = len(st.session_state.history)
+        st.markdown(f"**Turn:** {turn} | **Moves:** {moves}")
+    with col3:
+        if st.session_state.game_over:
+            if st.session_state.game_over == "red_win":
+                st.success("You Win!")
+            else:
+                st.error("AI Wins!")
+
+    # AI 回合处理
+    if st.session_state.ai_pending:
+        with st.spinner("AI thinking..."):
+            ai_move()
+            st.rerun()
+
+    # 状态消息
+    if not st.session_state.game_over and st.session_state.message:
+        st.caption(st.session_state.message)
 
     render_board()
 
-    # 信息
-    with st.expander("Info"):
-        state = parse_fen(st.session_state.fen)
-        st.write(f"Turn: {'Red' if state.turn == Color.RED else 'Black'}")
-        st.write(f"Moves: {len(st.session_state.history)}")
-        st.code(st.session_state.fen)
+    # FEN 信息折叠
+    with st.expander("FEN"):
+        st.code(st.session_state.fen, language=None)
 
 
 if __name__ == "__main__":
