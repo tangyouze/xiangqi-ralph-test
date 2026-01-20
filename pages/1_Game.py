@@ -17,6 +17,7 @@ import streamlit.components.v1 as components
 from engine.battle import run_battle
 from engine.fen import fen_to_canvas_html
 from engine.games.endgames import ALL_ENDGAMES
+from engine.games.midgames_revealed import ALL_MIDGAME_POSITIONS
 from engine.rust_ai import DEFAULT_STRATEGY
 from engine.types import Color, PieceType
 
@@ -131,9 +132,24 @@ def parse_captured_pieces(fen: str) -> tuple[str, str]:
 def render_sidebar():
     """渲染侧边栏"""
     with st.sidebar:
-        # 残局选择
-        options = [f"{e.id} - {e.name}" for e in ALL_ENDGAMES]
-        # 确保索引有效（HumanGame 可能设置 -1 表示标准开局）
+        # 局面类型选择
+        position_type = st.radio(
+            "Position Type",
+            ["Endgame", "Midgame"],
+            horizontal=True,
+            key="position_type",
+        )
+
+        if position_type == "Endgame":
+            # 残局选择
+            options = [f"{e.id} - {e.name}" for e in ALL_ENDGAMES]
+            positions = ALL_ENDGAMES
+        else:
+            # 中局选择
+            options = [f"{p.id} - {p.advantage.value}" for p in ALL_MIDGAME_POSITIONS]
+            positions = ALL_MIDGAME_POSITIONS
+
+        # 确保索引有效
         current_idx = st.session_state.endgame_idx
         if current_idx < 0 or current_idx >= len(options):
             current_idx = 0
@@ -143,13 +159,13 @@ def render_sidebar():
             options=range(len(options)),
             format_func=lambda i: options[i],
             index=current_idx,
-            key="endgame_selector",
+            key="position_selector",
         )
 
         # 选择变化时更新 FEN
         if selected_idx != st.session_state.endgame_idx:
             st.session_state.endgame_idx = selected_idx
-            st.session_state.battle_fen = ALL_ENDGAMES[selected_idx].fen
+            st.session_state.battle_fen = positions[selected_idx].fen
             st.session_state.battle_history = []
             st.session_state.battle_result = None
             st.session_state.playback_idx = 0

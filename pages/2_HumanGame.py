@@ -13,6 +13,7 @@ import streamlit as st
 
 from engine.fen import get_legal_moves_from_fen, apply_move_with_capture, parse_fen
 from engine.games.endgames import ALL_ENDGAMES
+from engine.games.midgames_revealed import ALL_MIDGAME_POSITIONS
 from engine.rust_ai import UnifiedAIEngine, DEFAULT_STRATEGY
 from engine.types import Color
 
@@ -76,7 +77,13 @@ def init_state():
 
 def reset_game():
     idx = st.session_state.endgame_idx
-    st.session_state.fen = STANDARD_FEN if idx < 0 else ALL_ENDGAMES[idx].fen
+    pos_type = st.session_state.get("position_type", "Standard")
+    if pos_type == "Standard" or idx < 0:
+        st.session_state.fen = STANDARD_FEN
+    elif pos_type == "Endgame":
+        st.session_state.fen = ALL_ENDGAMES[idx].fen
+    else:  # Midgame
+        st.session_state.fen = ALL_MIDGAME_POSITIONS[idx].fen
     st.session_state.selected = None
     st.session_state.history = []
     st.session_state.message = ""
@@ -393,13 +400,33 @@ def render_sidebar():
         # 设置
         st.subheader("Settings")
 
-        # 位置选择
-        options = ["Standard"] + [f"{e.id}" for e in ALL_ENDGAMES[:50]]
-        idx = st.selectbox("Position", range(len(options)), format_func=lambda i: options[i])
-        if idx - 1 != st.session_state.endgame_idx:
-            st.session_state.endgame_idx = idx - 1
-            reset_game()
-            st.rerun()
+        # 局面类型选择
+        pos_type = st.radio(
+            "Position Type",
+            ["Standard", "Endgame", "Midgame"],
+            horizontal=True,
+            key="position_type",
+        )
+
+        if pos_type == "Standard":
+            if st.session_state.endgame_idx != -1:
+                st.session_state.endgame_idx = -1
+                reset_game()
+                st.rerun()
+        elif pos_type == "Endgame":
+            options = [f"{e.id}" for e in ALL_ENDGAMES[:50]]
+            idx = st.selectbox("Position", range(len(options)), format_func=lambda i: options[i])
+            if idx != st.session_state.endgame_idx:
+                st.session_state.endgame_idx = idx
+                reset_game()
+                st.rerun()
+        else:  # Midgame
+            options = [f"{p.id} - {p.advantage.value}" for p in ALL_MIDGAME_POSITIONS]
+            idx = st.selectbox("Position", range(len(options)), format_func=lambda i: options[i])
+            if idx != st.session_state.endgame_idx:
+                st.session_state.endgame_idx = idx
+                reset_game()
+                st.rerun()
 
         # AI 设置
         st.session_state.strategy = st.selectbox("AI Strategy", AVAILABLE_STRATEGIES)

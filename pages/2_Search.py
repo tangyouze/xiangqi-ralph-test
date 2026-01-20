@@ -14,6 +14,7 @@ import streamlit.components.v1 as components
 
 from engine.fen import fen_to_canvas_html
 from engine.games.endgames import ALL_ENDGAMES
+from engine.games.midgames_revealed import ALL_MIDGAME_POSITIONS
 from engine.game import JieqiGame
 from engine.rust_ai import DEFAULT_STRATEGY, UnifiedAIEngine
 from engine.types import Color
@@ -58,20 +59,39 @@ def render_sidebar():
     with st.sidebar:
         st.header("Settings")
 
-        # 残局选择（显示 ID + 名称 + 分类）
-        options = [f"{e.id} - {e.name} ({e.category})" for e in ALL_ENDGAMES]
+        # 局面类型选择
+        position_type = st.radio(
+            "Position Type",
+            ["Endgame", "Midgame"],
+            horizontal=True,
+            key="position_type",
+        )
+
+        if position_type == "Endgame":
+            options = [f"{e.id} - {e.name} ({e.category})" for e in ALL_ENDGAMES]
+            positions = ALL_ENDGAMES
+        else:
+            options = [f"{p.id} - {p.advantage.value}" for p in ALL_MIDGAME_POSITIONS]
+            positions = ALL_MIDGAME_POSITIONS
+
+        # 确保索引有效
+        current_idx = st.session_state.endgame_idx
+        if current_idx < 0 or current_idx >= len(options):
+            current_idx = 0
+            st.session_state.endgame_idx = 0
+
         selected_idx = st.selectbox(
             "Position",
             options=range(len(options)),
             format_func=lambda i: options[i],
-            index=st.session_state.endgame_idx,
-            key="endgame_selector",
+            index=current_idx,
+            key="position_selector",
         )
 
         # 选择变化时更新 FEN 并触发分析
         if selected_idx != st.session_state.endgame_idx:
             st.session_state.endgame_idx = selected_idx
-            st.session_state.search_fen = ALL_ENDGAMES[selected_idx].fen
+            st.session_state.search_fen = positions[selected_idx].fen
             st.session_state.search_tree = None
             st.session_state.selected_move_idx = None
             st.session_state.pending_analyze = True
