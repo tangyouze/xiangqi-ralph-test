@@ -165,13 +165,31 @@ def ai_move():
 
     fen = st.session_state.fen
     ai = UnifiedAIEngine(strategy=st.session_state.strategy, time_limit=st.session_state.time_limit)
-    moves = ai.get_best_moves(fen, n=1)
-    if moves:
-        move, score = moves[0]
+    # 获取多个候选走法，避免选择会导致和棋的走法
+    moves = ai.get_best_moves(fen, n=5)
+
+    chosen_move = None
+    chosen_score = 0
+    for move, score in moves:
         new_fen, _ = apply_move_with_capture(fen, move)
+        # 模拟这步棋后的历史
+        test_history = st.session_state.history + [(new_fen, move, "black")]
+        over = check_over(new_fen, test_history, check_draw=True)
+        if over != "draw":
+            # 选择第一个不会导致和棋的走法
+            chosen_move = move
+            chosen_score = score
+            break
+
+    # 如果所有走法都会和棋，只能选第一个
+    if chosen_move is None and moves:
+        chosen_move, chosen_score = moves[0]
+
+    if chosen_move:
+        new_fen, _ = apply_move_with_capture(fen, chosen_move)
         st.session_state.fen = new_fen
-        st.session_state.history.append((new_fen, move, "black"))
-        st.session_state.message = f"AI: {move} ({score:+.0f})"
+        st.session_state.history.append((new_fen, chosen_move, "black"))
+        st.session_state.message = f"AI: {chosen_move} ({chosen_score:+.0f})"
         over = check_over(new_fen, st.session_state.history, check_draw=True)
         if over:
             st.session_state.game_over = over
