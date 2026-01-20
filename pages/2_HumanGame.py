@@ -202,81 +202,111 @@ def handle_click(col: int, row: int):
 # =============================================================================
 
 def render_board():
-    """渲染棋盘按钮网格"""
+    """渲染棋盘 - 传统象棋棋盘样式"""
     fen = st.session_state.fen
     sel = st.session_state.selected
     targets = get_targets(fen, sel[0], sel[1]) if sel else []
 
-    # 自定义 CSS - 棋盘样式
+    # 棋盘 CSS - 圆形棋子样式
     st.markdown("""
     <style>
-    /* 棋盘容器 */
+    /* 强制按钮变成圆形棋子 */
     [data-testid="stHorizontalBlock"] {
-        gap: 0 !important;
+        gap: 2px !important;
     }
-    /* 红方棋子 - 红色文字 */
-    .stButton [data-testid="stBaseButton-primary"] {
-        color: #c41e3a !important;
+    .stButton > button {
+        border-radius: 50% !important;
+        width: 44px !important;
+        height: 44px !important;
+        min-width: 44px !important;
+        min-height: 44px !important;
+        padding: 0 !important;
+        font-size: 20px !important;
         font-weight: bold !important;
-        background: #fff8dc !important;
-        border: 2px solid #8b4513 !important;
+        box-shadow: 2px 2px 4px rgba(0,0,0,0.3) !important;
     }
-    /* 黑方棋子 - 黑色文字 */
+    /* 红方棋子 */
+    .stButton [data-testid="stBaseButton-primary"] {
+        background: linear-gradient(145deg, #fff8dc, #ffe4b5) !important;
+        border: 3px solid #c41e3a !important;
+        color: #c41e3a !important;
+    }
+    /* 黑方棋子 */
     .stButton [data-testid="stBaseButton-secondary"] {
+        background: linear-gradient(145deg, #fff8dc, #ffe4b5) !important;
+        border: 2px solid #654321 !important;
         color: #1a1a1a !important;
-        background: #fff8dc !important;
-        border: 1px solid #d2b48c !important;
     }
-    /* 目标点样式 */
-    .stButton [data-testid="stBaseButton-secondary"]:has(p:contains("·")) {
+    /* 空位 - 小圆点 */
+    .stButton [data-testid="stBaseButton-secondary"]:has(p:empty),
+    .stButton button:has(p:empty) {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+    }
+    /* 目标点 - 绿色圆圈 */
+    .stButton button p:contains("·") {
         color: #228b22 !important;
-        font-size: 24px !important;
     }
-    /* 列标签样式 */
-    .col-label {
+    .board-label {
         text-align: center;
         font-weight: bold;
         color: #8b4513;
         font-size: 14px;
+        line-height: 44px;
+    }
+    /* 楚河汉界 */
+    .river-row {
+        text-align: center;
+        font-size: 18px;
+        color: #8b4513;
+        font-weight: bold;
+        letter-spacing: 20px;
+        padding: 8px 0;
+        background: #f5deb3;
     }
     </style>
     """, unsafe_allow_html=True)
 
     # 列标签
-    cols = st.columns([0.4] + [1] * 9 + [0.4])
-    cols[0].write("")
+    label_cols = st.columns([0.5] + [1] * 9 + [0.5])
+    label_cols[0].write("")
     for i, c in enumerate("abcdefghi"):
-        cols[i + 1].markdown(f"<div class='col-label'>{c}</div>", unsafe_allow_html=True)
+        label_cols[i + 1].markdown(f"<div class='board-label'>{c}</div>", unsafe_allow_html=True)
+    label_cols[10].write("")
 
     # 棋盘行
     for row in range(10):
-        cols = st.columns([0.4] + [1] * 9 + [0.4])
-        cols[0].markdown(f"<div class='col-label'>{9-row}</div>", unsafe_allow_html=True)
+        # 楚河汉界 - 在第5行之前
+        if row == 5:
+            st.markdown("<div class='river-row'>楚 河 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 汉 界</div>", unsafe_allow_html=True)
+
+        cols = st.columns([0.5] + [1] * 9 + [0.5])
+        cols[0].markdown(f"<div class='board-label'>{9-row}</div>", unsafe_allow_html=True)
 
         for col in range(9):
             piece = get_piece(fen, col, row)
             is_selected = sel == (col, row)
             is_target = (col, row) in targets
 
-            # 按钮样式
             if piece:
                 is_red = piece.isupper()
                 label = PIECE_CN.get(piece, piece)
                 btn_type = "primary" if is_red else "secondary"
             else:
-                label = "·" if is_target else "+"
+                label = "●" if is_target else ""
                 btn_type = "secondary"
 
-            # 高亮选中 - 使用圆圈标记
+            # 选中标记
             if is_selected:
-                label = f"【{label}】"
+                label = f"○{label}"
 
             with cols[col + 1]:
                 if st.button(label, key=f"btn_{row}_{col}", type=btn_type, width="stretch"):
                     handle_click(col, row)
                     st.rerun()
 
-        cols[10].markdown(f"<div class='col-label'>{9-row}</div>", unsafe_allow_html=True)
+        cols[10].markdown(f"<div class='board-label'>{9-row}</div>", unsafe_allow_html=True)
 
 
 def render_sidebar():
