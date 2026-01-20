@@ -1,6 +1,25 @@
 //! IT2 (Iterative Deepening v2) - Expectimax 概率处理
 //!
-//! 核心改进：揭子走法使用 Chance 节点处理概率
+//! ## 核心特点
+//! - 揭子走法使用 Chance 节点处理概率
+//! - Negamax 框架 + Alpha-Beta 剪枝
+//!
+//! ## 评估函数设计
+//! 内部总是计算"红方价值 - 黑方价值"，最后根据视角翻转符号。
+//! 这样所有变量都是 red/black，避免 my/opp 的混淆。
+//!
+//! ```text
+//! evaluate(board, Red)   →  raw_score
+//! evaluate(board, Black) → -raw_score
+//! ```
+//!
+//! 暗子期望值按颜色固定计算：
+//! - red_hidden_ev: 红方暗子池的期望价值
+//! - black_hidden_ev: 黑方暗子池的期望价值
+//!
+//! 吃子潜力：
+//! - 红方吃黑方 → 被吃暗子用 black_hidden_ev
+//! - 黑方吃红方 → 被吃暗子用 red_hidden_ev
 
 use super::{sort_and_truncate, AIConfig, AIStrategy, ScoredMove, DEPTH_REACHED, NODE_COUNT};
 use crate::board::Board;
@@ -314,20 +333,28 @@ impl IT2AI {
         }
     }
 
-    /// 评估局面（子力 + PST + 吃子潜力）
+    /// 评估函数（从 color 视角）
+    ///
+    /// 内部逻辑：总是计算"红方价值 - 黑方价值"，最后根据视角翻转符号
+    /// 这样避免 my/opp 的混淆，所有变量都是 red/black
     fn evaluate(&self, board: &Board, color: Color) -> f64 {
-        let mut score = 0.0;
+        // 按颜色固定计算暗子期望（不依赖 color 参数）
+        let red_hidden_ev =
+            HiddenPieceDistribution::from_board(board, Color::Red).expected_value() as f64;
+        let black_hidden_ev =
+            HiddenPieceDistribution::from_board(board, Color::Black).expected_value() as f64;
 
-        // 计算双方的暗子期望价值
-        let my_ev = HiddenPieceDistribution::from_board(board, color).expected_value() as f64;
-        let opp_ev =
-            HiddenPieceDistribution::from_board(board, color.opposite()).expected_value() as f64;
+        // 内部总是计算：红方价值 - 黑方价值
+        let mut raw_score = 0.0;
 
-        // 棋子价值 + PST
         for piece in board.get_all_pieces(None) {
             let (value, pst) = if piece.is_hidden {
-                // 暗子：使用动态期望价值，不算 PST
-                let ev = if piece.color == color { my_ev } else { opp_ev };
+                // 暗子：根据颜色使用对应的期望值
+                let ev = if piece.color == Color::Red {
+                    red_hidden_ev
+                } else {
+                    black_hidden_ev
+                };
                 (ev, 0.0)
             } else if let Some(pt) = piece.actual_type {
                 // 明子：实际价值 + PST
@@ -343,33 +370,42 @@ impl IT2AI {
                 (0.0, 0.0)
             };
 
-            if piece.color == color {
-                score += value + pst;
+            // 总是：红方加分，黑方减分
+            if piece.color == Color::Red {
+                raw_score += value + pst;
             } else {
-                score -= value + pst;
+                raw_score -= value + pst;
             }
         }
 
         // 吃子潜力（capture gain）
-        // 注意：我方吃对方的暗子 → 用 opp_ev，对方吃我方的暗子 → 用 my_ev
+        // 红方吃黑方的子 → 被吃的暗子用 black_hidden_ev
+        // 黑方吃红方的子 → 被吃的暗子用 red_hidden_ev
         let capture_weight = 0.3;
-        let my_best_capture = self.best_capture_value(board, color, opp_ev);
-        let opp_best_capture = self.best_capture_value(board, color.opposite(), my_ev);
-        score += capture_weight * (my_best_capture - opp_best_capture);
+        let red_capture = self.best_capture_value(board, Color::Red, black_hidden_ev);
+        let black_capture = self.best_capture_value(board, Color::Black, red_hidden_ev);
+        raw_score += capture_weight * (red_capture - black_capture);
 
-        score
+        // 最后根据视角翻转符号
+        if color == Color::Red {
+            raw_score
+        } else {
+            -raw_score
+        }
     }
 
     /// 计算某方最佳吃子价值
-    fn best_capture_value(&self, board: &Board, color: Color, hidden_ev: f64) -> f64 {
-        let moves = board.get_legal_moves(color);
+    /// - attacker: 进攻方（谁在吃子）
+    /// - victim_hidden_ev: 被吃方暗子的期望价值（attacker 吃的是对方的子）
+    fn best_capture_value(&self, board: &Board, attacker: Color, victim_hidden_ev: f64) -> f64 {
+        let moves = board.get_legal_moves(attacker);
         let mut best_gain: f64 = 0.0;
 
         for mv in &moves {
             if let Some(victim) = board.get_piece(mv.to_pos) {
                 // 被吃子的价值
                 let victim_value = if victim.is_hidden {
-                    hidden_ev
+                    victim_hidden_ev
                 } else {
                     victim.actual_type.map_or(0.0, |pt| pt.value() as f64)
                 };
