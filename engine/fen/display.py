@@ -257,9 +257,9 @@ def fen_to_canvas_html(fen: str, arrow: str | None = None, viewer: str = "red") 
             )
 
     # 50% 缩放: cellSize 40->20, margin 30->18, pieceRadius 16->8
-    # 增加高度容纳被吃子显示区域（+44px for 2 rows）
+    # 增加高度容纳被吃子显示区域（+54px for 2 rows）
     html = f"""
-    <canvas id="interactiveBoard" style="width:196px;height:260px;"></canvas>
+    <canvas id="interactiveBoard" style="width:196px;height:270px;"></canvas>
     <script>
     (function() {{
         const canvas = document.getElementById('interactiveBoard');
@@ -276,7 +276,7 @@ def fen_to_canvas_html(fen: str, arrow: str | None = None, viewer: str = "red") 
 
         const dpr = window.devicePixelRatio || 1;
         const cssWidth = 196;
-        const cssHeight = 260;
+        const cssHeight = 270;
         const boardHeight = 216;
         canvas.width = cssWidth * dpr;
         canvas.height = cssHeight * dpr;
@@ -419,8 +419,16 @@ def fen_to_canvas_html(fen: str, arrow: str | None = None, viewer: str = "red") 
             function drawCaptured() {{
                 const y1 = boardHeight + 14;  // 第一行：吃（红方吃黑方）
                 const y2 = boardHeight + 34;  // 第二行：失（黑方吃红方）
-                const spacing = 16;  // 棋子间距
                 const fontSize = 6;
+                const startX = 22;
+                const availWidth = cssWidth - startX - 8;  // 可用宽度
+
+                // 动态计算间距（确保不超出宽度）
+                function getSpacing(count) {{
+                    if (count <= 1) return 16;
+                    const sp = availWidth / count;
+                    return Math.min(16, Math.max(12, sp));  // 间距 12-16px
+                }}
 
                 // 第一行：红方吃的黑子
                 ctx.font = 'bold 7px sans-serif';
@@ -429,7 +437,8 @@ def fen_to_canvas_html(fen: str, arrow: str | None = None, viewer: str = "red") 
                 ctx.fillStyle = '#2F4F4F';
                 ctx.fillText('吃:', 4, y1);
 
-                let x = 22;
+                let spacing1 = getSpacing(captured.black.length);
+                let x = startX;
                 captured.black.forEach(p => {{
                     ctx.beginPath();
                     ctx.arc(x, y1, capturedRadius, 0, Math.PI * 2);
@@ -447,7 +456,7 @@ def fen_to_canvas_html(fen: str, arrow: str | None = None, viewer: str = "red") 
                     ctx.font = `bold ${{fontSize}}px sans-serif`;
                     ctx.textAlign = 'center';
                     ctx.fillText(p.text, x, y1);
-                    x += spacing;
+                    x += spacing1;
                 }});
 
                 // 第二行：红方失的子（被黑方吃）
@@ -456,7 +465,8 @@ def fen_to_canvas_html(fen: str, arrow: str | None = None, viewer: str = "red") 
                 ctx.fillStyle = '#DC143C';
                 ctx.fillText('失:', 4, y2);
 
-                x = 22;
+                let spacing2 = getSpacing(captured.red.length);
+                x = startX;
                 captured.red.forEach(p => {{
                     ctx.beginPath();
                     ctx.arc(x, y2, capturedRadius, 0, Math.PI * 2);
@@ -474,7 +484,7 @@ def fen_to_canvas_html(fen: str, arrow: str | None = None, viewer: str = "red") 
                     ctx.font = `bold ${{fontSize}}px sans-serif`;
                     ctx.textAlign = 'center';
                     ctx.fillText(p.text, x, y2);
-                    x += spacing;
+                    x += spacing2;
                 }});
             }}
 

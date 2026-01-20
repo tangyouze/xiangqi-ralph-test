@@ -118,7 +118,7 @@ def render_sidebar():
             if tree and tree.get("first_moves"):
                 best_move = tree["first_moves"][0]["move"]
             html = fen_to_canvas_html(st.session_state.search_fen, arrow=best_move)
-            components.html(html, height=260)
+            components.html(html, height=280)
         except Exception:
             pass  # FEN 无效时不显示
 
