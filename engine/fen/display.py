@@ -257,9 +257,9 @@ def fen_to_canvas_html(fen: str, arrow: str | None = None, viewer: str = "red") 
             )
 
     # 50% 缩放: cellSize 40->20, margin 30->18, pieceRadius 16->8
-    # 增加高度容纳被吃子显示区域（+30px）
+    # 增加高度容纳被吃子显示区域（+44px for 2 rows）
     html = f"""
-    <canvas id="interactiveBoard" style="width:196px;height:246px;"></canvas>
+    <canvas id="interactiveBoard" style="width:196px;height:260px;"></canvas>
     <script>
     (function() {{
         const canvas = document.getElementById('interactiveBoard');
@@ -267,7 +267,7 @@ def fen_to_canvas_html(fen: str, arrow: str | None = None, viewer: str = "red") 
         const cellSize = 20;
         const margin = 18;
         const pieceRadius = 8;
-        const capturedRadius = 6;
+        const capturedRadius = 7;
         const pieces = {pieces_json};
         const arrowData = {arrow_data};
         const captured = {captured_json};
@@ -276,7 +276,7 @@ def fen_to_canvas_html(fen: str, arrow: str | None = None, viewer: str = "red") 
 
         const dpr = window.devicePixelRatio || 1;
         const cssWidth = 196;
-        const cssHeight = 246;
+        const cssHeight = 260;
         const boardHeight = 216;
         canvas.width = cssWidth * dpr;
         canvas.height = cssHeight * dpr;
@@ -415,21 +415,24 @@ def fen_to_canvas_html(fen: str, arrow: str | None = None, viewer: str = "red") 
 
             drawArrow();
 
-            // 绘制被吃子区域
+            // 绘制被吃子区域（两行：上面吃的，下面失的）
             function drawCaptured() {{
-                const y = boardHeight + 15;
-                ctx.font = 'bold 6px sans-serif';
+                const y1 = boardHeight + 14;  // 第一行：吃（红方吃黑方）
+                const y2 = boardHeight + 34;  // 第二行：失（黑方吃红方）
+                const spacing = 16;  // 棋子间距
+                const fontSize = 6;
+
+                // 第一行：红方吃的黑子
+                ctx.font = 'bold 7px sans-serif';
                 ctx.textAlign = 'left';
                 ctx.textBaseline = 'middle';
+                ctx.fillStyle = '#2F4F4F';
+                ctx.fillText('吃:', 4, y1);
 
-                // 黑方被吃的子（红方吃的）显示在左边
-                ctx.fillStyle = '#8B4513';
-                ctx.fillText('吃:', 4, y);
-                let x = 18;
+                let x = 22;
                 captured.black.forEach(p => {{
-                    // 暗子用虚线边框
                     ctx.beginPath();
-                    ctx.arc(x, y, capturedRadius, 0, Math.PI * 2);
+                    ctx.arc(x, y1, capturedRadius, 0, Math.PI * 2);
                     ctx.fillStyle = p.isHidden ? 'rgba(255,250,240,0.6)' : '#FFFAF0';
                     ctx.fill();
                     if (p.isHidden) {{
@@ -441,21 +444,22 @@ def fen_to_canvas_html(fen: str, arrow: str | None = None, viewer: str = "red") 
                     ctx.setLineDash([]);
 
                     ctx.fillStyle = p.isUnknown ? '#888' : '#2F4F4F';
-                    ctx.font = 'bold 5px sans-serif';
+                    ctx.font = `bold ${{fontSize}}px sans-serif`;
                     ctx.textAlign = 'center';
-                    ctx.fillText(p.text, x, y);
-                    x += 14;
+                    ctx.fillText(p.text, x, y1);
+                    x += spacing;
                 }});
 
-                // 红方被吃的子（黑方吃的）显示在右边
-                ctx.textAlign = 'right';
-                ctx.fillStyle = '#8B4513';
-                ctx.font = 'bold 6px sans-serif';
-                ctx.fillText(':失', cssWidth - 4, y);
-                x = cssWidth - 18;
+                // 第二行：红方失的子（被黑方吃）
+                ctx.font = 'bold 7px sans-serif';
+                ctx.textAlign = 'left';
+                ctx.fillStyle = '#DC143C';
+                ctx.fillText('失:', 4, y2);
+
+                x = 22;
                 captured.red.forEach(p => {{
                     ctx.beginPath();
-                    ctx.arc(x, y, capturedRadius, 0, Math.PI * 2);
+                    ctx.arc(x, y2, capturedRadius, 0, Math.PI * 2);
                     ctx.fillStyle = p.isHidden ? 'rgba(255,250,240,0.6)' : '#FFFAF0';
                     ctx.fill();
                     if (p.isHidden) {{
@@ -467,10 +471,10 @@ def fen_to_canvas_html(fen: str, arrow: str | None = None, viewer: str = "red") 
                     ctx.setLineDash([]);
 
                     ctx.fillStyle = p.isUnknown ? '#888' : '#DC143C';
-                    ctx.font = 'bold 5px sans-serif';
+                    ctx.font = `bold ${{fontSize}}px sans-serif`;
                     ctx.textAlign = 'center';
-                    ctx.fillText(p.text, x, y);
-                    x -= 14;
+                    ctx.fillText(p.text, x, y2);
+                    x += spacing;
                 }});
             }}
 
