@@ -1,336 +1,266 @@
 """
-揭棋游戏页面
+AI 对战调试页面
 
-完整的揭棋游戏界面，支持：
-- Human vs Human, Human vs AI, AI vs AI 三种模式
-- Button 网格交互
-- AI 策略选择
-- 走子历史和被吃子显示
+功能：
+- 选择残局或输入 FEN 作为起始局面
+- 红方/黑方各自选择 AI 策略
+- 快速运行完整对弈
+- 回放 Debug：逐步查看每步详细信息
+- 键盘控制：←/→ 前进后退
 """
 
 from __future__ import annotations
 
-import json
 import time
-from enum import Enum
 
 import streamlit as st
+import streamlit.components.v1 as components
 
+from engine.fen import apply_move_with_capture, fen_to_canvas_html, parse_fen
+from engine.games.endgames import ALL_ENDGAMES
 from engine.rust_ai import DEFAULT_STRATEGY, UnifiedAIEngine
-from engine.fen import parse_move, to_fen
-from engine.game import GameConfig, JieqiGame
-from engine.types import ActionType, Color, GameResult, JieqiMove, PieceType, Position
+from engine.types import Color, PieceType
 
 # =============================================================================
 # 常量
 # =============================================================================
 
+AVAILABLE_STRATEGIES = [
+    "it2",
+    "muses3",
+    "muses2",
+    "muses",
+    "iterative",
+    "mcts",
+    "greedy",
+    "random",
+]
 
-class GameMode(Enum):
-    """游戏模式"""
-
-    HUMAN_VS_HUMAN = "Human vs Human"
-    HUMAN_VS_AI = "Human vs AI"
-    AI_VS_AI = "AI vs AI"
-
-
-# 棋子显示符号
-PIECE_SYMBOLS = {
-    (Color.RED, PieceType.KING): "帥",
-    (Color.RED, PieceType.ROOK): "俥",
-    (Color.RED, PieceType.HORSE): "傌",
-    (Color.RED, PieceType.CANNON): "炮",
-    (Color.RED, PieceType.ELEPHANT): "相",
-    (Color.RED, PieceType.ADVISOR): "仕",
-    (Color.RED, PieceType.PAWN): "兵",
-    (Color.BLACK, PieceType.KING): "將",
-    (Color.BLACK, PieceType.ROOK): "車",
-    (Color.BLACK, PieceType.HORSE): "馬",
-    (Color.BLACK, PieceType.CANNON): "砲",
-    (Color.BLACK, PieceType.ELEPHANT): "象",
-    (Color.BLACK, PieceType.ADVISOR): "士",
-    (Color.BLACK, PieceType.PAWN): "卒",
+# 棋子中文名映射
+PIECE_TYPE_TO_CHINESE = {
+    PieceType.ROOK: ("車", "车"),
+    PieceType.HORSE: ("馬", "马"),
+    PieceType.ELEPHANT: ("象", "相"),
+    PieceType.ADVISOR: ("士", "仕"),
+    PieceType.KING: ("帥", "将"),
+    PieceType.CANNON: ("炮", "砲"),
+    PieceType.PAWN: ("兵", "卒"),
 }
+
+# FEN 中被吃子解析
+RED_PIECE_CHINESE = {"R": "車", "H": "馬", "E": "象", "A": "士", "K": "帥", "C": "炮", "P": "兵"}
+BLACK_PIECE_CHINESE = {"r": "车", "h": "马", "e": "相", "a": "仕", "k": "将", "c": "砲", "p": "卒"}
 
 
 # =============================================================================
-# Session State 管理
+# Session State
 # =============================================================================
 
 
 def init_session_state():
     """初始化 session state"""
-    if "game" not in st.session_state:
-        st.session_state.game = None
-    if "selected_pos" not in st.session_state:
-        st.session_state.selected_pos = None
-    if "legal_targets" not in st.session_state:
-        st.session_state.legal_targets = []
-    if "game_mode" not in st.session_state:
-        st.session_state.game_mode = GameMode.HUMAN_VS_AI
-    # ai_backend 已移除，只使用Rust
-    if "ai_strategy" not in st.session_state:
-        st.session_state.ai_strategy = DEFAULT_STRATEGY
-    if "ai_thinking" not in st.session_state:
-        st.session_state.ai_thinking = False
-    if "pending_reveal" not in st.session_state:
-        st.session_state.pending_reveal = None  # 待选择揭棋类型的走法
-    if "message" not in st.session_state:
-        st.session_state.message = None
-    if "auto_play" not in st.session_state:
-        st.session_state.auto_play = False
-    if "delay_reveal" not in st.session_state:
-        st.session_state.delay_reveal = False
-    if "ai_time_limit" not in st.session_state:
-        st.session_state.ai_time_limit = 0.5  # 默认 0.5 秒
-    if "last_ai_stats" not in st.session_state:
-        st.session_state.last_ai_stats = None  # {nodes, nps, time_ms, move, score}
+    # 设置
+    if "red_strategy" not in st.session_state:
+        st.session_state.red_strategy = DEFAULT_STRATEGY
+    if "black_strategy" not in st.session_state:
+        st.session_state.black_strategy = DEFAULT_STRATEGY
+    if "time_limit" not in st.session_state:
+        st.session_state.time_limit = 0.2  # 降低默认时间，加快对弈
+    if "battle_fen" not in st.session_state:
+        st.session_state.battle_fen = ALL_ENDGAMES[0].fen
+    if "endgame_idx" not in st.session_state:
+        st.session_state.endgame_idx = 0
+
+    # 对弈状态
+    if "battle_history" not in st.session_state:
+        st.session_state.battle_history = []
+    if "battle_result" not in st.session_state:
+        st.session_state.battle_result = None
+    if "playback_idx" not in st.session_state:
+        st.session_state.playback_idx = 0
+    if "is_running" not in st.session_state:
+        st.session_state.is_running = False
 
 
-def create_new_game():
-    """创建新游戏"""
-    config = GameConfig(
-        delay_reveal=st.session_state.delay_reveal,
+# =============================================================================
+# 辅助函数
+# =============================================================================
+
+
+def piece_to_chinese(piece_type: PieceType, color: Color, is_hidden: bool = False) -> str:
+    """棋子转中文名"""
+    red_name, black_name = PIECE_TYPE_TO_CHINESE.get(piece_type, ("?", "?"))
+    name = red_name if color == Color.RED else black_name
+    prefix = "暗" if is_hidden else ""
+    return f"{prefix}{name}"
+
+
+def parse_captured_pieces(fen: str) -> tuple[str, str]:
+    """解析 FEN 中的被吃子信息，返回 (红方吃的黑子, 黑方吃的红子)"""
+    parts = fen.split(" ")
+    if len(parts) < 2:
+        return "", ""
+
+    captured_part = parts[1]
+    if captured_part == "-:-":
+        return "", ""
+
+    red_captured, black_captured = "", ""
+    if ":" in captured_part:
+        red_lost, black_lost = captured_part.split(":")
+        # 红方被吃 = 黑方吃的
+        for ch in red_lost:
+            if ch == "?":
+                black_captured += "暗"
+            elif ch.upper() in RED_PIECE_CHINESE:
+                black_captured += RED_PIECE_CHINESE[ch.upper()]
+        # 黑方被吃 = 红方吃的
+        for ch in black_lost:
+            if ch == "?":
+                red_captured += "暗"
+            elif ch.lower() in BLACK_PIECE_CHINESE:
+                red_captured += BLACK_PIECE_CHINESE[ch.lower()]
+
+    return red_captured, black_captured
+
+
+# =============================================================================
+# 核心功能
+# =============================================================================
+
+
+def run_full_battle(
+    start_fen: str,
+    red_strategy: str,
+    black_strategy: str,
+    time_limit: float,
+    max_moves: int = 200,
+    progress_callback=None,
+):
+    """运行完整对弈，返回 (battle_history, result)
+
+    基于 FEN 进行对弈，不需要 JieqiGame。
+    progress_callback: 回调函数 (move_num, player, move_str, score) 用于更新进度
+    """
+    # 创建 AI 引擎
+    red_ai = UnifiedAIEngine(strategy=red_strategy, time_limit=time_limit)
+    black_ai = UnifiedAIEngine(strategy=black_strategy, time_limit=time_limit)
+
+    history = []
+
+    # 记录初始状态（步数 0）
+    history.append(
+        {
+            "move_num": 0,
+            "player": None,
+            "strategy": None,
+            "fen_before": None,
+            "fen_after": start_fen,
+            "move": None,
+            "score": None,
+            "nodes": 0,
+            "nps": 0.0,
+            "time_ms": 0.0,
+            "candidates": [],
+            "revealed_type": None,
+            "captured": None,
+        }
     )
-    st.session_state.game = JieqiGame(config=config)
-    st.session_state.selected_pos = None
-    st.session_state.legal_targets = []
-    st.session_state.pending_reveal = None
-    st.session_state.message = "Game started! Red moves first."
-    st.session_state.auto_play = False
-    st.session_state.last_ai_stats = None
 
+    current_fen = start_fen
+    move_count = 0
+    result = "ongoing"
 
-def get_piece_at(row: int, col: int) -> dict | None:
-    """获取指定位置的棋子信息"""
-    game: JieqiGame = st.session_state.game
-    if game is None:
-        return None
+    # 用于检测重复局面
+    repetition_count = {}
 
-    piece = game.board.get_piece(Position(row, col))
-    if piece is None:
-        return None
+    while move_count < max_moves:
+        # 解析当前回合
+        state = parse_fen(current_fen)
+        current_turn = state.turn
+        current_ai = red_ai if current_turn == Color.RED else black_ai
+        strategy_name = red_strategy if current_turn == Color.RED else black_strategy
+        player = "red" if current_turn == Color.RED else "black"
 
-    return {
-        "color": piece.color,
-        "is_hidden": piece.is_hidden,
-        "actual_type": piece.actual_type,
-        "position": Position(row, col),
-    }
-
-
-def get_legal_moves_for_piece(pos: Position) -> list[tuple[Position, ActionType]]:
-    """获取某个棋子的合法走法目标"""
-    game: JieqiGame = st.session_state.game
-    if game is None:
-        return []
-
-    legal_moves = game.get_legal_moves()
-    return [(m.to_pos, m.action_type) for m in legal_moves if m.from_pos == pos]
-
-
-def handle_cell_click(row: int, col: int):
-    """处理格子点击"""
-    game: JieqiGame = st.session_state.game
-    if game is None or game.result != GameResult.ONGOING:
-        return
-
-    pos = Position(row, col)
-    piece = get_piece_at(row, col)
-    selected = st.session_state.selected_pos
-
-    # 如果正在等待揭棋类型选择，忽略点击
-    if st.session_state.pending_reveal is not None:
-        return
-
-    # Human vs AI 模式下，只能走自己的颜色
-    mode = st.session_state.game_mode
-    if mode == GameMode.HUMAN_VS_AI:
-        # 人类只能走红方
-        if game.current_turn == Color.BLACK:
-            return
-
-    # 检查是否点击了合法目标
-    if selected is not None:
-        for target, action_type in st.session_state.legal_targets:
-            if target == pos:
-                # 执行走法
-                execute_move(selected, pos, action_type)
-                return
-
-    # 选择自己的棋子
-    if piece is not None and piece["color"] == game.current_turn:
-        st.session_state.selected_pos = pos
-        st.session_state.legal_targets = get_legal_moves_for_piece(pos)
-    else:
-        # 取消选择
-        st.session_state.selected_pos = None
-        st.session_state.legal_targets = []
-
-
-def execute_move(from_pos: Position, to_pos: Position, action_type: ActionType):
-    """执行走法"""
-    game: JieqiGame = st.session_state.game
-    if game is None:
-        return
-
-    move = JieqiMove(action_type, from_pos, to_pos)
-
-    # 延迟分配模式下的揭棋需要选择类型
-    if action_type == ActionType.REVEAL_AND_MOVE and st.session_state.delay_reveal:
-        # 获取可选类型
-        available = get_available_reveal_types(from_pos)
-        if len(available) > 1:
-            st.session_state.pending_reveal = {
-                "move": move,
-                "available_types": available,
-            }
-            return
-
-    # 直接执行
-    success = game.make_move(move)
-    if success:
-        st.session_state.selected_pos = None
-        st.session_state.legal_targets = []
-        update_game_message()
-
-        # 检查是否需要 AI 走棋
-        check_ai_turn()
-    else:
-        st.session_state.message = "Invalid move!"
-
-
-def execute_move_with_reveal_type(reveal_type: str):
-    """执行带揭棋类型的走法"""
-    game: JieqiGame = st.session_state.game
-    pending = st.session_state.pending_reveal
-
-    if game is None or pending is None:
-        return
-
-    move = pending["move"]
-    success = game.make_move(move, reveal_type=reveal_type)
-
-    st.session_state.pending_reveal = None
-    st.session_state.selected_pos = None
-    st.session_state.legal_targets = []
-
-    if success:
-        update_game_message()
-        check_ai_turn()
-    else:
-        st.session_state.message = "Move failed!"
-
-
-def get_available_reveal_types(pos: Position) -> list[str]:
-    """获取揭棋可选类型"""
-    game: JieqiGame = st.session_state.game
-    if game is None:
-        return []
-
-    # 从棋盘获取可分配的类型
-    piece = game.board.get_piece(pos)
-    if piece is None or not piece.is_hidden:
-        return []
-
-    available = game.board.get_available_types(piece.color)
-    return [pt.value for pt in available]
-
-
-def update_game_message():
-    """更新游戏消息"""
-    game: JieqiGame = st.session_state.game
-    if game is None:
-        return
-
-    if game.result == GameResult.RED_WIN:
-        st.session_state.message = "Game Over! Red wins!"
-    elif game.result == GameResult.BLACK_WIN:
-        st.session_state.message = "Game Over! Black wins!"
-    elif game.result == GameResult.DRAW:
-        st.session_state.message = "Game Over! Draw!"
-    elif game.is_in_check():
-        turn = "Red" if game.current_turn == Color.RED else "Black"
-        st.session_state.message = f"{turn}'s turn - CHECK!"
-    else:
-        turn = "Red" if game.current_turn == Color.RED else "Black"
-        st.session_state.message = f"{turn}'s turn"
-
-
-def check_ai_turn():
-    """检查是否需要 AI 走棋"""
-    game: JieqiGame = st.session_state.game
-    mode = st.session_state.game_mode
-
-    if game is None or game.result != GameResult.ONGOING:
-        return
-
-    need_ai = False
-    if mode == GameMode.HUMAN_VS_AI and game.current_turn == Color.BLACK:
-        need_ai = True
-    elif mode == GameMode.AI_VS_AI:
-        need_ai = True
-
-    if need_ai:
-        st.session_state.ai_thinking = True
-
-
-def make_ai_move():
-    """AI 走棋"""
-    game: JieqiGame = st.session_state.game
-    if game is None or game.result != GameResult.ONGOING:
-        st.session_state.ai_thinking = False
-        return
-
-    try:
-        # 获取当前局面 FEN（从当前玩家视角）
-        view = game.get_view(game.current_turn)
-        fen = to_fen(view)
-
-        # 创建 AI 引擎（只使用Rust）
-        engine = UnifiedAIEngine(
-            strategy=st.session_state.ai_strategy,
-            time_limit=st.session_state.ai_time_limit,
-        )
-
-        # 记录开始时间
+        # 计时并获取最佳走法
         start_time = time.time()
-
-        # 获取最佳走法及统计信息
-        moves, nodes, nps = engine.get_best_moves_with_stats(fen, n=1)
+        try:
+            candidates, nodes, nps = current_ai.get_best_moves_with_stats(current_fen, n=20)
+        except Exception:
+            # AI 报错，可能是游戏结束
+            result = "draw"
+            break
         elapsed_ms = (time.time() - start_time) * 1000
 
-        if not moves:
-            st.session_state.message = "AI has no legal moves!"
-            st.session_state.ai_thinking = False
-            return
+        if not candidates:
+            # 没有合法走法，判断输赢
+            # 当前方无走法 = 当前方输
+            result = "black_win" if player == "red" else "red_win"
+            break
 
-        move_str, score = moves[0]
+        # 选择走法
+        move_str, score = candidates[0]
 
-        # 保存 AI 统计信息
-        st.session_state.last_ai_stats = {
+        # 检查是否是揭子走法
+        is_reveal = move_str.startswith("+")
+        revealed_type = None
+        if is_reveal and "=" in move_str:
+            # 走法中包含揭子类型，如 "+a0a1=R"
+            revealed_type = move_str.split("=")[1].lower()
+
+        # 应用走法得到新 FEN
+        try:
+            new_fen, captured_info = apply_move_with_capture(current_fen, move_str)
+        except Exception:
+            # 走法执行失败
+            result = "draw"
+            break
+
+        move_count += 1
+
+        # 记录这一步
+        step = {
+            "move_num": move_count,
+            "player": player,
+            "strategy": strategy_name,
+            "fen_before": current_fen,
+            "fen_after": new_fen,
             "move": move_str,
             "score": score,
             "nodes": nodes,
             "nps": nps,
             "time_ms": elapsed_ms,
+            "candidates": [{"move": m, "score": s} for m, s in candidates],
+            "revealed_type": revealed_type,
+            "captured": captured_info,
         }
+        history.append(step)
 
-        # 解析走法
-        move, revealed_type = parse_move(move_str)
+        # 回调进度更新
+        if progress_callback:
+            progress_callback(move_count, player, move_str, score)
 
-        # 执行走法（revealed_type 转换为字符串）
-        reveal_type_str = revealed_type.value if revealed_type else None
-        success = game.make_move(move, reveal_type=reveal_type_str)
-        if success:
-            update_game_message()
-        else:
-            st.session_state.message = f"AI move failed: {move_str}"
+        # 检查游戏是否结束（通过吃将判断）
+        if captured_info and captured_info.get("type") == "king":
+            # 吃到将/帅，游戏结束
+            result = "red_win" if player == "red" else "black_win"
+            break
 
-    except Exception as e:
-        st.session_state.message = f"AI error: {e}"
+        # 检测重复局面
+        board_part = new_fen.split(" ")[0]  # 只比较棋盘部分
+        repetition_count[board_part] = repetition_count.get(board_part, 0) + 1
+        if repetition_count[board_part] >= 3:
+            # 三次重复，判和
+            result = "draw"
+            break
 
-    st.session_state.ai_thinking = False
+        current_fen = new_fen
+
+    # 如果还没结束但达到最大步数
+    if result == "ongoing":
+        result = "draw"
+
+    return history, result
 
 
 # =============================================================================
@@ -338,396 +268,289 @@ def make_ai_move():
 # =============================================================================
 
 
-def render_board():
-    """渲染中国象棋棋盘（交叉点布局）"""
-    game: JieqiGame = st.session_state.game
-    if game is None:
-        st.info("Click 'New Game' to start!")
-        return
-
-    selected = st.session_state.selected_pos
-    legal_targets = {t[0] for t in st.session_state.legal_targets}
-
-    # 收集棋子样式信息用于 JavaScript
-    piece_styles: dict[str, str] = {}
-
-    # 中国象棋风格的 CSS
-    st.markdown(
-        """
-        <style>
-        /* 棋盘容器 */
-        .xiangqi-board-wrapper {
-            background: linear-gradient(135deg, #f5e6d3 0%, #e8d4b8 100%);
-            padding: 25px;
-            border-radius: 12px;
-            box-shadow: 0 8px 32px rgba(139, 105, 20, 0.3);
-            display: inline-block;
-            margin: 10px auto;
-        }
-
-        /* 棋盘网格背景 */
-        .xiangqi-grid {
-            background-color: #f4e4c1;
-            padding: 8px;
-            border: 3px solid #654321;
-            position: relative;
-        }
-
-        /* 棋子按钮基础样式 */
-        .stButton > button {
-            width: 46px !important;
-            height: 46px !important;
-            min-width: 46px !important;
-            min-height: 46px !important;
-            padding: 0 !important;
-            font-size: 22px !important;
-            font-weight: bold !important;
-            border-radius: 50% !important;
-            margin: 0 !important;
-            transition: all 0.2s ease !important;
-        }
-
-        /* hover 效果 */
-        .stButton > button:hover:not(:disabled) {
-            transform: translateY(-2px) scale(1.05) !important;
-            filter: brightness(1.1) !important;
-        }
-
-        /* 禁用状态保持可见 */
-        .stButton > button:disabled {
-            opacity: 1 !important;
-            cursor: default !important;
-        }
-
-        /* 行列标签 */
-        .coord-label {
-            font-size: 13px;
-            color: #654321;
-            font-weight: 600;
-            text-align: center;
-            padding: 6px 0;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    # 开始渲染棋盘
-    st.markdown(
-        '<div class="xiangqi-board-wrapper"><div class="xiangqi-grid">', unsafe_allow_html=True
-    )
-
-    # 列标签（a-i）
-    col_labels = st.columns([0.6] + [1] * 9)
-    col_labels[0].markdown('<div class="coord-label"></div>', unsafe_allow_html=True)
-    for i, c in enumerate("abcdefghi"):
-        col_labels[i + 1].markdown(f'<div class="coord-label">{c}</div>', unsafe_allow_html=True)
-
-    # 棋盘行（从 row 9 到 row 0）
-    for row in range(9, -1, -1):
-        cols = st.columns([0.6] + [1] * 9)
-
-        # 行号
-        cols[0].markdown(f'<div class="coord-label">{row}</div>', unsafe_allow_html=True)
-
-        for col in range(9):
-            pos = Position(row, col)
-            piece = get_piece_at(row, col)
-
-            # 确定按钮样式
-            is_selected = selected == pos
-            is_target = pos in legal_targets
-
-            # 按钮文本和样式标记
-            piece_type = "empty"
-            if piece is not None:
-                if piece["is_hidden"]:
-                    # 暗子
-                    btn_text = "暗"
-                    piece_type = f"{piece['color'].value}-hidden"
-                else:
-                    # 明子
-                    btn_text = PIECE_SYMBOLS.get((piece["color"], piece["actual_type"]), "?")
-                    piece_type = piece["color"].value
-
-                # 添加选中标记
-                if is_selected:
-                    piece_type += "-selected"
-            elif is_target:
-                # 可走位置
-                btn_text = "·"
-                piece_type = "target"
-            else:
-                # 空位
-                btn_text = ""
-                piece_type = "empty"
-
-            # 按钮 key
-            key = f"cell_{row}_{col}"
-
-            with cols[col + 1]:
-                # 判断是否可点击
-                can_click = game.result == GameResult.ONGOING
-                if st.session_state.game_mode == GameMode.HUMAN_VS_AI:
-                    can_click = can_click and game.current_turn == Color.RED
-
-                # 记录样式信息
-                piece_styles[key] = piece_type
-
-                if st.button(
-                    btn_text,
-                    key=key,
-                    disabled=not can_click,
-                    width="stretch",
-                ):
-                    handle_cell_click(row, col)
-                    st.rerun()
-
-        # 在第 4-5 行之间添加楚河汉界提示
-        if row == 5:
-            st.markdown(
-                """
-                <div style="text-align: center; margin: 8px 0; padding: 4px; 
-                     background: linear-gradient(to bottom, rgba(173, 216, 230, 0.15), rgba(135, 206, 235, 0.25), rgba(173, 216, 230, 0.15));
-                     border-top: 2px solid rgba(70, 130, 180, 0.3);
-                     border-bottom: 2px solid rgba(70, 130, 180, 0.3);">
-                    <span style="color: #4682b4; font-weight: bold; font-size: 14px; margin: 0 30px;">楚河</span>
-                    <span style="color: #999; font-size: 12px;">━━━━━</span>
-                    <span style="color: #4682b4; font-weight: bold; font-size: 14px; margin: 0 30px;">汉界</span>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-    st.markdown("</div></div>", unsafe_allow_html=True)
-
-    # 注入 JavaScript 来应用棋子样式
-    style_map = {
-        "red": "background: linear-gradient(145deg, #fff5f5, #ffdddd); color: #DC143C; border: 2.5px solid #DC143C;",
-        "black": "background: linear-gradient(145deg, #f0f0f0, #d0d0d0); color: #2C3E50; border: 2.5px solid #2C3E50;",
-        "red-hidden": "background: linear-gradient(145deg, #ffe0e0, #ffb0b0); color: #8B0000; border: 3px dashed #DC143C;",
-        "black-hidden": "background: linear-gradient(145deg, #a0a0a0, #707070); color: #ffffff; border: 3px dashed #2C3E50;",
-        "empty": "background: transparent; border: none; box-shadow: none;",
-        "target": "background: radial-gradient(circle, #90EE90 0%, #98FB98 40%, transparent 60%); border: 2px solid #32CD32;",
-    }
-
-    # 添加选中状态样式
-    for key in list(piece_styles.keys()):
-        if piece_styles[key].endswith("-selected"):
-            base_type = piece_styles[key].replace("-selected", "")
-            piece_styles[key] = base_type  # 保留基础类型，JavaScript 会处理选中状态
-
-    js_code = f"""
-    <script>
-    const pieceStyles = {json.dumps(piece_styles)};
-    const styleMap = {json.dumps(style_map)};
-    const selectedStyle = "border: 4px solid #FFD700 !important; box-shadow: 0 0 12px rgba(255, 215, 0, 0.8);";
-
-    function applyPieceStyles() {{
-        for (const [key, pieceType] of Object.entries(pieceStyles)) {{
-            // 查找按钮（通过 data-testid 属性）
-            const btn = document.querySelector(`button[data-testid="stBaseButton-secondary"][kind="secondary"]`);
-            // 尝试通过 key 查找
-            const allButtons = document.querySelectorAll('button');
-            allButtons.forEach(btn => {{
-                const parent = btn.closest('[data-testid]');
-                if (parent && parent.getAttribute('data-testid')?.includes(key)) {{
-                    const style = styleMap[pieceType.replace('-selected', '')] || '';
-                    btn.style.cssText += style;
-                    if (pieceType.includes('-selected')) {{
-                        btn.style.cssText += selectedStyle;
-                    }}
-                }}
-            }});
-        }}
-    }}
-
-    // 延迟执行以确保 DOM 已渲染
-    setTimeout(applyPieceStyles, 100);
-    setTimeout(applyPieceStyles, 500);
-    </script>
-    """
-    st.markdown(js_code, unsafe_allow_html=True)
-
-
-def render_reveal_selector():
-    """渲染揭棋类型选择器"""
-    pending = st.session_state.pending_reveal
-    if pending is None:
-        return
-
-    st.warning("Select piece type for reveal:")
-    available = pending["available_types"]
-
-    # 类型名称映射
-    type_names = {
-        "king": "帥/將",
-        "rook": "俥/車",
-        "horse": "傌/馬",
-        "cannon": "炮/砲",
-        "elephant": "相/象",
-        "advisor": "仕/士",
-        "pawn": "兵/卒",
-    }
-
-    cols = st.columns(len(available))
-    for i, pt in enumerate(available):
-        name = type_names.get(pt, pt)
-        if cols[i].button(name, key=f"reveal_{pt}"):
-            execute_move_with_reveal_type(pt)
-            st.rerun()
-
-
 def render_sidebar():
     """渲染侧边栏"""
     with st.sidebar:
-        st.header("Game Settings")
+        st.header("Settings")
 
-        # 游戏模式
-        mode_options = [m.value for m in GameMode]
-        selected_mode = st.selectbox(
-            "Game Mode",
-            mode_options,
-            index=mode_options.index(st.session_state.game_mode.value),
-        )
-        st.session_state.game_mode = GameMode(selected_mode)
-
-        # 揭棋模式
-        st.session_state.delay_reveal = st.checkbox(
-            "Delay Reveal Mode",
-            value=st.session_state.delay_reveal,
-            help="If enabled, piece type is assigned when revealed",
+        # 残局选择
+        options = [f"{e.id} - {e.name} ({e.category})" for e in ALL_ENDGAMES]
+        selected_idx = st.selectbox(
+            "Position",
+            options=range(len(options)),
+            format_func=lambda i: options[i],
+            index=st.session_state.endgame_idx,
+            key="endgame_selector",
         )
 
-        st.divider()
-
-        # AI 设置（只支持Rust）
-        st.subheader("AI Settings")
-        st.caption("🦀 Powered by Rust")
-
-        # 选择Rust策略
-        st.session_state.ai_strategy = st.selectbox(
-            "Strategy",
-            ["muses", "iterative", "minimax", "greedy", "random", "mcts"],
-            index=0,
-            help="Rust AI strategy",
-        )
-
-        st.session_state.ai_time_limit = st.slider(
-            "Time (s)",
-            0.1,
-            10.0,
-            st.session_state.ai_time_limit,
-            step=0.1,
-            help="AI thinking time limit",
-        )
-
-        st.divider()
-
-        # 新游戏按钮
-        if st.button("New Game", type="primary", width="stretch"):
-            create_new_game()
+        # 选择变化时更新 FEN
+        if selected_idx != st.session_state.endgame_idx:
+            st.session_state.endgame_idx = selected_idx
+            st.session_state.battle_fen = ALL_ENDGAMES[selected_idx].fen
+            st.session_state.battle_history = []
+            st.session_state.battle_result = None
+            st.session_state.playback_idx = 0
             st.rerun()
 
-        # AI vs AI 自动对战控制
-        if st.session_state.game_mode == GameMode.AI_VS_AI:
-            st.divider()
-            st.subheader("Auto Play")
-
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("Start", width="stretch"):
-                    st.session_state.auto_play = True
-            with col2:
-                if st.button("Stop", width="stretch"):
-                    st.session_state.auto_play = False
-
-
-def render_game_info():
-    """渲染游戏信息"""
-    game: JieqiGame = st.session_state.game
-    if game is None:
-        return
-
-    # 状态消息
-    if st.session_state.message:
-        if "wins" in st.session_state.message or "Draw" in st.session_state.message:
-            st.success(st.session_state.message)
-        elif "CHECK" in st.session_state.message:
-            st.warning(st.session_state.message)
-        else:
-            st.info(st.session_state.message)
-
-    # 游戏统计
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.metric("Moves", len(game.move_history))
-    with col2:
-        turn = "Red" if game.current_turn == Color.RED else "Black"
-        st.metric("Turn", turn)
-    with col3:
-        st.metric("Red Hidden", game.get_hidden_count(Color.RED))
-    with col4:
-        st.metric("Black Hidden", game.get_hidden_count(Color.BLACK))
-
-    # AI 统计信息
-    stats = st.session_state.last_ai_stats
-    if stats is not None:
         st.divider()
-        st.caption("Last AI Move")
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.metric("Move", stats["move"])
-        with col2:
-            st.metric("Score", f"{stats['score']:.1f}")
-        with col3:
-            st.metric("Nodes", f"{stats['nodes']:,}")
-        with col4:
-            nps_k = stats["nps"] / 1000 if stats["nps"] > 0 else 0
-            st.metric("NPS", f"{nps_k:.0f}K")
 
+        # FEN 输入
+        fen_input = st.text_area(
+            "FEN",
+            value=st.session_state.battle_fen,
+            height=80,
+        )
+        if fen_input != st.session_state.battle_fen:
+            st.session_state.battle_fen = fen_input
+            st.session_state.battle_history = []
+            st.session_state.battle_result = None
+            st.session_state.playback_idx = 0
 
-def render_move_history():
-    """渲染走子历史"""
-    game: JieqiGame = st.session_state.game
-    if game is None or not game.move_history:
-        return
+        # 棋盘预览
+        try:
+            html = fen_to_canvas_html(st.session_state.battle_fen)
+            components.html(html, height=230)
+        except Exception:
+            st.error("Invalid FEN")
 
-    with st.expander("Move History", expanded=False):
-        history_text = []
-        for i, record in enumerate(game.move_history, 1):
-            turn = "Red" if i % 2 == 1 else "Black"
-            history_text.append(f"{i}. [{turn}] {record.notation}")
+        st.divider()
 
-        st.text("\n".join(history_text[-20:]))  # 显示最近 20 步
-
-
-def render_captured_pieces():
-    """渲染被吃棋子"""
-    game: JieqiGame = st.session_state.game
-    if game is None or not game.captured_pieces:
-        return
-
-    with st.expander("Captured Pieces", expanded=False):
-        red_captured = []
-        black_captured = []
-
-        for cap in game.captured_pieces:
-            if cap.actual_type:
-                symbol = PIECE_SYMBOLS.get((cap.color, cap.actual_type), "?")
-            else:
-                symbol = "暗"
-
-            if cap.color == Color.RED:
-                red_captured.append(symbol)
-            else:
-                black_captured.append(symbol)
+        # AI 设置
+        st.subheader("AI Settings")
 
         col1, col2 = st.columns(2)
         with col1:
-            st.markdown(f"**Red lost:** {' '.join(red_captured) or '-'}")
+            st.session_state.red_strategy = st.selectbox(
+                "Red AI",
+                AVAILABLE_STRATEGIES,
+                index=AVAILABLE_STRATEGIES.index(st.session_state.red_strategy),
+            )
         with col2:
-            st.markdown(f"**Black lost:** {' '.join(black_captured) or '-'}")
+            st.session_state.black_strategy = st.selectbox(
+                "Black AI",
+                AVAILABLE_STRATEGIES,
+                index=AVAILABLE_STRATEGIES.index(st.session_state.black_strategy),
+            )
+
+        st.session_state.time_limit = st.slider(
+            "Time (s)",
+            0.1,
+            5.0,
+            st.session_state.time_limit,
+            step=0.1,
+        )
+
+        st.divider()
+
+        # Run Battle 按钮
+        if st.button("Run Battle", type="primary", width="stretch"):
+            st.session_state.is_running = True
+            st.rerun()
+
+        # 显示对弈结果
+        if st.session_state.battle_result:
+            result = st.session_state.battle_result
+            if result == "red_win":
+                st.success(f"Result: Red wins! ({len(st.session_state.battle_history) - 1} moves)")
+            elif result == "black_win":
+                st.success(
+                    f"Result: Black wins! ({len(st.session_state.battle_history) - 1} moves)"
+                )
+            else:
+                st.warning(f"Result: Draw ({len(st.session_state.battle_history) - 1} moves)")
+
+
+def render_playback_controls():
+    """渲染回放控制"""
+    history = st.session_state.battle_history
+    if not history:
+        return
+
+    total = len(history) - 1  # 排除初始状态
+    idx = st.session_state.playback_idx
+
+    # 按钮控制
+    col1, col2, col3, col4, col5 = st.columns([1, 1, 2, 1, 1])
+
+    with col1:
+        if st.button("|<", key="btn_first", width="stretch"):
+            st.session_state.playback_idx = 0
+            st.rerun()
+
+    with col2:
+        if st.button("<", key="btn_prev", width="stretch"):
+            if idx > 0:
+                st.session_state.playback_idx = idx - 1
+                st.rerun()
+
+    with col3:
+        st.markdown(
+            f"<div style='text-align: center; padding: 8px;'>Step: {idx}/{total}</div>",
+            unsafe_allow_html=True,
+        )
+
+    with col4:
+        if st.button(">", key="btn_next", width="stretch"):
+            if idx < total:
+                st.session_state.playback_idx = idx + 1
+                st.rerun()
+
+    with col5:
+        if st.button(">|", key="btn_last", width="stretch"):
+            st.session_state.playback_idx = total
+            st.rerun()
+
+    # 键盘监听 JavaScript
+    keyboard_js = f"""
+    <script>
+    (function() {{
+        if (window._jieqi_keyboard_listener) return;
+        window._jieqi_keyboard_listener = true;
+
+        document.addEventListener('keydown', function(e) {{
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+            let newIdx = {idx};
+            const total = {total};
+
+            if (e.key === 'ArrowLeft') {{
+                newIdx = Math.max(0, newIdx - 1);
+            }} else if (e.key === 'ArrowRight') {{
+                newIdx = Math.min(total, newIdx + 1);
+            }} else if (e.key === 'Home') {{
+                newIdx = 0;
+            }} else if (e.key === 'End') {{
+                newIdx = total;
+            }} else {{
+                return;
+            }}
+
+            if (newIdx !== {idx}) {{
+                // 通过 URL 参数触发更新
+                const url = new URL(window.location);
+                url.searchParams.set('pidx', newIdx);
+                window.location.href = url.toString();
+            }}
+        }});
+    }})();
+    </script>
+    """
+    components.html(keyboard_js, height=0)
+
+    # 处理 URL 参数
+    params = st.query_params
+    if "pidx" in params:
+        try:
+            new_idx = int(params["pidx"])
+            if 0 <= new_idx <= total and new_idx != idx:
+                st.session_state.playback_idx = new_idx
+                # 清除参数
+                del st.query_params["pidx"]
+                st.rerun()
+        except ValueError:
+            pass
+
+
+def render_debug_info():
+    """渲染 debug 信息"""
+    history = st.session_state.battle_history
+    if not history:
+        st.info("Click 'Run Battle' to start")
+        return
+
+    idx = st.session_state.playback_idx
+    step = history[idx]
+
+    # 当前步的棋盘
+    fen_to_show = step["fen_after"]
+    try:
+        html = fen_to_canvas_html(fen_to_show)
+        components.html(html, height=230)
+    except Exception:
+        st.error("Cannot render board")
+
+    if idx == 0:
+        st.caption("Initial position")
+        return
+
+    # 详细信息
+    player = step["player"]
+    strategy = step["strategy"]
+    move_num = step["move_num"]
+
+    # 标题行：#步数 颜色 策略
+    color_tag = "red" if player == "red" else "blue"
+    st.markdown(
+        f"**#{move_num}** <span style='color:{color_tag}'>{player.upper()}</span> {strategy}",
+        unsafe_allow_html=True,
+    )
+
+    # IN: FEN
+    st.code(f"IN:  {step['fen_before']}", language=None)
+
+    # 走法信息
+    move = step["move"]
+    score = step["score"]
+    time_ms = step["time_ms"]
+    nodes = step["nodes"]
+    nps = step["nps"]
+    candidates = step["candidates"]
+
+    # 找出这步在候选中的排名
+    rank = 1
+    for i, c in enumerate(candidates):
+        if c["move"] == move:
+            rank = i + 1
+            break
+
+    # 揭子信息
+    reveal_str = ""
+    if step["revealed_type"]:
+        try:
+            pt = PieceType(step["revealed_type"])
+            color = Color.RED if player == "red" else Color.BLACK
+            reveal_str = f" 揭:{piece_to_chinese(pt, color)}"
+        except ValueError:
+            pass
+
+    # 吃子信息
+    capture_str = ""
+    if step["captured"] and step["captured"]["type"]:
+        try:
+            pt = PieceType(step["captured"]["type"])
+            color = Color(step["captured"]["color"])
+            was_hidden = step["captured"]["was_hidden"]
+            capture_str = f" 吃:{piece_to_chinese(pt, color, was_hidden)}"
+        except (ValueError, KeyError):
+            pass
+
+    # 格式化数字
+    nodes_str = f"{nodes:,}" if nodes else "0"
+    nps_str = f"{nps:,.0f}" if nps else "0"
+
+    st.markdown(
+        f"`{move}` {rank}/{len(candidates)}  score=**{score:+.1f}**  {time_ms:.0f}ms  "
+        f"nodes={nodes_str} nps={nps_str}{reveal_str}{capture_str}"
+    )
+
+    # 被吃子累计
+    red_captured, black_captured = parse_captured_pieces(step["fen_after"])
+    if red_captured or black_captured:
+        parts = []
+        if red_captured:
+            parts.append(f"红吃: {red_captured}")
+        if black_captured:
+            parts.append(f"黑吃: {black_captured}")
+        st.caption(" | ".join(parts))
+
+    # FEN
+    st.code(f"FEN: {step['fen_after']}", language=None)
+
+    # 候选走法展开
+    with st.expander(f"Candidates (Top {min(10, len(candidates))})", expanded=False):
+        for i, c in enumerate(candidates[:10]):
+            marker = "→" if c["move"] == move else " "
+            st.text(f"{marker} {i + 1}. {c['move']:8} {c['score']:+.1f}")
 
 
 # =============================================================================
@@ -737,47 +560,67 @@ def render_captured_pieces():
 
 def main():
     st.set_page_config(
-        page_title="Jieqi Game",
+        page_title="Jieqi AI Battle",
         page_icon="🎮",
         layout="wide",
     )
 
-    st.title("🎮 Jieqi Game")
+    st.title("🎮 Jieqi AI Battle")
 
-    # 初始化
     init_session_state()
-
-    # 侧边栏
     render_sidebar()
 
-    # 主内容
-    col_board, col_info = st.columns([2, 1])
+    # 运行对弈
+    if st.session_state.is_running:
+        st.session_state.is_running = False
 
-    with col_board:
-        render_board()
-        render_reveal_selector()
+        # 使用 status 容器显示实时进度
+        status_container = st.status(
+            f"⚔️ Battle: {st.session_state.red_strategy} vs {st.session_state.black_strategy}",
+            expanded=True,
+        )
+        progress_placeholder = status_container.empty()
+        moves_log = status_container.container()
 
-    with col_info:
-        render_game_info()
-        render_move_history()
-        render_captured_pieces()
+        # 用于存储最近几步的走法
+        recent_moves = []
 
-    # AI 思考
-    if st.session_state.ai_thinking:
-        with st.spinner("AI is thinking..."):
-            make_ai_move()
-            st.rerun()
+        def update_progress(move_num, player, move_str, score):
+            """进度回调：更新 UI 显示"""
+            recent_moves.append(f"#{move_num} {player}: {move_str} ({score:+.0f})")
+            # 只显示最近 8 步
+            if len(recent_moves) > 8:
+                recent_moves.pop(0)
 
-    # AI vs AI 自动对战
-    if (
-        st.session_state.auto_play
-        and st.session_state.game_mode == GameMode.AI_VS_AI
-        and st.session_state.game is not None
-        and st.session_state.game.result == GameResult.ONGOING
-    ):
-        time.sleep(0.5)  # 延迟以便观察
-        st.session_state.ai_thinking = True
+            progress_placeholder.markdown(f"**Move #{move_num}** - {player.upper()} thinking...")
+            moves_log.text("\n".join(recent_moves))
+
+        history, result = run_full_battle(
+            st.session_state.battle_fen,
+            st.session_state.red_strategy,
+            st.session_state.black_strategy,
+            st.session_state.time_limit,
+            progress_callback=update_progress,
+        )
+
+        # 更新最终状态
+        result_text = {
+            "red_win": "🔴 Red wins!",
+            "black_win": "⚫ Black wins!",
+            "draw": "🤝 Draw",
+        }.get(result, result)
+        status_container.update(
+            label=f"✅ {result_text} ({len(history) - 1} moves)", state="complete"
+        )
+
+        st.session_state.battle_history = history
+        st.session_state.battle_result = result
+        st.session_state.playback_idx = len(history) - 1  # 跳到最后一步
         st.rerun()
+
+    # 主区域
+    render_playback_controls()
+    render_debug_info()
 
 
 if __name__ == "__main__":

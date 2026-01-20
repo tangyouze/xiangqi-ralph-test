@@ -685,6 +685,163 @@ def get_legal_moves_from_fen(fen: str) -> list[str]:
     return [move_to_str(move) for move in legal_moves]
 
 
+def simulation_board_to_fen(
+    board: SimulationBoard,
+    captured_fen: str = "-:-",
+    viewer: Color | None = None,
+) -> str:
+    """从 SimulationBoard 生成 FEN 字符串
+
+    注意：被吃子需要外部传入，因为 SimulationBoard 不跟踪被吃子历史
+
+    Args:
+        board: 模拟棋盘
+        captured_fen: 被吃子 FEN 部分，默认 "-:-"
+        viewer: 视角，默认使用当前回合
+
+    Returns:
+        FEN 字符串
+    """
+    if viewer is None:
+        viewer = board.current_turn
+
+    # 构建棋盘
+    grid: list[list[str | None]] = [[None] * 9 for _ in range(10)]
+    for piece in board.get_all_pieces():
+        row, col = piece.position.row, piece.position.col
+        if piece.is_hidden:
+            grid[row][col] = "X" if piece.color == Color.RED else "x"
+        else:
+            # 明子
+            pt = piece.actual_type or piece.movement_type
+            char = PIECE_TO_CHAR.get(pt, "?")
+            grid[row][col] = char.upper() if piece.color == Color.RED else char
+
+    # 生成棋盘字符串
+    rows: list[str] = []
+    for row in range(9, -1, -1):
+        row_str = ""
+        empty_count = 0
+        for col in range(9):
+            cell = grid[row][col]
+            if cell is None:
+                empty_count += 1
+            else:
+                if empty_count > 0:
+                    row_str += str(empty_count)
+                    empty_count = 0
+                row_str += cell
+        if empty_count > 0:
+            row_str += str(empty_count)
+        rows.append(row_str)
+
+    board_str = "/".join(rows)
+    turn_str = "r" if board.current_turn == Color.RED else "b"
+    viewer_str = "r" if viewer == Color.RED else "b"
+
+    return f"{board_str} {captured_fen} {turn_str} {viewer_str}"
+
+
+def apply_move_with_capture(fen: str, move_str: str) -> tuple[str, dict | None]:
+    """应用走法到 FEN，返回新 FEN 和被吃子信息
+
+    与 apply_move_to_fen 不同，此函数还返回被吃子信息。
+
+    Args:
+        fen: 当前 FEN
+        move_str: 走法字符串（如 "a0a1" 或 "+a0a1"）
+
+    Returns:
+        (新 FEN, 被吃子信息)
+        被吃子信息格式: {"type": str, "color": str, "was_hidden": bool} 或 None
+    """
+    from engine.simulation import SimulationBoard
+
+    # 解析走法
+    move, _ = parse_move(move_str)
+    if move is None:
+        raise ValueError(f"Invalid move: {move_str}")
+
+    # 创建 SimulationBoard
+    board = create_board_from_fen(fen)
+
+    # 检查被吃子
+    target = board.get_piece(move.to_pos)
+    captured_info = None
+    if target:
+        captured_info = {
+            "type": (
+                target.actual_type.value
+                if target.actual_type
+                else target.movement_type.value
+                if target.movement_type
+                else None
+            ),
+            "color": target.color.value,
+            "was_hidden": target.is_hidden,
+        }
+
+    # 执行走法
+    board.make_move(move)
+
+    # 从原始 FEN 提取被吃子和视角
+    parts = fen.split(" ")
+    current_captured = parts[1] if len(parts) > 1 else "-:-"
+    viewer_str = parts[3] if len(parts) > 3 else "r"
+    viewer = Color.RED if viewer_str == "r" else Color.BLACK
+
+    # 更新被吃子 FEN 部分
+    captured_fen = _update_captured_fen(current_captured, captured_info, viewer)
+
+    # 生成新 FEN
+    new_fen = simulation_board_to_fen(board, captured_fen, viewer)
+
+    return new_fen, captured_info
+
+
+def _update_captured_fen(current_captured: str, captured_info: dict | None, viewer: Color) -> str:
+    """更新被吃子 FEN 部分"""
+    if captured_info is None:
+        return current_captured
+
+    # 解析当前被吃子
+    if current_captured == "-:-":
+        red_lost, black_lost = "", ""
+    else:
+        parts = current_captured.split(":")
+        red_lost = parts[0] if parts[0] != "-" else ""
+        black_lost = parts[1] if len(parts) > 1 and parts[1] != "-" else ""
+
+    # 确定添加的字符
+    pt = captured_info["type"]
+    color = captured_info["color"]
+    was_hidden = captured_info["was_hidden"]
+
+    if pt:
+        # 有类型信息
+        char = PIECE_TO_CHAR.get(PieceType(pt), "?")
+        if was_hidden:
+            # 暗子被吃 - 小写表示我知道身份
+            char = char.lower()
+        else:
+            # 明子被吃 - 大写
+            char = char.upper()
+    else:
+        # 暗子被吃但不知道身份
+        char = "?"
+
+    # 添加到对应列表
+    if color == "red":
+        red_lost += char
+    else:
+        black_lost += char
+
+    # 生成新的被吃子 FEN
+    red_part = red_lost if red_lost else "-"
+    black_part = black_lost if black_lost else "-"
+    return f"{red_part}:{black_part}"
+
+
 # =============================================================================
 # 显示相关常量
 # =============================================================================
