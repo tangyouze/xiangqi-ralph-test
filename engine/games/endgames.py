@@ -90,10 +90,41 @@ _CLASSIC_DATA = [
     ("3k5/4a4/9/9/3C5/3H5/9/3R5/9/4K4 -:- r r", "侧攻", "综合杀法"),
 ]
 
+# Mate Distance 测试残局（简单局面，用于验证 AI 选择最快将死路径）
+_MATE_DISTANCE_DATA = [
+    # 单车残局 - 不同位置（黑将在 d9，避免同列）
+    ("3k5/9/9/9/9/9/9/9/R8/4K4 -:- r r", "车a1", "单车测试"),
+    ("3k5/9/9/9/9/9/9/9/1R7/4K4 -:- r r", "车b1", "单车测试"),
+    ("3k5/9/9/9/9/9/9/9/2R6/4K4 -:- r r", "车c1", "单车测试"),
+    ("3k5/9/9/9/9/9/4R4/9/9/4K4 -:- r r", "车e3", "单车测试"),
+    ("3k5/9/9/9/9/9/9/6R2/9/4K4 -:- r r", "车g2", "单车测试"),
+    ("3k5/9/9/9/9/9/9/9/8R/4K4 -:- r r", "车i1", "单车测试"),
+    # 单车残局 - 快速将死
+    ("3k5/9/9/9/9/9/R8/9/9/4K4 -:- r r", "车a3", "单车快杀"),
+    ("4k4/R8/9/9/9/9/9/9/9/3K5 -:- r r", "车a8近将", "单车快杀"),
+    # 单马残局（黑将在 d9，避免被马直接吃）
+    ("3k5/9/9/3H5/9/9/9/9/9/4K4 -:- r r", "马d6", "单马测试"),
+    ("3k5/9/9/9/9/4H4/9/9/9/4K4 -:- r r", "马e4", "单马测试"),
+    ("3k5/9/9/9/9/9/9/9/9/H3K4 -:- r r", "马a0角落", "单马测试"),
+    ("3k5/2H6/9/9/9/9/9/9/9/4K4 -:- r r", "马c8近将", "单马测试"),
+    # 简单必杀局面（有士挡路，避免直接将军）
+    ("4k4/4a4/9/9/9/9/9/4R4/9/4K4 -:- r r", "车入宫快杀", "简单必杀"),
+    ("3k5/9/9/9/9/9/9/4R4/9/4K4 -:- r r", "车对空将", "简单必杀"),
+    ("3k5/9/9/9/4R4/9/9/9/9/4K4 -:- r r", "车e5中心", "简单必杀"),
+    # 单马困毙（经典残局）
+    ("3k5/9/1H7/9/9/9/9/9/9/4K4 -:- r r", "单马困毙", "单马困毙"),
+]
+
 # 生成带 ID 的经典残局列表
 CLASSIC_ENDGAMES = [
     Endgame(id=f"END{i + 1:04d}", fen=fen, name=name, category=cat)
     for i, (fen, name, cat) in enumerate(_CLASSIC_DATA)
+]
+
+# 生成带 ID 的 Mate Distance 测试残局列表（ID 从 END0029 开始）
+MATE_DISTANCE_ENDGAMES = [
+    Endgame(id=f"END{i + 29:04d}", fen=fen, name=name, category=cat)
+    for i, (fen, name, cat) in enumerate(_MATE_DISTANCE_DATA)
 ]
 
 # 随机残局 FEN 数据（100 个，自动生成，多样化子力分布）
@@ -207,7 +238,7 @@ RANDOM_ENDGAMES = [
 ]
 
 # 所有残局
-ALL_ENDGAMES = CLASSIC_ENDGAMES + RANDOM_ENDGAMES
+ALL_ENDGAMES = CLASSIC_ENDGAMES + MATE_DISTANCE_ENDGAMES + RANDOM_ENDGAMES
 
 
 # ID 索引

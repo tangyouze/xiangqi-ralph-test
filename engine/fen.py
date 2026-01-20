@@ -1223,14 +1223,14 @@ def fen_to_ascii_cn(fen: str) -> str:
     return "\n".join(lines)
 
 
-def fen_to_canvas_html(fen: str) -> str:
-    """将 FEN 转换为交互式 Canvas 棋盘的 HTML 代码
+def fen_to_canvas_html(fen: str, arrow: str | None = None) -> str:
+    """将 FEN 转换为 Canvas 棋盘的 HTML 代码
 
-    支持点击选子和走子（纯前端交互，不验证走法合法性）。
-    50% 缩放版本，适合嵌入页面。
+    50% 缩放版本，适合嵌入页面。可选绘制最佳走法箭头。
 
     Args:
         fen: FEN 字符串
+        arrow: 可选，走法字符串如 "a0a1" 或 "+e2e3"。如果有则绘制箭头
 
     Returns:
         HTML 字符串，可用于 st.components.v1.html() 渲染
@@ -1258,16 +1258,23 @@ def fen_to_canvas_html(fen: str) -> str:
 
     pieces_json = json.dumps(pieces)
 
+    # 解析箭头走法
+    arrow_data = "null"
+    if arrow:
+        # 移除 '+' 前缀和 '=X' 后缀
+        arrow_clean = arrow.lstrip("+").split("=")[0]
+        if len(arrow_clean) >= 4:
+            from_col = COL_TO_CHAR.index(arrow_clean[0]) if arrow_clean[0] in COL_TO_CHAR else 0
+            from_row = 9 - int(arrow_clean[1])  # FEN row 转 canvas row
+            to_col = COL_TO_CHAR.index(arrow_clean[2]) if arrow_clean[2] in COL_TO_CHAR else 0
+            to_row = 9 - int(arrow_clean[3])
+            arrow_data = json.dumps(
+                {"fromCol": from_col, "fromRow": from_row, "toCol": to_col, "toRow": to_row}
+            )
+
     # 50% 缩放: cellSize 40->20, margin 30->18, pieceRadius 16->8
     html = f"""
-    <div style="display:flex;gap:10px;align-items:flex-start;">
-        <canvas id="interactiveBoard" style="width:196px;height:216px;cursor:pointer;"></canvas>
-        <div id="moveInfo" style="font-family:monospace;font-size:11px;padding:6px;background:#f0f0f0;border-radius:4px;min-width:120px;">
-            <div><b>Click to select</b></div>
-            <div id="selectedPiece" style="margin-top:6px;"></div>
-            <div id="moveHistory" style="margin-top:6px;"></div>
-        </div>
-    </div>
+    <canvas id="interactiveBoard" style="width:196px;height:216px;"></canvas>
     <script>
     (function() {{
         const canvas = document.getElementById('interactiveBoard');
@@ -1275,12 +1282,10 @@ def fen_to_canvas_html(fen: str) -> str:
         const cellSize = 20;
         const margin = 18;
         const pieceRadius = 8;
-        let pieces = {pieces_json};
+        const pieces = {pieces_json};
+        const arrowData = {arrow_data};
         const colLabels = 'abcdefghi';
         const rowLabels = '9876543210';
-
-        let selectedPiece = null;
-        let moveHistory = [];
 
         const dpr = window.devicePixelRatio || 1;
         const cssWidth = 196;
@@ -1359,106 +1364,73 @@ def fen_to_canvas_html(fen: str) -> str:
             [1, 7].forEach(col => [2, 7].forEach(row => drawStar(margin + col * cellSize, margin + row * cellSize)));
             [0, 2, 4, 6, 8].forEach(col => [3, 6].forEach(row => drawStar(margin + col * cellSize, margin + row * cellSize)));
 
+            // 绘制箭头（在棋子之后，这样箭头在上面更醒目）
+            function drawArrow() {{
+                if (!arrowData) return;
+                const x1 = margin + arrowData.fromCol * cellSize;
+                const y1 = margin + arrowData.fromRow * cellSize;
+                const x2 = margin + arrowData.toCol * cellSize;
+                const y2 = margin + arrowData.toRow * cellSize;
+
+                const arrowColor = 'rgba(34, 139, 34, 0.9)';  // 森林绿
+
+                // 箭头线条
+                ctx.strokeStyle = arrowColor;
+                ctx.fillStyle = arrowColor;
+                ctx.lineWidth = 4;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+
+                // 箭头头部
+                const angle = Math.atan2(y2 - y1, x2 - x1);
+                const headLen = 10;
+                ctx.beginPath();
+                ctx.moveTo(x2, y2);
+                ctx.lineTo(x2 - headLen * Math.cos(angle - Math.PI/5),
+                           y2 - headLen * Math.sin(angle - Math.PI/5));
+                ctx.lineTo(x2 - headLen * Math.cos(angle + Math.PI/5),
+                           y2 - headLen * Math.sin(angle + Math.PI/5));
+                ctx.closePath();
+                ctx.fill();
+            }}
+
+            // 绘制棋子
             pieces.forEach(p => {{
                 const x = margin + p.x * cellSize;
                 const y = margin + p.y * cellSize;
                 const color = p.isRed ? '#DC143C' : '#2F4F4F';
-                const isSelected = selectedPiece && selectedPiece.x === p.x && selectedPiece.y === p.y;
 
-                if (isSelected) {{
-                    ctx.beginPath();
-                    ctx.arc(x, y, pieceRadius + 2, 0, Math.PI * 2);
-                    ctx.fillStyle = 'rgba(255,215,0,0.5)';
-                    ctx.fill();
-                }}
-
+                // 阴影
                 ctx.beginPath();
                 ctx.arc(x + 1, y + 1, pieceRadius, 0, Math.PI * 2);
                 ctx.fillStyle = 'rgba(0,0,0,0.2)';
                 ctx.fill();
 
+                // 棋子底色
                 ctx.beginPath();
                 ctx.arc(x, y, pieceRadius, 0, Math.PI * 2);
                 ctx.fillStyle = '#FFFAF0';
                 ctx.fill();
-                ctx.strokeStyle = isSelected ? '#FFD700' : color;
-                ctx.lineWidth = isSelected ? 1.5 : 1;
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 1;
                 ctx.stroke();
 
+                // 棋子文字
                 ctx.fillStyle = color;
                 ctx.font = 'bold 7px sans-serif';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.fillText(p.text, x, y);
             }});
-        }}
 
-        function updateInfo() {{
-            const selDiv = document.getElementById('selectedPiece');
-            const histDiv = document.getElementById('moveHistory');
-            if (selectedPiece) {{
-                const pos = colLabels[selectedPiece.x] + rowLabels[selectedPiece.y];
-                selDiv.innerHTML = '<b>Selected:</b> ' + selectedPiece.text + ' ' + pos;
-            }} else {{
-                selDiv.innerHTML = '';
-            }}
-            if (moveHistory.length > 0) {{
-                histDiv.innerHTML = '<b>Moves:</b><br>' + moveHistory.slice(-5).join('<br>');
-            }}
+            // 在棋子上方绘制箭头
+            drawArrow();
         }}
-
-        function getClickPos(e) {{
-            const rect = canvas.getBoundingClientRect();
-            const scaleX = cssWidth / rect.width;
-            const scaleY = cssHeight / rect.height;
-            const x = (e.clientX - rect.left) * scaleX;
-            const y = (e.clientY - rect.top) * scaleY;
-            const col = Math.round((x - margin) / cellSize);
-            const row = Math.round((y - margin) / cellSize);
-            if (col >= 0 && col <= 8 && row >= 0 && row <= 9) {{
-                return {{ col, row }};
-            }}
-            return null;
-        }}
-
-        function findPiece(col, row) {{
-            return pieces.find(p => p.x === col && p.y === row);
-        }}
-
-        canvas.addEventListener('click', function(e) {{
-            const pos = getClickPos(e);
-            if (!pos) return;
-            const clickedPiece = findPiece(pos.col, pos.row);
-            if (selectedPiece) {{
-                if (clickedPiece === selectedPiece) {{
-                    selectedPiece = null;
-                }} else if (clickedPiece && clickedPiece.isRed === selectedPiece.isRed) {{
-                    selectedPiece = clickedPiece;
-                }} else {{
-                    const fromPos = colLabels[selectedPiece.x] + rowLabels[selectedPiece.y];
-                    const toPos = colLabels[pos.col] + rowLabels[pos.row];
-                    const moveStr = selectedPiece.text + ' ' + fromPos + '->' + toPos;
-                    if (clickedPiece) {{
-                        pieces = pieces.filter(p => p !== clickedPiece);
-                        moveHistory.push(moveStr + 'x' + clickedPiece.text);
-                    }} else {{
-                        moveHistory.push(moveStr);
-                    }}
-                    selectedPiece.x = pos.col;
-                    selectedPiece.y = pos.row;
-                    selectedPiece = null;
-                }}
-            }} else {{
-                if (clickedPiece) {{
-                    selectedPiece = clickedPiece;
-                }}
-            }}
-            draw();
-            updateInfo();
-        }});
 
         draw();
-        updateInfo();
     }})();
     </script>
     """

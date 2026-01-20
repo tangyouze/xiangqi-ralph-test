@@ -1,3 +1,5 @@
+**重要：无论何时，都用中文思考和回复。**
+
 # 揭棋 AI 项目
 
 ## AI 策略概览
@@ -74,6 +76,15 @@
       MIN (对方)
   ```
 
+**重要：无论何时，都用中文思考和回复。**
+
+## 中国象棋规则要点
+
+- **困毙 = 输**：无子可走（困毙）的一方判负，不管是否被将军
+  - 与国际象棋不同！国际象棋困毙但未被将军 = 和棋（stalemate）
+  - 中国象棋无此例外，困毙即输
+- **白脸将**：双方将帅在同一列且中间无子阻挡，走成此局面的一方输
+
 ## 测试命令
 
 ```bash
@@ -106,4 +117,6 @@ just fast-battle RED BLACK GAMES
 `use_container_width` will be removed after 2025-12-31.
 
 For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+
+**重要：无论何时，都用中文思考和回复。**
 

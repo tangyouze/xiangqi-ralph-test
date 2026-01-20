@@ -14,9 +14,10 @@ from __future__ import annotations
 import streamlit as st
 import streamlit.components.v1 as components
 
-from engine.fen import apply_move_with_capture, fen_to_canvas_html, parse_fen
+from engine.battle import run_battle
+from engine.fen import fen_to_canvas_html
 from engine.games.endgames import ALL_ENDGAMES
-from engine.rust_ai import DEFAULT_STRATEGY, UnifiedAIEngine
+from engine.rust_ai import DEFAULT_STRATEGY
 from engine.types import Color, PieceType
 
 # =============================================================================
@@ -123,163 +124,6 @@ def parse_captured_pieces(fen: str) -> tuple[str, str]:
 
 
 # =============================================================================
-# 核心功能
-# =============================================================================
-
-
-def run_full_battle(
-    start_fen: str,
-    red_strategy: str,
-    black_strategy: str,
-    time_limit: float,
-    max_moves: int = 200,
-    progress_callback=None,
-):
-    """运行完整对弈，返回 (battle_history, result)
-
-    基于 FEN 进行对弈，不需要 JieqiGame。
-    progress_callback: 回调函数 (move_num, player, move_str, score) 用于更新进度
-    """
-    # 创建 AI 引擎
-    red_ai = UnifiedAIEngine(strategy=red_strategy, time_limit=time_limit)
-    black_ai = UnifiedAIEngine(strategy=black_strategy, time_limit=time_limit)
-
-    history = []
-
-    # 记录初始状态（步数 0）
-    history.append(
-        {
-            "move_num": 0,
-            "player": None,
-            "strategy": None,
-            "fen_before": None,
-            "fen_after": start_fen,
-            "move": None,
-            "score": None,
-            "nodes": 0,
-            "nps": 0.0,
-            "time_ms": 0.0,
-            "candidates": [],
-            "revealed_type": None,
-            "captured": None,
-        }
-    )
-
-    current_fen = start_fen
-    move_count = 0
-    result = "ongoing"
-
-    # 用于检测重复局面
-    repetition_count = {}
-
-    while move_count < max_moves:
-        # 解析当前回合
-        state = parse_fen(current_fen)
-        current_turn = state.turn
-        current_ai = red_ai if current_turn == Color.RED else black_ai
-        strategy_name = red_strategy if current_turn == Color.RED else black_strategy
-        player = "red" if current_turn == Color.RED else "black"
-
-        # 获取走法前的静态评估
-        try:
-            eval_before, _ = current_ai.get_eval(current_fen)
-        except Exception:
-            eval_before = 0.0
-
-        # 获取最佳走法及完整搜索统计
-        try:
-            stats = current_ai.get_best_moves_full_stats(current_fen, n=20)
-            candidates = stats["moves"]
-            nodes = stats["nodes"]
-            nps = stats["nps"]
-            depth = stats["depth"]
-            elapsed_ms = stats["elapsed_ms"]
-        except Exception:
-            # AI 报错，可能是游戏结束
-            result = "draw"
-            break
-
-        if not candidates:
-            # 没有合法走法，判断输赢
-            # 当前方无走法 = 当前方输
-            result = "black_win" if player == "red" else "red_win"
-            break
-
-        # 选择走法
-        move_str, score = candidates[0]
-
-        # 检查是否是揭子走法
-        is_reveal = move_str.startswith("+")
-        revealed_type = None
-        if is_reveal and "=" in move_str:
-            # 走法中包含揭子类型，如 "+a0a1=R"
-            revealed_type = move_str.split("=")[1].lower()
-
-        # 应用走法得到新 FEN
-        try:
-            new_fen, captured_info = apply_move_with_capture(current_fen, move_str)
-        except Exception:
-            # 走法执行失败
-            result = "draw"
-            break
-
-        # 获取走法后的静态评估
-        try:
-            eval_after, _ = current_ai.get_eval(new_fen)
-        except Exception:
-            eval_after = 0.0
-
-        move_count += 1
-
-        # 记录这一步
-        step = {
-            "move_num": move_count,
-            "player": player,
-            "strategy": strategy_name,
-            "fen_before": current_fen,
-            "fen_after": new_fen,
-            "move": move_str,
-            "score": score,
-            "eval_before": eval_before,
-            "eval_after": eval_after,
-            "depth": depth,
-            "nodes": nodes,
-            "nps": nps,
-            "time_ms": elapsed_ms,
-            "candidates": [{"move": m, "score": s} for m, s in candidates],
-            "revealed_type": revealed_type,
-            "captured": captured_info,
-        }
-        history.append(step)
-
-        # 回调进度更新
-        if progress_callback:
-            progress_callback(move_count, player, move_str, score)
-
-        # 检查游戏是否结束（通过吃将判断）
-        if captured_info and captured_info.get("type") == "king":
-            # 吃到将/帅，游戏结束
-            result = "red_win" if player == "red" else "black_win"
-            break
-
-        # 检测重复局面
-        board_part = new_fen.split(" ")[0]  # 只比较棋盘部分
-        repetition_count[board_part] = repetition_count.get(board_part, 0) + 1
-        if repetition_count[board_part] >= 3:
-            # 三次重复，判和
-            result = "draw"
-            break
-
-        current_fen = new_fen
-
-    # 如果还没结束但达到最大步数
-    if result == "ongoing":
-        result = "draw"
-
-    return history, result
-
-
-# =============================================================================
 # UI 渲染
 # =============================================================================
 
@@ -287,10 +131,8 @@ def run_full_battle(
 def render_sidebar():
     """渲染侧边栏"""
     with st.sidebar:
-        st.header("Settings")
-
         # 残局选择
-        options = [f"{e.id} - {e.name} ({e.category})" for e in ALL_ENDGAMES]
+        options = [f"{e.id} - {e.name}" for e in ALL_ENDGAMES]
         selected_idx = st.selectbox(
             "Position",
             options=range(len(options)),
@@ -308,55 +150,20 @@ def render_sidebar():
             st.session_state.playback_idx = 0
             st.rerun()
 
-        st.divider()
-
-        # FEN 输入
-        fen_input = st.text_area(
-            "FEN",
-            value=st.session_state.battle_fen,
-            height=80,
-        )
-        if fen_input != st.session_state.battle_fen:
-            st.session_state.battle_fen = fen_input
-            st.session_state.battle_history = []
-            st.session_state.battle_result = None
-            st.session_state.playback_idx = 0
-
-        # 棋盘预览
-        try:
-            html = fen_to_canvas_html(st.session_state.battle_fen)
-            components.html(html, height=230)
-        except Exception:
-            st.error("Invalid FEN")
-
-        st.divider()
-
-        # AI 设置
-        st.subheader("AI Settings")
-
+        # AI 设置（紧凑布局）
         col1, col2 = st.columns(2)
         with col1:
             st.session_state.red_strategy = st.selectbox(
-                "Red AI",
+                "Red",
                 AVAILABLE_STRATEGIES,
                 index=AVAILABLE_STRATEGIES.index(st.session_state.red_strategy),
             )
         with col2:
             st.session_state.black_strategy = st.selectbox(
-                "Black AI",
+                "Black",
                 AVAILABLE_STRATEGIES,
                 index=AVAILABLE_STRATEGIES.index(st.session_state.black_strategy),
             )
-
-        st.session_state.time_limit = st.slider(
-            "Time (s)",
-            0.1,
-            5.0,
-            st.session_state.time_limit,
-            step=0.1,
-        )
-
-        st.divider()
 
         # Run Battle 按钮
         if st.button("Run Battle", type="primary", width="stretch"):
@@ -366,14 +173,33 @@ def render_sidebar():
         # 显示对弈结果
         if st.session_state.battle_result:
             result = st.session_state.battle_result
+            moves = len(st.session_state.battle_history) - 1
             if result == "red_win":
-                st.success(f"Result: Red wins! ({len(st.session_state.battle_history) - 1} moves)")
+                st.success(f"Red wins! ({moves} moves)")
             elif result == "black_win":
-                st.success(
-                    f"Result: Black wins! ({len(st.session_state.battle_history) - 1} moves)"
-                )
+                st.success(f"Black wins! ({moves} moves)")
             else:
-                st.warning(f"Result: Draw ({len(st.session_state.battle_history) - 1} moves)")
+                st.warning(f"Draw ({moves} moves)")
+
+        # 高级选项（折叠）
+        with st.expander("Advanced"):
+            st.session_state.time_limit = st.slider(
+                "Time (s)",
+                0.1,
+                5.0,
+                st.session_state.time_limit,
+                step=0.1,
+            )
+            fen_input = st.text_area(
+                "FEN",
+                value=st.session_state.battle_fen,
+                height=60,
+            )
+            if fen_input != st.session_state.battle_fen:
+                st.session_state.battle_fen = fen_input
+                st.session_state.battle_history = []
+                st.session_state.battle_result = None
+                st.session_state.playback_idx = 0
 
 
 def render_playback_controls():
@@ -389,12 +215,12 @@ def render_playback_controls():
     col1, col2, col3, col4, col5 = st.columns([1, 1, 2, 1, 1])
 
     with col1:
-        if st.button("|<", key="btn_first", width="stretch"):
+        if st.button("⏮", key="btn_first", width="stretch"):
             st.session_state.playback_idx = 0
             st.rerun()
 
     with col2:
-        if st.button("<", key="btn_prev", width="stretch"):
+        if st.button("◀", key="btn_prev", width="stretch"):
             if idx > 0:
                 st.session_state.playback_idx = idx - 1
                 st.rerun()
@@ -406,13 +232,13 @@ def render_playback_controls():
         )
 
     with col4:
-        if st.button(">", key="btn_next", width="stretch"):
+        if st.button("▶", key="btn_next", width="stretch"):
             if idx < total:
                 st.session_state.playback_idx = idx + 1
                 st.rerun()
 
     with col5:
-        if st.button(">|", key="btn_last", width="stretch"):
+        if st.button("⏭", key="btn_last", width="stretch"):
             st.session_state.playback_idx = total
             st.rerun()
 
@@ -471,118 +297,88 @@ def render_debug_info():
     """渲染 debug 信息"""
     history = st.session_state.battle_history
     if not history:
-        st.info("Click 'Run Battle' to start")
+        # 没有对战记录时，显示当前选择的初始棋盘
+        try:
+            html = fen_to_canvas_html(st.session_state.battle_fen)
+            components.html(html, height=280)
+        except Exception:
+            st.error("Invalid FEN")
+        st.caption("Click 'Run Battle' to start")
         return
 
     idx = st.session_state.playback_idx
     step = history[idx]
 
-    # 当前步的棋盘
-    fen_to_show = step["fen_after"]
-    try:
-        html = fen_to_canvas_html(fen_to_show)
-        components.html(html, height=230)
-    except Exception:
-        st.error("Cannot render board")
-
     if idx == 0:
+        # 初始局面：只显示棋盘
+        try:
+            html = fen_to_canvas_html(step["fen_after"])
+            components.html(html, height=280)
+        except Exception:
+            pass
         st.caption("Initial position")
         return
 
     # 详细信息
     player = step["player"]
-    strategy = step["strategy"]
     move_num = step["move_num"]
-
-    # 标题行：#步数 颜色 策略
-    color_tag = "red" if player == "red" else "blue"
-    st.markdown(
-        f"**#{move_num}** <span style='color:{color_tag}'>{player.upper()}</span> {strategy}",
-        unsafe_allow_html=True,
-    )
-
-    # IN: FEN + Eval
-    eval_before = step.get("eval_before", 0.0)
-    st.code(f"IN:  {step['fen_before']}", language=None)
-    st.caption(f"Eval (before): {eval_before:+.1f}")
-
-    # 走法信息
     move = step["move"]
     score = step["score"]
-    eval_after = step.get("eval_after", 0.0)
-    depth = step.get("depth", 0)
-    time_ms = step["time_ms"]
-    nodes = step["nodes"]
-    nps = step["nps"]
+    eval_before = step.get("eval_before", 0.0)
     candidates = step["candidates"]
 
-    # 找出这步在候选中的排名
-    rank = 1
-    for i, c in enumerate(candidates):
-        if c["move"] == move:
-            rank = i + 1
-            break
+    # 找出排名
+    rank = next((i + 1 for i, c in enumerate(candidates) if c["move"] == move), 1)
 
-    # 揭子信息
-    reveal_str = ""
+    # 揭子/吃子信息
+    extra = ""
     if step["revealed_type"]:
         try:
             pt = PieceType(step["revealed_type"])
             color = Color.RED if player == "red" else Color.BLACK
-            reveal_str = f" 揭:{piece_to_chinese(pt, color)}"
+            extra += f" 揭:{piece_to_chinese(pt, color)}"
         except ValueError:
             pass
-
-    # 吃子信息
-    capture_str = ""
     if step["captured"] and step["captured"]["type"]:
         try:
             pt = PieceType(step["captured"]["type"])
             color = Color(step["captured"]["color"])
             was_hidden = step["captured"]["was_hidden"]
-            capture_str = f" 吃:{piece_to_chinese(pt, color, was_hidden)}"
+            extra += f" 吃:{piece_to_chinese(pt, color, was_hidden)}"
         except (ValueError, KeyError):
             pass
 
-    # 格式化数字
-    nodes_str = f"{nodes:,}" if nodes else "0"
-    nps_str = f"{nps:,.0f}" if nps else "0"
+    # GitHub 风格紧凑布局：棋盘在左，信息在右
+    color_dot = "🔴" if player == "red" else "⚫"
 
-    # 主走法行
-    st.markdown(
-        f"`{move}` {rank}/{len(candidates)}  score=**{score:+.1f}**  eval=**{eval_after:+.1f}**  "
-        f"{reveal_str}{capture_str}"
-    )
+    col1, col2 = st.columns([1, 2])
 
-    # 搜索统计行
-    st.caption(f"depth={depth}  {time_ms:.0f}ms  nodes={nodes_str}  nps={nps_str}")
+    with col1:
+        # 小棋盘（带箭头）
+        try:
+            html = fen_to_canvas_html(step["fen_before"], arrow=move)
+            components.html(html, height=280)
+        except Exception:
+            pass
 
-    # Top/Bottom candidates
-    if len(candidates) > 1:
-        top = candidates[0]
-        bottom = candidates[-1]
-        top_str = f"Top: `{top['move']}` {top['score']:+.1f}"
-        bottom_str = f"Bottom: `{bottom['move']}` {bottom['score']:+.1f}"
-        st.caption(f"{top_str}  |  {bottom_str}")
+    with col2:
+        # 紧凑信息
+        st.markdown(
+            f"{color_dot} **Step {move_num}** `{move}` {extra}",
+        )
+        st.caption(f"eval={eval_before:+.0f} → score={score:+.0f} ({rank}/{len(candidates)})")
 
-    # 被吃子累计
-    red_captured, black_captured = parse_captured_pieces(step["fen_after"])
-    if red_captured or black_captured:
-        parts = []
-        if red_captured:
-            parts.append(f"红吃: {red_captured}")
-        if black_captured:
-            parts.append(f"黑吃: {black_captured}")
-        st.caption(" | ".join(parts))
-
-    # FEN
-    st.code(f"FEN: {step['fen_after']}", language=None)
-
-    # 候选走法展开
-    with st.expander(f"Candidates (Top {min(10, len(candidates))})", expanded=False):
-        for i, c in enumerate(candidates[:10]):
-            marker = "→" if c["move"] == move else " "
-            st.text(f"{marker} {i + 1}. {c['move']:8} {c['score']:+.1f}")
+        # 候选走法（默认折叠）
+        with st.expander("Details", expanded=False):
+            st.caption(
+                f"depth={step.get('depth', 0)}  {step['time_ms']:.0f}ms  nodes={step['nodes']:,}"
+            )
+            red_cap, black_cap = parse_captured_pieces(step["fen_after"])
+            if red_cap or black_cap:
+                st.caption(f"红吃:{red_cap or '-'} | 黑吃:{black_cap or '-'}")
+            for i, c in enumerate(candidates[:5]):
+                marker = "→" if c["move"] == move else " "
+                st.text(f"{marker} {i + 1}. {c['move']:8} {c['score']:+.1f}")
 
 
 # =============================================================================
@@ -627,13 +423,49 @@ def main():
             progress_placeholder.markdown(f"**Move #{move_num}** - {player.upper()} thinking...")
             moves_log.text("\n".join(recent_moves))
 
-        history, result = run_full_battle(
-            st.session_state.battle_fen,
-            st.session_state.red_strategy,
-            st.session_state.black_strategy,
-            st.session_state.time_limit,
+        battle_result = run_battle(
+            start_fen=st.session_state.battle_fen,
+            red_strategy=st.session_state.red_strategy,
+            black_strategy=st.session_state.black_strategy,
+            time_limit=st.session_state.time_limit,
             progress_callback=update_progress,
         )
+
+        # 转换为兼容格式：添加初始状态到 history
+        history = [
+            {
+                "move_num": 0,
+                "player": None,
+                "fen_before": None,
+                "fen_after": st.session_state.battle_fen,
+                "move": None,
+                "score": None,
+                "candidates": [],
+                "revealed_type": None,
+                "captured": None,
+            }
+        ]
+        for step in battle_result.history:
+            history.append(
+                {
+                    "move_num": step.move_num,
+                    "player": step.player,
+                    "fen_before": step.fen_before,
+                    "fen_after": step.fen_after,
+                    "move": step.move,
+                    "score": step.score,
+                    "eval_before": step.eval_before,
+                    "eval_after": step.eval_after,
+                    "depth": step.depth,
+                    "nodes": step.nodes,
+                    "nps": step.nps,
+                    "time_ms": step.time_ms,
+                    "candidates": step.candidates,
+                    "revealed_type": step.revealed_type,
+                    "captured": step.captured,
+                }
+            )
+        result = battle_result.result
 
         # 更新最终状态
         result_text = {
@@ -642,7 +474,7 @@ def main():
             "draw": "🤝 Draw",
         }.get(result, result)
         status_container.update(
-            label=f"✅ {result_text} ({len(history) - 1} moves)", state="complete"
+            label=f"✅ {result_text} ({battle_result.total_moves} moves)", state="complete"
         )
 
         st.session_state.battle_history = history

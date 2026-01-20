@@ -92,9 +92,13 @@ def render_sidebar():
             st.session_state.selected_move_idx = None
             st.session_state.pending_analyze = True
 
-        # 图形化棋盘展示
+        # 图形化棋盘展示（如果有搜索结果，显示最佳走法箭头）
         try:
-            html = fen_to_canvas_html(st.session_state.search_fen)
+            best_move = None
+            tree = st.session_state.search_tree
+            if tree and tree.get("first_moves"):
+                best_move = tree["first_moves"][0]["move"]
+            html = fen_to_canvas_html(st.session_state.search_fen, arrow=best_move)
             components.html(html, height=230)
         except Exception:
             pass  # FEN 无效时不显示
