@@ -15,6 +15,7 @@ from engine.fen import (
     PIECE_SYMBOLS_CN,
     fen_to_ascii,
     fen_to_ascii_cn,
+    fix_fen_captured,
     validate_fen,
 )
 
@@ -29,7 +30,12 @@ __all__ = [
     "fen_to_ascii_cn",
     "Endgame",
     "CLASSIC_ENDGAMES",
+    "MATE_DISTANCE_ENDGAMES",
     "RANDOM_ENDGAMES",
+    "BASIC_ENDGAMES",
+    "KINGS_ONLY_ENDGAMES",
+    "RED_SINGLE_ENDGAMES",
+    "BOTH_SINGLE_ENDGAMES",
     "ALL_ENDGAMES",
     "get_endgame_by_id",
     "get_classic_endgames",
@@ -115,15 +121,15 @@ _MATE_DISTANCE_DATA = [
     ("3k5/9/1H7/9/9/9/9/9/9/4K4 -:- r r", "单马困毙", "单马困毙"),
 ]
 
-# 生成带 ID 的经典残局列表
+# 生成带 ID 的经典残局列表（修复被吃棋子）
 CLASSIC_ENDGAMES = [
-    Endgame(id=f"END{i + 1:04d}", fen=fen, name=name, category=cat)
+    Endgame(id=f"END{i + 1:04d}", fen=fix_fen_captured(fen), name=name, category=cat)
     for i, (fen, name, cat) in enumerate(_CLASSIC_DATA)
 ]
 
-# 生成带 ID 的 Mate Distance 测试残局列表（ID 从 END0029 开始）
+# 生成带 ID 的 Mate Distance 测试残局列表（ID 从 END0029 开始，修复被吃棋子）
 MATE_DISTANCE_ENDGAMES = [
-    Endgame(id=f"END{i + 29:04d}", fen=fen, name=name, category=cat)
+    Endgame(id=f"END{i + 29:04d}", fen=fix_fen_captured(fen), name=name, category=cat)
     for i, (fen, name, cat) in enumerate(_MATE_DISTANCE_DATA)
 ]
 
@@ -237,8 +243,327 @@ RANDOM_ENDGAMES = [
     for i, fen in enumerate(_RANDOM_FENS)
 ]
 
+
+# =============================================================================
+# 基础残局生成器
+# =============================================================================
+
+import random
+
+
+def _generate_board_fen(pieces: dict[tuple[int, int], str]) -> str:
+    """将棋子位置字典转换为 FEN 棋盘部分
+
+    Args:
+        pieces: {(row, col): piece_char} 其中 row 0=红底, 9=黑底
+
+    Returns:
+        FEN 棋盘字符串
+    """
+    rows_str = []
+    for row in range(9, -1, -1):  # 从 row 9 到 row 0
+        row_fen = ""
+        empty_count = 0
+        for col in range(9):
+            if (row, col) in pieces:
+                if empty_count > 0:
+                    row_fen += str(empty_count)
+                    empty_count = 0
+                row_fen += pieces[(row, col)]
+            else:
+                empty_count += 1
+        if empty_count > 0:
+            row_fen += str(empty_count)
+        rows_str.append(row_fen)
+    return "/".join(rows_str)
+
+
+def _kings_facing(red_king_pos: tuple[int, int], black_king_pos: tuple[int, int]) -> bool:
+    """检查帅将是否对面"""
+    # 如果不在同一列，不对面
+    if red_king_pos[1] != black_king_pos[1]:
+        return False
+    # 同列且中间没有棋子（这里假设只有帅将，所以同列就对面）
+    return True
+
+
+def _can_red_piece_attack_king(
+    piece_type: str, piece_pos: tuple[int, int], black_king_pos: tuple[int, int]
+) -> bool:
+    """检查红方棋子是否能直接攻击黑将（造成黑方被将军）"""
+    row, col = piece_pos
+    target_row, target_col = black_king_pos
+
+    if piece_type == "R":
+        # 车：同行或同列直线攻击
+        return row == target_row or col == target_col
+
+    elif piece_type == "H":
+        # 马：日字跳跃（这里简化，不考虑蹩马腿，因为只有帅将在棋盘上）
+        dr, dc = abs(target_row - row), abs(target_col - col)
+        return (dr == 2 and dc == 1) or (dr == 1 and dc == 2)
+
+    elif piece_type == "C":
+        # 炮：需要炮架，只有帅将时无法攻击
+        return False
+
+    elif piece_type == "E":
+        # 象：田字，不能过河（row <= 4）
+        return False  # 象不能直接吃将
+
+    elif piece_type == "A":
+        # 士：斜走一步，在宫内
+        dr, dc = abs(target_row - row), abs(target_col - col)
+        return dr == 1 and dc == 1
+
+    elif piece_type == "P":
+        # 兵：过河后可左右，未过河只能前进
+        # 红兵在 row >= 5 为过河
+        if row >= 5:  # 过河
+            if row + 1 == target_row and col == target_col:
+                return True  # 向前
+            if row == target_row and abs(col - target_col) == 1:
+                return True  # 左右
+        else:
+            if row + 1 == target_row and col == target_col:
+                return True  # 向前
+
+    return False
+
+
+def _generate_kings_only_endgames(count: int = 20, seed: int = 42) -> list[Endgame]:
+    """生成只有帅将的残局（理论上是和棋）"""
+    rng = random.Random(seed)
+
+    # 帅的位置：row 0-2, col 3-5
+    red_positions = [(r, c) for r in range(3) for c in range(3, 6)]
+    # 将的位置：row 7-9, col 3-5
+    black_positions = [(r, c) for r in range(7, 10) for c in range(3, 6)]
+
+    endgames = []
+    attempts = 0
+    while len(endgames) < count and attempts < 1000:
+        attempts += 1
+        red_king = rng.choice(red_positions)
+        black_king = rng.choice(black_positions)
+
+        # 跳过对面的情况
+        if _kings_facing(red_king, black_king):
+            continue
+
+        # 生成 FEN（自动修复被吃棋子）
+        pieces = {red_king: "K", black_king: "k"}
+        board = _generate_board_fen(pieces)
+        fen = fix_fen_captured(f"{board} -:- r r")
+
+        # 验证 FEN
+        valid, _ = validate_fen(fen)
+        if not valid:
+            continue
+
+        idx = len(endgames) + 1
+        endgames.append(
+            Endgame(
+                id=f"BAS{idx:04d}",
+                fen=fen,
+                name=f"仅帅将{idx}",
+                category="基础-仅帅将",
+            )
+        )
+
+    return endgames
+
+
+def _generate_red_single_piece_endgames(count_per_type: int = 20, seed: int = 43) -> list[Endgame]:
+    """生成红方单子残局（红方有帅+一个子，黑方只有将）"""
+    rng = random.Random(seed)
+
+    # 帅的位置：row 0-2, col 3-5
+    red_king_positions = [(r, c) for r in range(3) for c in range(3, 6)]
+    # 将的位置：row 7-9, col 3-5
+    black_king_positions = [(r, c) for r in range(7, 10) for c in range(3, 6)]
+
+    # 棋子类型及其可用位置
+    piece_types = {
+        "R": [(r, c) for r in range(10) for c in range(9)],  # 车全盘
+        "H": [(r, c) for r in range(10) for c in range(9)],  # 马全盘
+        "C": [(r, c) for r in range(10) for c in range(9)],  # 炮全盘
+        "E": [(r, c) for r in range(5) for c in [0, 2, 4, 6, 8] if (r + c) % 2 == 0],  # 象己方
+        "A": [
+            (r, c)
+            for r in range(3)
+            for c in range(3, 6)
+            if (r, c) in [(0, 3), (0, 5), (1, 4), (2, 3), (2, 5)]
+        ],
+        "P": [(r, c) for r in range(10) for c in range(9)],  # 兵全盘
+    }
+
+    # 精确的象位置
+    piece_types["E"] = [(0, 2), (0, 6), (2, 0), (2, 4), (2, 8), (4, 2), (4, 6)]
+    # 精确的士位置
+    piece_types["A"] = [(0, 3), (0, 5), (1, 4), (2, 3), (2, 5)]
+
+    piece_names = {"R": "车", "H": "马", "C": "炮", "E": "象", "A": "士", "P": "兵"}
+
+    endgames = []
+    total_idx = 0
+
+    for piece_type, positions in piece_types.items():
+        count = 0
+        attempts = 0
+        while count < count_per_type and attempts < 1000:
+            attempts += 1
+            red_king = rng.choice(red_king_positions)
+            black_king = rng.choice(black_king_positions)
+
+            # 跳过对面
+            if _kings_facing(red_king, black_king):
+                continue
+
+            # 随机选择棋子位置（排除帅将位置）
+            valid_positions = [p for p in positions if p != red_king and p != black_king]
+            if not valid_positions:
+                continue
+            piece_pos = rng.choice(valid_positions)
+
+            # 检查是否会造成黑方被将军
+            if _can_red_piece_attack_king(piece_type, piece_pos, black_king):
+                continue
+
+            # 生成 FEN（自动修复被吃棋子）
+            pieces = {red_king: "K", black_king: "k", piece_pos: piece_type}
+            board = _generate_board_fen(pieces)
+            fen = fix_fen_captured(f"{board} -:- r r")
+
+            # 验证 FEN
+            valid, _ = validate_fen(fen)
+            if not valid:
+                continue
+
+            total_idx += 1
+            count += 1
+            endgames.append(
+                Endgame(
+                    id=f"BAS{100 + total_idx:04d}",
+                    fen=fen,
+                    name=f"红{piece_names[piece_type]}{count}",
+                    category=f"基础-红{piece_names[piece_type]}",
+                )
+            )
+
+    return endgames
+
+
+def _generate_both_single_piece_endgames(
+    count_per_combo: int = 20, seed: int = 44
+) -> list[Endgame]:
+    """生成双方各一子残局（红方帅+一子，黑方将+一子）"""
+    rng = random.Random(seed)
+
+    # 帅的位置：row 0-2, col 3-5
+    red_king_positions = [(r, c) for r in range(3) for c in range(3, 6)]
+    # 将的位置：row 7-9, col 3-5
+    black_king_positions = [(r, c) for r in range(7, 10) for c in range(3, 6)]
+
+    # 红方棋子位置（己方半边）
+    red_piece_types = {
+        "R": [(r, c) for r in range(10) for c in range(9)],
+        "H": [(r, c) for r in range(10) for c in range(9)],
+        "C": [(r, c) for r in range(10) for c in range(9)],
+        "E": [(0, 2), (0, 6), (2, 0), (2, 4), (2, 8), (4, 2), (4, 6)],
+        "A": [(0, 3), (0, 5), (1, 4), (2, 3), (2, 5)],
+        "P": [(r, c) for r in range(10) for c in range(9)],
+    }
+
+    # 黑方棋子位置
+    black_piece_types = {
+        "r": [(r, c) for r in range(10) for c in range(9)],
+        "h": [(r, c) for r in range(10) for c in range(9)],
+        "c": [(r, c) for r in range(10) for c in range(9)],
+        "e": [(9, 2), (9, 6), (7, 0), (7, 4), (7, 8), (5, 2), (5, 6)],
+        "a": [(9, 3), (9, 5), (8, 4), (7, 3), (7, 5)],
+        "p": [(r, c) for r in range(10) for c in range(9)],
+    }
+
+    piece_names_red = {"R": "车", "H": "马", "C": "炮", "E": "象", "A": "士", "P": "兵"}
+    piece_names_black = {"r": "车", "h": "马", "c": "炮", "e": "相", "a": "仕", "p": "卒"}
+
+    endgames = []
+    total_idx = 0
+
+    for red_type, red_positions in red_piece_types.items():
+        for black_type, black_positions in black_piece_types.items():
+            count = 0
+            attempts = 0
+            while count < count_per_combo and attempts < 2000:
+                attempts += 1
+                red_king = rng.choice(red_king_positions)
+                black_king = rng.choice(black_king_positions)
+
+                # 跳过对面
+                if _kings_facing(red_king, black_king):
+                    continue
+
+                # 选择红方棋子位置
+                valid_red = [p for p in red_positions if p != red_king and p != black_king]
+                if not valid_red:
+                    continue
+                red_piece_pos = rng.choice(valid_red)
+
+                # 选择黑方棋子位置
+                valid_black = [
+                    p
+                    for p in black_positions
+                    if p != red_king and p != black_king and p != red_piece_pos
+                ]
+                if not valid_black:
+                    continue
+                black_piece_pos = rng.choice(valid_black)
+
+                # 检查红方棋子是否将军黑将
+                if _can_red_piece_attack_king(red_type, red_piece_pos, black_king):
+                    continue
+
+                # 生成 FEN（自动修复被吃棋子）
+                pieces = {
+                    red_king: "K",
+                    black_king: "k",
+                    red_piece_pos: red_type,
+                    black_piece_pos: black_type,
+                }
+                board = _generate_board_fen(pieces)
+                fen = fix_fen_captured(f"{board} -:- r r")
+
+                # 验证 FEN
+                valid, _ = validate_fen(fen)
+                if not valid:
+                    continue
+
+                total_idx += 1
+                count += 1
+                name = f"红{piece_names_red[red_type]}黑{piece_names_black[black_type]}{count}"
+                endgames.append(
+                    Endgame(
+                        id=f"BAS{500 + total_idx:04d}",
+                        fen=fen,
+                        name=name,
+                        category=f"基础-红{piece_names_red[red_type]}黑{piece_names_black[black_type]}",
+                    )
+                )
+
+    return endgames
+
+
+# 生成基础残局
+KINGS_ONLY_ENDGAMES = _generate_kings_only_endgames(count=20)
+RED_SINGLE_ENDGAMES = _generate_red_single_piece_endgames(count_per_type=20)
+BOTH_SINGLE_ENDGAMES = _generate_both_single_piece_endgames(count_per_combo=20)
+
+BASIC_ENDGAMES = KINGS_ONLY_ENDGAMES + RED_SINGLE_ENDGAMES + BOTH_SINGLE_ENDGAMES
+
+
 # 所有残局
-ALL_ENDGAMES = CLASSIC_ENDGAMES + MATE_DISTANCE_ENDGAMES + RANDOM_ENDGAMES
+ALL_ENDGAMES = CLASSIC_ENDGAMES + MATE_DISTANCE_ENDGAMES + RANDOM_ENDGAMES + BASIC_ENDGAMES
 
 
 # ID 索引
@@ -267,5 +592,10 @@ def get_all_endgames() -> list[Endgame]:
 
 if __name__ == "__main__":
     print(f"Classic endgames: {len(CLASSIC_ENDGAMES)}")
+    print(f"Mate distance endgames: {len(MATE_DISTANCE_ENDGAMES)}")
     print(f"Random endgames: {len(RANDOM_ENDGAMES)}")
+    print(f"Basic endgames: {len(BASIC_ENDGAMES)}")
+    print(f"  - Kings only: {len(KINGS_ONLY_ENDGAMES)}")
+    print(f"  - Red single: {len(RED_SINGLE_ENDGAMES)}")
+    print(f"  - Both single: {len(BOTH_SINGLE_ENDGAMES)}")
     print(f"Total: {len(ALL_ENDGAMES)}")

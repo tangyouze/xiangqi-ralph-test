@@ -1047,6 +1047,50 @@ def _can_red_attack_position(
     return False, ""
 
 
+def _parse_captured(captured_str: str) -> tuple[int, int, str | None]:
+    """解析被吃棋子字符串
+
+    Args:
+        captured_str: 如 "RP??:raHC" 或 "-:-"
+
+    Returns:
+        (red_captured_count, black_captured_count, error_msg)
+        - red_captured_count: 红方被吃的棋子数
+        - black_captured_count: 黑方被吃的棋子数
+        - error_msg: 错误信息，None 表示无错误
+    """
+    if ":" not in captured_str:
+        return 0, 0, f"被吃棋子格式错误，缺少冒号: {captured_str}"
+
+    red_lost, black_lost = captured_str.split(":", 1)
+
+    # 统计红方被吃（红方丢失的棋子）
+    red_captured = 0
+    if red_lost != "-":
+        for ch in red_lost:
+            if ch in "RHEACP?" or ch.isupper():
+                red_captured += 1
+            elif ch.islower():
+                # 小写也是被吃的棋子（暗子被吃，对方知道身份）
+                red_captured += 1
+            else:
+                return 0, 0, f"红方被吃棋子非法字符: {ch}"
+
+    # 统计黑方被吃（黑方丢失的棋子）
+    black_captured = 0
+    if black_lost != "-":
+        for ch in black_lost:
+            if ch in "rheacp?" or ch.islower():
+                black_captured += 1
+            elif ch.isupper():
+                # 大写也是被吃的棋子（暗子被吃，对方知道身份）
+                black_captured += 1
+            else:
+                return 0, 0, f"黑方被吃棋子非法字符: {ch}"
+
+    return red_captured, black_captured, None
+
+
 def validate_fen(fen: str) -> tuple[bool, str]:
     """验证 FEN 是否合法
 
@@ -1136,6 +1180,29 @@ def validate_fen(fen: str) -> tuple[bool, str]:
     if viewer_str not in ("r", "b"):
         return False, f"视角标记错误：{viewer_str}"
 
+    # 验证棋子数量一致性：每方恰好 16 个棋子（棋盘 + 被吃 = 16）
+    red_captured, black_captured, err = _parse_captured(captured_str)
+    if err:
+        return False, err
+
+    # 统计棋盘上的棋子
+    red_on_board = sum(v for k, v in piece_count.items() if k.isupper() or k == "X")
+    black_on_board = sum(v for k, v in piece_count.items() if k.islower() or k == "x")
+
+    red_total = red_on_board + red_captured
+    black_total = black_on_board + black_captured
+
+    if red_total != 16:
+        return (
+            False,
+            f"红方棋子数错误: 棋盘{red_on_board} + 被吃{red_captured} = {red_total}, 应为16",
+        )
+    if black_total != 16:
+        return (
+            False,
+            f"黑方棋子数错误: 棋盘{black_on_board} + 被吃{black_captured} = {black_total}, 应为16",
+        )
+
     # 检查黑方是否被将军（红方能否直接吃将）
     if black_king_pos:
         positions = _parse_board_positions(board_str)
@@ -1146,6 +1213,61 @@ def validate_fen(fen: str) -> tuple[bool, str]:
             return False, f"黑方被将军（{attacker}可吃将），非法局面"
 
     return True, "OK"
+
+
+def fix_fen_captured(fen: str) -> str:
+    """修复 FEN 的被吃棋子部分，使每方棋子总数 = 16
+
+    Args:
+        fen: FEN 字符串
+
+    Returns:
+        修复后的 FEN 字符串
+    """
+    parts = fen.split()
+    if len(parts) != 4:
+        return fen
+
+    board_str, _, turn_str, viewer_str = parts
+
+    # 统计棋盘上的棋子
+    piece_count: dict[str, int] = {}
+    for char in board_str:
+        if char.isalpha() and char not in "Xx":
+            piece_count[char] = piece_count.get(char, 0) + 1
+        elif char in "Xx":
+            # 暗子也计入
+            piece_count[char] = piece_count.get(char, 0) + 1
+
+    # 计算缺失的棋子（被吃的）
+    red_missing = []
+    black_missing = []
+
+    for piece, max_count in FULL_PIECE_COUNT.items():
+        on_board = piece_count.get(piece, 0)
+        missing = max_count - on_board
+        if missing > 0:
+            if piece.isupper():
+                red_missing.extend([piece] * missing)
+            else:
+                black_missing.extend([piece.upper()] * missing)
+
+    # 暗子计入 (X 计入红方，x 计入黑方)
+    red_hidden = piece_count.get("X", 0)
+    black_hidden = piece_count.get("x", 0)
+
+    # 红方总数 = 棋盘上的红子(含暗子) + 被吃红子 = 16
+    # 被吃红子数 = 16 - 棋盘上红子数
+    red_on_board = sum(v for k, v in piece_count.items() if k.isupper() or k == "X")
+    black_on_board = sum(v for k, v in piece_count.items() if k.islower() or k == "x")
+
+    # 生成被吃棋子字符串
+    red_captured_str = "".join(sorted(red_missing)) if red_missing else "-"
+    black_captured_str = "".join(sorted(black_missing)).lower() if black_missing else "-"
+
+    captured_str = f"{red_captured_str}:{black_captured_str}"
+
+    return f"{board_str} {captured_str} {turn_str} {viewer_str}"
 
 
 def fen_to_ascii(fen: str) -> str:
