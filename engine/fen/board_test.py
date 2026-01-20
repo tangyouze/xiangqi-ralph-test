@@ -104,3 +104,86 @@ class TestHiddenPool:
         # 允许一定的随机误差
         assert 0.25 < pawn_ratio < 0.45, f"Pawn ratio {pawn_ratio} out of expected range"
         assert 0.08 < rook_ratio < 0.20, f"Rook ratio {rook_ratio} out of expected range"
+
+
+class TestCapturedDisplay:
+    """被吃子显示解析测试"""
+
+    def test_empty_captured(self):
+        """测试无被吃子"""
+        from engine.fen.display import _parse_captured_for_canvas
+
+        result = _parse_captured_for_canvas("-:-", "red")
+        assert result == {"red": [], "black": []}
+
+    def test_revealed_piece_captured(self):
+        """测试明子被吃（大写字母）"""
+        from engine.fen.display import _parse_captured_for_canvas
+
+        # 红方被吃了一个车R，黑方被吃了一个炮C
+        result = _parse_captured_for_canvas("R:C", "red")
+
+        # 红方被吃的车，显示"车"，不是暗子
+        assert len(result["red"]) == 1
+        assert result["red"][0]["text"] == "车"
+        assert result["red"][0]["isHidden"] is False
+
+        # 黑方被吃的炮，显示"砲"，不是暗子
+        assert len(result["black"]) == 1
+        assert result["black"][0]["text"] == "砲"
+        assert result["black"][0]["isHidden"] is False
+
+    def test_hidden_piece_captured_viewer_is_eater(self):
+        """测试暗子被吃，viewer 是吃子方（能看到身份）"""
+        from engine.fen.display import _parse_captured_for_canvas
+
+        # 黑方被吃了暗子（小写 r 表示暗子车）
+        # viewer 是红方，红方吃的黑方暗子，能看到身份
+        result = _parse_captured_for_canvas("-:r", "red")
+
+        assert len(result["black"]) == 1
+        assert result["black"][0]["text"] == "車"  # 黑方的车是 "車"
+        assert result["black"][0]["isHidden"] is True
+        assert result["black"][0]["isUnknown"] is False
+
+    def test_hidden_piece_captured_viewer_is_loser(self):
+        """测试暗子被吃，viewer 是被吃方（看不到身份）"""
+        from engine.fen.display import _parse_captured_for_canvas
+
+        # 红方被吃了暗子（小写 r 表示暗子车）
+        # viewer 是红方，黑方吃的红方暗子，红方看不到对方看到的身份
+        result = _parse_captured_for_canvas("r:-", "red")
+
+        assert len(result["red"]) == 1
+        assert result["red"][0]["text"] == "暗"  # 红方看不到
+        assert result["red"][0]["isHidden"] is True
+        assert result["red"][0]["isUnknown"] is True
+
+    def test_unknown_hidden_piece(self):
+        """测试未知暗子被吃（?）"""
+        from engine.fen.display import _parse_captured_for_canvas
+
+        result = _parse_captured_for_canvas("?:-", "red")
+
+        assert len(result["red"]) == 1
+        assert result["red"][0]["text"] == "暗"
+        assert result["red"][0]["isUnknown"] is True
+
+    def test_mixed_captured(self):
+        """测试混合被吃子（明子+暗子）"""
+        from engine.fen.display import _parse_captured_for_canvas
+
+        # 红方被吃：明车R + 暗兵p
+        # 黑方被吃：明炮C
+        result = _parse_captured_for_canvas("Rp:C", "red")
+
+        # 红方被吃的
+        assert len(result["red"]) == 2
+        assert result["red"][0]["text"] == "车"  # 明车
+        assert result["red"][0]["isHidden"] is False
+        assert result["red"][1]["text"] == "暗"  # 暗兵（被黑方吃，红方看不到）
+        assert result["red"][1]["isUnknown"] is True
+
+        # 黑方被吃的
+        assert len(result["black"]) == 1
+        assert result["black"][0]["text"] == "砲"
