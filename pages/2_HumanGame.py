@@ -449,6 +449,21 @@ def render_sidebar():
             reset_game()
             st.rerun()
 
+        # FEN 输入（可手动编辑）
+        fen_input = st.text_area(
+            "FEN",
+            value=st.session_state.fen,
+            height=60,
+        )
+        if fen_input != st.session_state.fen:
+            st.session_state.fen = fen_input
+            st.session_state.selected = None
+            st.session_state.history = []
+            st.session_state.message = ""
+            st.session_state.game_over = None
+
+        st.divider()
+
         # AI 设置
         st.session_state.strategy = st.selectbox("AI Strategy", AVAILABLE_STRATEGIES)
         st.session_state.time_limit = st.slider("Think Time (s)", 0.1, 3.0, 1.0, step=0.1)

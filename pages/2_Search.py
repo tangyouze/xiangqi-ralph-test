@@ -59,19 +59,19 @@ def render_sidebar():
     with st.sidebar:
         st.header("Settings")
 
-        # 合并所有局面：残局 + 中局
+        # 合并所有局面：Standard + 残局 + 中局
         all_positions = list(ALL_ENDGAMES) + list(ALL_MIDGAME_POSITIONS)
-        options = []
+        options = ["Standard (揭棋开局)"]
         for p in ALL_ENDGAMES:
             options.append(f"{p.id} - {p.name} ({p.category})")
         for p in ALL_MIDGAME_POSITIONS:
             options.append(f"{p.id} - {p.advantage.value}")
 
-        # 确保索引有效
-        current_idx = st.session_state.endgame_idx
+        # 确保索引有效（-1 表示 Standard）
+        current_idx = st.session_state.endgame_idx + 1
         if current_idx < 0 or current_idx >= len(options):
             current_idx = 0
-            st.session_state.endgame_idx = 0
+            st.session_state.endgame_idx = -1
 
         selected_idx = st.selectbox(
             "Position",
@@ -82,9 +82,15 @@ def render_sidebar():
         )
 
         # 选择变化时更新 FEN 并触发分析
-        if selected_idx != st.session_state.endgame_idx:
-            st.session_state.endgame_idx = selected_idx
-            st.session_state.search_fen = all_positions[selected_idx].fen
+        new_endgame_idx = selected_idx - 1
+        if new_endgame_idx != st.session_state.endgame_idx:
+            st.session_state.endgame_idx = new_endgame_idx
+            if new_endgame_idx < 0:
+                st.session_state.search_fen = (
+                    "xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXKXXXX -:- r r"
+                )
+            else:
+                st.session_state.search_fen = all_positions[new_endgame_idx].fen
             st.session_state.search_tree = None
             st.session_state.selected_move_idx = None
             st.session_state.pending_analyze = True

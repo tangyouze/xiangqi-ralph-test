@@ -132,19 +132,19 @@ def parse_captured_pieces(fen: str) -> tuple[str, str]:
 def render_sidebar():
     """渲染侧边栏"""
     with st.sidebar:
-        # 合并所有局面：残局 + 中局
+        # 合并所有局面：Standard + 残局 + 中局
         all_positions = list(ALL_ENDGAMES) + list(ALL_MIDGAME_POSITIONS)
-        options = []
+        options = ["Standard (揭棋开局)"]
         for p in ALL_ENDGAMES:
             options.append(f"{p.id} - {p.name}")
         for p in ALL_MIDGAME_POSITIONS:
             options.append(f"{p.id} - {p.advantage.value}")
 
-        # 确保索引有效
-        current_idx = st.session_state.endgame_idx
+        # 确保索引有效（-1 表示 Standard）
+        current_idx = st.session_state.endgame_idx + 1
         if current_idx < 0 or current_idx >= len(options):
             current_idx = 0
-            st.session_state.endgame_idx = 0
+            st.session_state.endgame_idx = -1
         selected_idx = st.selectbox(
             "Position",
             options=range(len(options)),
@@ -154,13 +154,34 @@ def render_sidebar():
         )
 
         # 选择变化时更新 FEN
-        if selected_idx != st.session_state.endgame_idx:
-            st.session_state.endgame_idx = selected_idx
-            st.session_state.battle_fen = all_positions[selected_idx].fen
+        new_endgame_idx = selected_idx - 1
+        if new_endgame_idx != st.session_state.endgame_idx:
+            st.session_state.endgame_idx = new_endgame_idx
+            if new_endgame_idx < 0:
+                # Standard 开局
+                st.session_state.battle_fen = (
+                    "xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXKXXXX -:- r r"
+                )
+            else:
+                st.session_state.battle_fen = all_positions[new_endgame_idx].fen
             st.session_state.battle_history = []
             st.session_state.battle_result = None
             st.session_state.playback_idx = 0
             st.rerun()
+
+        # FEN 输入（可手动编辑）
+        fen_input = st.text_area(
+            "FEN",
+            value=st.session_state.battle_fen,
+            height=60,
+        )
+        if fen_input != st.session_state.battle_fen:
+            st.session_state.battle_fen = fen_input
+            st.session_state.battle_history = []
+            st.session_state.battle_result = None
+            st.session_state.playback_idx = 0
+
+        st.divider()
 
         # AI 设置（紧凑布局）
         col1, col2 = st.columns(2)
@@ -177,6 +198,14 @@ def render_sidebar():
                 index=AVAILABLE_STRATEGIES.index(st.session_state.black_strategy),
             )
 
+        st.session_state.time_limit = st.slider(
+            "Time (s)",
+            0.1,
+            5.0,
+            st.session_state.time_limit,
+            step=0.1,
+        )
+
         # Run Battle 按钮
         if st.button("Run Battle", type="primary", width="stretch"):
             st.session_state.is_running = True
@@ -192,26 +221,6 @@ def render_sidebar():
                 st.success(f"Black wins! ({moves} moves)")
             else:
                 st.warning(f"Draw ({moves} moves)")
-
-        # 高级选项（折叠）
-        with st.expander("Advanced"):
-            st.session_state.time_limit = st.slider(
-                "Time (s)",
-                0.1,
-                5.0,
-                st.session_state.time_limit,
-                step=0.1,
-            )
-            fen_input = st.text_area(
-                "FEN",
-                value=st.session_state.battle_fen,
-                height=60,
-            )
-            if fen_input != st.session_state.battle_fen:
-                st.session_state.battle_fen = fen_input
-                st.session_state.battle_history = []
-                st.session_state.battle_result = None
-                st.session_state.playback_idx = 0
 
 
 def render_playback_controls():
