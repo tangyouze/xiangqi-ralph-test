@@ -77,13 +77,16 @@ def init_state():
 
 def reset_game():
     idx = st.session_state.endgame_idx
-    pos_type = st.session_state.get("position_type", "Standard")
-    if pos_type == "Standard" or idx < 0:
+    # idx = -1 表示标准开局
+    # idx = 0~(len(ALL_ENDGAMES)-1) 表示残局
+    # idx >= len(ALL_ENDGAMES) 表示中局
+    if idx < 0:
         st.session_state.fen = STANDARD_FEN
-    elif pos_type == "Endgame":
+    elif idx < len(ALL_ENDGAMES):
         st.session_state.fen = ALL_ENDGAMES[idx].fen
-    else:  # Midgame
-        st.session_state.fen = ALL_MIDGAME_POSITIONS[idx].fen
+    else:
+        midgame_idx = idx - len(ALL_ENDGAMES)
+        st.session_state.fen = ALL_MIDGAME_POSITIONS[midgame_idx].fen
     st.session_state.selected = None
     st.session_state.history = []
     st.session_state.message = ""
@@ -418,33 +421,33 @@ def render_sidebar():
         # 设置
         st.subheader("Settings")
 
-        # 局面类型选择
-        pos_type = st.radio(
-            "Position Type",
-            ["Standard", "Endgame", "Midgame"],
-            horizontal=True,
-            key="position_type",
+        # 合并所有局面：标准开局 + 残局 + 中局
+        all_positions = list(ALL_ENDGAMES) + list(ALL_MIDGAME_POSITIONS)
+        options = ["Standard (揭棋开局)"]
+        for p in ALL_ENDGAMES:
+            options.append(f"{p.id} - {p.name}")
+        for p in ALL_MIDGAME_POSITIONS:
+            options.append(f"{p.id} - {p.advantage.value}")
+
+        # 确保索引有效（-1 表示标准开局，对应 options[0]）
+        current_idx = st.session_state.endgame_idx + 1  # -1 -> 0, 0 -> 1, ...
+        if current_idx < 0 or current_idx >= len(options):
+            current_idx = 0
+
+        selected_idx = st.selectbox(
+            "Position",
+            options=range(len(options)),
+            format_func=lambda i: options[i],
+            index=current_idx,
+            key="position_selector",
         )
 
-        if pos_type == "Standard":
-            if st.session_state.endgame_idx != -1:
-                st.session_state.endgame_idx = -1
-                reset_game()
-                st.rerun()
-        elif pos_type == "Endgame":
-            options = [f"{e.id}" for e in ALL_ENDGAMES[:50]]
-            idx = st.selectbox("Position", range(len(options)), format_func=lambda i: options[i])
-            if idx != st.session_state.endgame_idx:
-                st.session_state.endgame_idx = idx
-                reset_game()
-                st.rerun()
-        else:  # Midgame
-            options = [f"{p.id} - {p.advantage.value}" for p in ALL_MIDGAME_POSITIONS]
-            idx = st.selectbox("Position", range(len(options)), format_func=lambda i: options[i])
-            if idx != st.session_state.endgame_idx:
-                st.session_state.endgame_idx = idx
-                reset_game()
-                st.rerun()
+        # 选择变化时更新
+        new_endgame_idx = selected_idx - 1  # 0 -> -1 (Standard), 1 -> 0, ...
+        if new_endgame_idx != st.session_state.endgame_idx:
+            st.session_state.endgame_idx = new_endgame_idx
+            reset_game()
+            st.rerun()
 
         # AI 设置
         st.session_state.strategy = st.selectbox("AI Strategy", AVAILABLE_STRATEGIES)

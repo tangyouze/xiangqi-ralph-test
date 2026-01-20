@@ -59,20 +59,13 @@ def render_sidebar():
     with st.sidebar:
         st.header("Settings")
 
-        # 局面类型选择
-        position_type = st.radio(
-            "Position Type",
-            ["Endgame", "Midgame"],
-            horizontal=True,
-            key="position_type",
-        )
-
-        if position_type == "Endgame":
-            options = [f"{e.id} - {e.name} ({e.category})" for e in ALL_ENDGAMES]
-            positions = ALL_ENDGAMES
-        else:
-            options = [f"{p.id} - {p.advantage.value}" for p in ALL_MIDGAME_POSITIONS]
-            positions = ALL_MIDGAME_POSITIONS
+        # 合并所有局面：残局 + 中局
+        all_positions = list(ALL_ENDGAMES) + list(ALL_MIDGAME_POSITIONS)
+        options = []
+        for p in ALL_ENDGAMES:
+            options.append(f"{p.id} - {p.name} ({p.category})")
+        for p in ALL_MIDGAME_POSITIONS:
+            options.append(f"{p.id} - {p.advantage.value}")
 
         # 确保索引有效
         current_idx = st.session_state.endgame_idx
@@ -91,7 +84,7 @@ def render_sidebar():
         # 选择变化时更新 FEN 并触发分析
         if selected_idx != st.session_state.endgame_idx:
             st.session_state.endgame_idx = selected_idx
-            st.session_state.search_fen = positions[selected_idx].fen
+            st.session_state.search_fen = all_positions[selected_idx].fen
             st.session_state.search_tree = None
             st.session_state.selected_move_idx = None
             st.session_state.pending_analyze = True
