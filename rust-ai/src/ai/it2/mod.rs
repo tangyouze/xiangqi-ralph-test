@@ -174,7 +174,7 @@ const PST_PAWN: PstTable = [
     [20, 25, 30, 35, 40, 35, 30, 25, 20],
     [25, 30, 35, 40, 45, 40, 35, 30, 25],
     [30, 35, 40, 45, 50, 45, 40, 35, 30],
-    [35, 40, 45, 50, 55, 50, 45, 40, 35],
+    [15, 20, 25, 30, 30, 30, 25, 20, 15], // row 9: 老兵威力减弱
 ];
 
 /// 获取 PST 分数
@@ -205,6 +205,9 @@ pub struct HiddenPieceDistribution {
 
 impl HiddenPieceDistribution {
     /// 从棋盘状态计算某方的剩余暗子分布
+    ///
+    /// 使用 Board 中存储的 captured 信息来准确计算剩余暗子池。
+    /// remaining = initial - revealed - captured
     pub fn from_board(board: &Board, color: Color) -> Self {
         let mut revealed: [u8; PIECE_TYPE_COUNT] = [0; PIECE_TYPE_COUNT];
         let mut hidden_count: u8 = 0;
@@ -218,9 +221,53 @@ impl HiddenPieceDistribution {
             }
         }
 
+        // 获取被吃子信息
+        let (captured, captured_hidden) = board.get_captured(color);
+
+        // 计算剩余暗子池：初始数量 - 已揭开 - 已被吃（明子）
         let mut remaining = [0u8; PIECE_TYPE_COUNT];
         for i in 0..PIECE_TYPE_COUNT {
-            remaining[i] = INITIAL_COUNT[i].saturating_sub(revealed[i]);
+            remaining[i] = INITIAL_COUNT[i]
+                .saturating_sub(revealed[i])
+                .saturating_sub(captured[i]);
+        }
+
+        // 处理被吃的暗子（类型未知）
+        // 被吃的暗子需要从 remaining 中按比例扣除
+        let sum_remaining: u8 = remaining.iter().sum();
+        let effective_hidden = hidden_count; // 棋盘上的暗子数
+
+        if captured_hidden > 0 && sum_remaining > effective_hidden {
+            // 有暗子被吃了，需要从 remaining 中扣除
+            // 按比例缩减 remaining 来匹配棋盘上的实际暗子数
+            let target_total = effective_hidden.min(sum_remaining);
+            if target_total > 0 && sum_remaining > target_total {
+                let scale = target_total as f64 / sum_remaining as f64;
+                let mut new_remaining = [0u8; PIECE_TYPE_COUNT];
+                let mut total_assigned: u8 = 0;
+
+                // 先按比例分配（向下取整）
+                for i in 0..PIECE_TYPE_COUNT {
+                    new_remaining[i] = (remaining[i] as f64 * scale).floor() as u8;
+                    total_assigned += new_remaining[i];
+                }
+
+                // 分配剩余的（优先分配给高价值棋子）
+                // 按价值降序：Rook(4), Cannon(5), Horse(3), Elephant(2), Advisor(1), Pawn(6)
+                let priority_order = [4, 5, 3, 2, 1, 6]; // 跳过 King(0)
+                let mut to_assign = target_total.saturating_sub(total_assigned);
+                for &idx in &priority_order {
+                    if to_assign == 0 {
+                        break;
+                    }
+                    let can_add = remaining[idx].saturating_sub(new_remaining[idx]);
+                    let add = can_add.min(to_assign);
+                    new_remaining[idx] += add;
+                    to_assign -= add;
+                }
+
+                remaining = new_remaining;
+            }
         }
 
         HiddenPieceDistribution {
@@ -287,25 +334,29 @@ struct SearchContext {
     /// Alpha-Beta 窗口
     alpha: f64,
     beta: f64,
+    /// POV 视角（初始行棋方），分数始终相对于此颜色
+    pov_color: Color,
 }
 
 impl SearchContext {
-    fn new(depth: i32) -> Self {
+    fn new(depth: i32, pov_color: Color) -> Self {
         Self {
             depth,
             ply: 0,
             alpha: f64::NEG_INFINITY,
             beta: f64::INFINITY,
+            pov_color,
         }
     }
 
-    /// 进入下一层（对手视角）
+    /// 进入下一层（固定 POV，不翻转窗口）
     fn next_ply(&self) -> Self {
         Self {
             depth: self.depth - 1,
             ply: self.ply + 1,
-            alpha: -self.beta,
-            beta: -self.alpha,
+            alpha: self.alpha,
+            beta: self.beta,
+            pov_color: self.pov_color,
         }
     }
 }
@@ -468,40 +519,51 @@ impl IT2AI {
         }
     }
 
-    /// Expectimax 搜索（Negamax 风格）
+    /// Expectimax 搜索（Minimax 风格，固定 POV）
     fn expectimax(&self, board: &mut Board, ctx: SearchContext) -> f64 {
         // 节点计数
         NODE_COUNT.fetch_add(1, AtomicOrdering::Relaxed);
 
         let current_color = board.current_turn();
         let legal_moves = board.get_legal_moves(current_color);
+        let is_max_node = current_color == ctx.pov_color;
 
-        // 终止条件
+        // 终止条件：用 pov_color 评估
         if ctx.depth <= 0 || legal_moves.is_empty() {
-            return self.terminal_eval(board, current_color, ctx.ply);
+            return self.terminal_eval(board, ctx.pov_color, ctx.ply);
         }
 
-        let mut max_eval = f64::NEG_INFINITY;
-        let mut alpha = ctx.alpha;
-
-        for mv in &legal_moves {
-            let eval = if mv.action_type == ActionType::RevealAndMove {
-                // 揭子走法：进入 Chance 节点
-                self.chance_node(board, mv, ctx, current_color)
-            } else {
-                // 普通走法：直接递归
-                self.apply_move_and_recurse(board, mv, ctx)
-            };
-
-            max_eval = max_eval.max(eval);
-            alpha = alpha.max(eval);
-
-            if alpha >= ctx.beta {
-                break; // Beta 剪枝
+        if is_max_node {
+            // MAX 节点：取最大值
+            let mut max_eval = f64::NEG_INFINITY;
+            for mv in &legal_moves {
+                let eval = if mv.action_type == ActionType::RevealAndMove {
+                    self.chance_node(board, mv, ctx, current_color)
+                } else {
+                    self.apply_move_and_recurse(board, mv, ctx)
+                };
+                max_eval = max_eval.max(eval);
+                if max_eval >= ctx.beta {
+                    break; // Beta 剪枝
+                }
             }
+            max_eval
+        } else {
+            // MIN 节点：取最小值
+            let mut min_eval = f64::INFINITY;
+            for mv in &legal_moves {
+                let eval = if mv.action_type == ActionType::RevealAndMove {
+                    self.chance_node(board, mv, ctx, current_color)
+                } else {
+                    self.apply_move_and_recurse(board, mv, ctx)
+                };
+                min_eval = min_eval.min(eval);
+                if min_eval <= ctx.alpha {
+                    break; // Alpha 剪枝
+                }
+            }
+            min_eval
         }
-
-        max_eval
     }
 
     /// Chance 节点：处理揭子走法的概率
@@ -537,8 +599,8 @@ impl IT2AI {
             let was_hidden = reveal_state.is_some();
             let captured = board.make_move(&virtual_move);
 
-            // 3. 递归搜索（对手视角）
-            let child_value = -self.expectimax(board, next_ctx);
+            // 3. 递归搜索（固定 POV，不翻转）
+            let child_value = self.expectimax(board, next_ctx);
 
             // 4. 撤销走棋
             board.undo_move(&virtual_move, captured, was_hidden);
@@ -565,8 +627,8 @@ impl IT2AI {
         let was_hidden = board.get_piece(mv.from_pos).map_or(false, |p| p.is_hidden);
         let captured = board.make_move(mv);
 
-        // next_ply: depth-1, ply+1, 窗口翻转
-        let value = -self.expectimax(board, ctx.next_ply());
+        // next_ply: depth-1, ply+1（固定 POV，不翻转）
+        let value = self.expectimax(board, ctx.next_ply());
 
         board.undo_move(mv, captured, was_hidden);
 
@@ -606,15 +668,16 @@ impl IT2AI {
                 }
 
                 let mut board_copy = board.clone();
+                let pov_color = board.current_turn();
 
                 // 揭子走法使用 Chance 节点
-                let root_ctx = SearchContext::new(depth as i32);
+                let root_ctx = SearchContext::new(depth as i32, pov_color);
                 let score = if mv.action_type == ActionType::RevealAndMove {
-                    self.chance_node(&mut board_copy, &mv, root_ctx, board.current_turn())
+                    self.chance_node(&mut board_copy, &mv, root_ctx, pov_color)
                 } else {
                     board_copy.make_move(&mv);
-                    // 走了一步后进入下一层
-                    -self.expectimax(&mut board_copy, root_ctx.next_ply())
+                    // 走了一步后进入下一层（固定 POV，不翻转）
+                    self.expectimax(&mut board_copy, root_ctx.next_ply())
                 };
 
                 current_scores.push((mv, score));
