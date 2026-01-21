@@ -57,6 +57,9 @@ pub struct Board {
     red_captured_hidden: u8,
     /// 黑方被吃的暗子数量（类型未知）
     black_captured_hidden: u8,
+    /// 被吃子字符串（红方被吃, 黑方被吃）- 用于 to_fen
+    red_captured_str: String,
+    black_captured_str: String,
 }
 
 impl Board {
@@ -66,6 +69,21 @@ impl Board {
         let mut squares = [None; 90];
         let mut red_king_pos = None;
         let mut black_king_pos = None;
+
+        // 从 FEN 中提取 captured 字符串
+        let parts: Vec<&str> = fen.split_whitespace().collect();
+        let captured_str = if parts.len() >= 2 { parts[1] } else { "-:-" };
+        let captured_parts: Vec<&str> = captured_str.split(':').collect();
+        let red_captured_str = if captured_parts.len() >= 1 && captured_parts[0] != "-" {
+            captured_parts[0].to_string()
+        } else {
+            String::new()
+        };
+        let black_captured_str = if captured_parts.len() >= 2 && captured_parts[1] != "-" {
+            captured_parts[1].to_string()
+        } else {
+            String::new()
+        };
 
         for fp in state.pieces {
             let movement_type = if fp.is_hidden {
@@ -142,6 +160,8 @@ impl Board {
             black_captured,
             red_captured_hidden,
             black_captured_hidden,
+            red_captured_str,
+            black_captured_str,
         })
     }
 
@@ -298,6 +318,26 @@ impl Board {
                     Color::Black => self.black_king_pos = None,
                 }
             }
+
+            // 更新被吃子字符串
+            let cap_char = if cap.is_hidden {
+                // 暗子被吃
+                if cap.color == self.viewer {
+                    // viewer 的暗子被吃，viewer 不知道是什么
+                    '?'
+                } else {
+                    // viewer 吃的暗子，viewer 知道是什么（用 movement_type 小写）
+                    cap.get_movement_type().to_fen_char()
+                }
+            } else {
+                // 明子被吃，用大写
+                cap.get_movement_type().to_fen_char().to_ascii_uppercase()
+            };
+
+            match cap.color {
+                Color::Red => self.red_captured_str.push(cap_char),
+                Color::Black => self.black_captured_str.push(cap_char),
+            }
         }
 
         // 移动棋子
@@ -344,6 +384,16 @@ impl Board {
                 }
             }
             self.squares[to_idx] = Some(cap);
+
+            // 撤销被吃子字符串的更新（移除最后一个字符）
+            match cap.color {
+                Color::Red => {
+                    self.red_captured_str.pop();
+                }
+                Color::Black => {
+                    self.black_captured_str.pop();
+                }
+            }
         }
 
         // 恢复回合
@@ -905,9 +955,23 @@ impl Board {
 
         let board_str = rows.join("/");
 
+        // 生成 captured 字符串
+        let red_cap = if self.red_captured_str.is_empty() {
+            "-".to_string()
+        } else {
+            self.red_captured_str.clone()
+        };
+        let black_cap = if self.black_captured_str.is_empty() {
+            "-".to_string()
+        } else {
+            self.black_captured_str.clone()
+        };
+        let captured_str = format!("{}:{}", red_cap, black_cap);
+
         format!(
-            "{} -:- {} {}",
+            "{} {} {} {}",
             board_str,
+            captured_str,
             self.current_turn.to_fen_char(),
             self.viewer.to_fen_char()
         )
