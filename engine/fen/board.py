@@ -63,12 +63,7 @@ def fen_from_pieces(
         for cap in captured.red_captured:
             if cap.piece_type is None:
                 # 暗子被吃，不知道身份
-                if viewer == Color.RED:
-                    # viewer 方的暗子被吃，但系统无法追踪类型
-                    # 使用 '!' 表示"viewer 知道但 FEN 无法记录"
-                    red_parts.append("!")
-                else:
-                    red_parts.append("?")
+                red_parts.append("?")
             elif cap.was_hidden:
                 # 暗子被吃，知道身份 - 小写
                 red_parts.append(PIECE_TO_CHAR[cap.piece_type].lower())
@@ -81,12 +76,7 @@ def fen_from_pieces(
         for cap in captured.black_captured:
             if cap.piece_type is None:
                 # 暗子被吃，不知道身份
-                if viewer == Color.BLACK:
-                    # viewer 方的暗子被吃，但系统无法追踪类型
-                    # 使用 '!' 表示"viewer 知道但 FEN 无法记录"
-                    black_parts.append("!")
-                else:
-                    black_parts.append("?")
+                black_parts.append("?")
             elif cap.was_hidden:
                 # 暗子被吃，知道身份 - 小写
                 black_parts.append(PIECE_TO_CHAR[cap.piece_type].lower())

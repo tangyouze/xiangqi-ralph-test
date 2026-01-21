@@ -120,8 +120,7 @@ def _parse_captured(captured_str: str) -> CapturedInfo:
     格式：
     - 大写 = 明子被吃
     - 小写 = 暗子被吃（我知道身份）
-    - ? = 暗子被吃（我不知道身份，对方吃的）
-    - ! = 暗子被吃（viewer 知道但系统无法追踪类型）
+    - ? = 暗子被吃（我不知道身份）
     """
     parts = captured_str.split(":")
     if len(parts) != 2:
@@ -133,8 +132,8 @@ def _parse_captured(captured_str: str) -> CapturedInfo:
     # 解析红方被吃
     if red_str != "-":
         for ch in red_str:
-            if ch == "?" or ch == "!":
-                # 暗子被吃，不知道身份（? = 对方吃的，! = viewer 方被吃但系统无法追踪）
+            if ch == "?":
+                # 暗子被吃，不知道身份
                 info.red_captured.append(CapturedPieceInfo(piece_type=None, was_hidden=True))
             else:
                 piece_type = CHAR_TO_PIECE.get(ch.lower())
@@ -149,8 +148,8 @@ def _parse_captured(captured_str: str) -> CapturedInfo:
     # 解析黑方被吃
     if black_str != "-":
         for ch in black_str:
-            if ch == "?" or ch == "!":
-                # 暗子被吃，不知道身份（? = 对方吃的，! = viewer 方被吃但系统无法追踪）
+            if ch == "?":
+                # 暗子被吃，不知道身份
                 info.black_captured.append(CapturedPieceInfo(piece_type=None, was_hidden=True))
             else:
                 piece_type = CHAR_TO_PIECE.get(ch.lower())

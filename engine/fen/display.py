@@ -92,10 +92,10 @@ def _parse_captured_for_canvas(captured_str: str, viewer: str) -> dict:
         eater = "black" if captured_color == "red" else "red"
 
         for char in captured:
-            if char == "?" or char == "!":
+            if char == "?":
                 # 暗子被吃，身份未知
-                # ? = 对方吃的我的暗子，我不知道（但这不应该发生，玩家知道自己的暗子）
-                # ! = viewer 方的暗子被吃，但系统无法追踪类型
+                # 如果 viewer 是吃的人，不应该出现 ?（应该知道身份）
+                # 如果 viewer 是被吃的人，显示"暗"
                 result.append({"text": "暗", "isHidden": True, "isUnknown": True})
             elif char.isupper():
                 # 大写 = 明子被吃，都能看到
