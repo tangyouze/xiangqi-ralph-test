@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from engine.fen.types import FULL_PIECE_COUNT, PIECE_SYMBOLS
+from engine.types import Color
 
 
 def _parse_board_positions(board_str: str) -> dict[tuple[int, int], str]:
@@ -371,3 +372,28 @@ def fix_fen_captured(fen: str) -> str:
     captured_str = f"{red_captured_str}:{black_captured_str}"
 
     return f"{board_str} {captured_str} {turn_str} {viewer_str}"
+
+
+def validate_captured_perspective(captured_str: str, viewer: Color) -> None:
+    """验证被吃子是否符合视角规则。
+
+    规则：viewer 方被吃的暗子不能是 '?'，因为 viewer 知道自己丢了什么。
+
+    Args:
+        captured_str: 被吃子字符串，格式为 "红方被吃:黑方被吃"
+        viewer: 视角颜色
+
+    Raises:
+        ValueError: 如果视角方的被吃子中包含 '?'
+    """
+    parts = captured_str.split(":")
+    red_captured = parts[0] if len(parts) > 0 else "-"
+    black_captured = parts[1] if len(parts) > 1 else "-"
+
+    viewer_captured = red_captured if viewer == Color.RED else black_captured
+
+    if "?" in viewer_captured:
+        raise ValueError(
+            f"Invalid FEN: viewer ({viewer.name})'s captured pieces cannot contain '?' "
+            f"(viewer knows what they lost)"
+        )

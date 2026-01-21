@@ -2,7 +2,7 @@
 //!
 //! 检查揭将后的局面和黑方合法走法
 
-use xiangqi_ai::{Board, Color, MinimaxAI, PieceType};
+use xiangqi_ai::{Board, Color, IT2AI, PieceType};
 
 fn main() {
     // 揭棋初始局面（将帅已揭）
@@ -87,7 +87,7 @@ fn main() {
             println!();
 
             // 评估分数
-            let score_black = MinimaxAI::evaluate_static(&board_copy, Color::Black);
+            let score_black = IT2AI::evaluate_static(&board_copy, Color::Black);
             let score_red = -score_black;
             println!("静态评估分数:");
             println!("  红方视角: {:.2}", score_red);

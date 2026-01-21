@@ -72,6 +72,9 @@ pub fn parse_fen(fen: &str) -> Result<FenState, String> {
     let viewer = Color::from_fen_char(viewer_str.chars().next().unwrap_or('r'))
         .ok_or_else(|| format!("Invalid viewer: {}", viewer_str))?;
 
+    // 验证被吃子是否符合视角规则
+    validate_captured_for_viewer(&captured, viewer)?;
+
     Ok(FenState {
         pieces,
         captured,
@@ -203,6 +206,26 @@ fn parse_captured(captured_str: &str) -> Result<CapturedInfo, String> {
     }
 
     Ok(info)
+}
+
+/// 验证被吃子是否符合视角规则
+///
+/// 规则：viewer 方被吃的暗子不能是 '?'，因为 viewer 知道自己丢了什么
+fn validate_captured_for_viewer(captured: &CapturedInfo, viewer: Color) -> Result<(), String> {
+    let viewer_captured = match viewer {
+        Color::Red => &captured.red_captured,
+        Color::Black => &captured.black_captured,
+    };
+
+    for piece in viewer_captured {
+        if piece.was_hidden && piece.piece_type.is_none() {
+            return Err(
+                "Invalid FEN: viewer's captured hidden piece must have known type, not '?'"
+                    .to_string(),
+            );
+        }
+    }
+    Ok(())
 }
 
 /// 从棋子列表生成 FEN 字符串
@@ -406,7 +429,9 @@ mod tests {
 
     #[test]
     fn test_parse_mid_game_fen() {
-        let fen = "4k4/9/3R5/x1x3x1x/4X4/4x4/X1X3X1X/1C5C1/9/4K4 RP??:raHC r r";
+        // 红方视角，红方被吃的子必须是已知类型（不能是 ?）
+        // 黑方被吃的子可以有 ?（红方不知道吃了对方什么暗子）
+        let fen = "4k4/9/3R5/x1x3x1x/4X4/4x4/X1X3X1X/1C5C1/9/4K4 RPHC:ra?? r r";
         let state = parse_fen(fen).unwrap();
 
         assert_eq!(state.turn, Color::Red);
@@ -415,6 +440,17 @@ mod tests {
         // 检查被吃子
         assert_eq!(state.captured.red_captured.len(), 4);
         assert_eq!(state.captured.black_captured.len(), 4);
+    }
+
+    #[test]
+    fn test_invalid_viewer_captured_with_unknown() {
+        // 红方视角，但红方被吃子中有 ? - 应该报错
+        let fen = "4k4/9/9/9/9/9/9/9/9/4K4 R?:- r r";
+        let result = parse_fen(fen);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .contains("viewer's captured hidden piece must have known type"));
     }
 
     #[test]

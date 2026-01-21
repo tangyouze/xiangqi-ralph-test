@@ -4,7 +4,7 @@
 
 use rand::prelude::*;
 use std::collections::HashMap;
-use xiangqi_ai::{Board, Color, MinimaxAI};
+use xiangqi_ai::{Board, Color, IT2AI};
 
 fn main() {
     let opening_fen = "xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXKXXXX -:- r r";
@@ -14,7 +14,7 @@ fn main() {
     println!("═══════════════════════════════════════════════\n");
 
     let board = Board::from_fen(opening_fen).unwrap();
-    let opening_score = MinimaxAI::evaluate_static(&board, Color::Red);
+    let opening_score = IT2AI::evaluate_static(&board, Color::Red);
     println!("开局评估（红方视角）: {:.2}\n", opening_score);
 
     let red_moves = board.get_legal_moves(Color::Red);
@@ -48,7 +48,7 @@ fn main() {
         board_after_red.make_move(black_move);
 
         // 轮到红方，从红方视角评估
-        let score = MinimaxAI::evaluate_static(&board_after_red, Color::Red);
+        let score = IT2AI::evaluate_static(&board_after_red, Color::Red);
 
         scores.push(score);
 

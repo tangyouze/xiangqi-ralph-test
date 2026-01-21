@@ -14,6 +14,8 @@ from engine.fen.types import (
 )
 from engine.types import ActionType, Color, JieqiMove, PieceType, Position
 
+from engine.fen.validate import validate_captured_perspective
+
 
 def parse_fen(fen: str) -> FenState:
     """解析 FEN 字符串
@@ -40,6 +42,9 @@ def parse_fen(fen: str) -> FenState:
     captured = _parse_captured(captured_str)
     turn = Color.RED if turn_str.lower() == "r" else Color.BLACK
     viewer = Color.RED if viewer_str.lower() == "r" else Color.BLACK
+
+    # 验证被吃子是否符合视角规则
+    validate_captured_perspective(captured_str, viewer)
 
     return FenState(pieces=pieces, captured=captured, turn=turn, viewer=viewer)
 

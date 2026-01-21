@@ -56,8 +56,8 @@ fn main() {
     }
 
     // 直接调用静态评估
-    use xiangqi_ai::MinimaxAI;
-    let score = MinimaxAI::evaluate_static(&board, current_color);
+    use xiangqi_ai::IT2AI;
+    let score = IT2AI::evaluate_static(&board, current_color);
 
     println!("═══════════════════════════════════");
     println!("静态局面评估 ({:?} 视角)", current_color);

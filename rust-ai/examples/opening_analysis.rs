@@ -4,7 +4,7 @@
 
 use rand::prelude::*;
 use std::collections::HashMap;
-use xiangqi_ai::{Board, Color, MinimaxAI};
+use xiangqi_ai::{Board, Color, IT2AI};
 
 fn main() {
     // 正确的开局FEN：将/帅是明子
@@ -17,7 +17,7 @@ fn main() {
     let board = Board::from_fen(opening_fen).unwrap();
 
     // 开局静态评估
-    let opening_score = MinimaxAI::evaluate_static(&board, Color::Red);
+    let opening_score = IT2AI::evaluate_static(&board, Color::Red);
     println!("开局局面评估（红方视角）: {:.2}\n", opening_score);
 
     // 获取所有合法走法
@@ -47,7 +47,7 @@ fn main() {
         board_copy.make_move(mv);
 
         // 从黑方视角评估（因为走完后轮到黑方）
-        let score_black = MinimaxAI::evaluate_static(&board_copy, Color::Black);
+        let score_black = IT2AI::evaluate_static(&board_copy, Color::Black);
 
         // 转换为红方视角（取负）
         let score_red = -score_black;
