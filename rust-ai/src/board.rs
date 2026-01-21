@@ -33,6 +33,10 @@ impl Piece {
     }
 }
 
+/// 被吃子统计（每种类型的数量）
+/// 顺序：King, Advisor, Elephant, Horse, Rook, Cannon, Pawn
+pub type CapturedCount = [u8; 7];
+
 /// 模拟棋盘（优化版：使用数组存储）
 #[derive(Clone)]
 pub struct Board {
@@ -45,6 +49,14 @@ pub struct Board {
     red_king_pos: Option<Position>,
     /// 缓存黑方将的位置
     black_king_pos: Option<Position>,
+    /// 红方被吃的子（按类型统计，包含暗子数量）
+    red_captured: CapturedCount,
+    /// 黑方被吃的子（按类型统计，包含暗子数量）
+    black_captured: CapturedCount,
+    /// 红方被吃的暗子数量（类型未知）
+    red_captured_hidden: u8,
+    /// 黑方被吃的暗子数量（类型未知）
+    black_captured_hidden: u8,
 }
 
 impl Board {
@@ -81,13 +93,64 @@ impl Board {
             squares[fp.position.to_index()] = Some(piece);
         }
 
+        // 解析被吃子信息
+        let mut red_captured = [0u8; 7];
+        let mut black_captured = [0u8; 7];
+        let mut red_captured_hidden = 0u8;
+        let mut black_captured_hidden = 0u8;
+
+        // 棋子类型转索引的内联函数
+        let pt_to_idx = |pt: PieceType| -> usize {
+            match pt {
+                PieceType::King => 0,
+                PieceType::Advisor => 1,
+                PieceType::Elephant => 2,
+                PieceType::Horse => 3,
+                PieceType::Rook => 4,
+                PieceType::Cannon => 5,
+                PieceType::Pawn => 6,
+            }
+        };
+
+        for cap in &state.captured.red_captured {
+            if cap.was_hidden && cap.piece_type.is_none() {
+                // 被吃的暗子（类型未知）
+                red_captured_hidden += 1;
+            } else if let Some(pt) = cap.piece_type {
+                let idx = pt_to_idx(pt);
+                red_captured[idx] += 1;
+            }
+        }
+
+        for cap in &state.captured.black_captured {
+            if cap.was_hidden && cap.piece_type.is_none() {
+                // 被吃的暗子（类型未知）
+                black_captured_hidden += 1;
+            } else if let Some(pt) = cap.piece_type {
+                let idx = pt_to_idx(pt);
+                black_captured[idx] += 1;
+            }
+        }
+
         Ok(Board {
             squares,
             viewer: state.viewer,
             current_turn: state.turn,
             red_king_pos,
             black_king_pos,
+            red_captured,
+            black_captured,
+            red_captured_hidden,
+            black_captured_hidden,
         })
+    }
+
+    /// 获取被吃子统计
+    pub fn get_captured(&self, color: Color) -> (&CapturedCount, u8) {
+        match color {
+            Color::Red => (&self.red_captured, self.red_captured_hidden),
+            Color::Black => (&self.black_captured, self.black_captured_hidden),
+        }
     }
 
     /// 获取当前回合

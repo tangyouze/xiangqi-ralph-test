@@ -1061,14 +1061,37 @@ def compare(
     # 按得分排序
     sorted_strategies = sorted(strategies_list, key=lambda s: scores[s], reverse=True)
 
-    # 显示结果矩阵
-    console.print("\n[bold]Win Matrix (row=Red, col=Black)[/bold]")
+    # 计算每个策略的总战绩
+    total_stats: dict[str, dict] = {}
+    for s in strategies_list:
+        total_wins = 0
+        total_losses = 0
+        total_draws = 0
+        for opp in strategies_list:
+            if opp != s:
+                # 作为红方
+                total_wins += results[s][opp]["wins"]
+                total_losses += results[s][opp]["losses"]
+                total_draws += results[s][opp]["draws"]
+                # 作为黑方
+                total_wins += results[opp][s]["losses"]  # 对手红方输 = 我黑方赢
+                total_losses += results[opp][s]["wins"]  # 对手红方赢 = 我黑方输
+                total_draws += results[opp][s]["draws"]
+        total_stats[s] = {
+            "wins": total_wins,
+            "losses": total_losses,
+            "draws": total_draws,
+            "total": total_wins + total_losses + total_draws,
+        }
+
+    # 显示详细结果矩阵
+    console.print("\n[bold]Results Matrix (row=Red, col=Black)[/bold]")
+    console.print("[dim]Format: W-L-D (win rate)[/dim]")
 
     table = Table()
-    table.add_column("AI", style="cyan")
+    table.add_column("Red \\ Black", style="cyan")
     for s in sorted_strategies:
         table.add_column(s[:8], justify="center")
-    table.add_column("Score", style="yellow", justify="right")
 
     for s1 in sorted_strategies:
         row = [s1]
@@ -1076,24 +1099,51 @@ def compare(
             if s1 == s2:
                 row.append("-")
             else:
-                wins = results[s1][s2]["wins"]
-                total = wins + results[s1][s2]["losses"] + results[s1][s2]["draws"]
-                rate = wins / total * 100 if total > 0 else 0
+                w = results[s1][s2]["wins"]
+                l = results[s1][s2]["losses"]
+                d = results[s1][s2]["draws"]
+                total = w + l + d
+                rate = w / total * 100 if total > 0 else 0
                 if rate >= 70:
-                    row.append(f"[green]{rate:.0f}%[/green]")
+                    color = "green"
                 elif rate >= 50:
-                    row.append(f"[yellow]{rate:.0f}%[/yellow]")
+                    color = "yellow"
                 else:
-                    row.append(f"[red]{rate:.0f}%[/red]")
-        row.append(f"{scores[s1] * 100:.1f}%")
+                    color = "red"
+                row.append(f"[{color}]{w}-{l}-{d}[/{color}]")
         table.add_row(*row)
 
     console.print(table)
 
-    # 排名
-    console.print("\n[bold]Final Rankings (Win Rate | Elo):[/bold]")
-    for i, s in enumerate(sorted_strategies, 1):
-        console.print(f"  {i:2}. {s:12} - {scores[s] * 100:.1f}% | Elo: {elo[s]:.0f}")
+    # 总战绩表
+    console.print("\n[bold]Overall Statistics:[/bold]")
+    stats_table = Table()
+    stats_table.add_column("AI", style="cyan")
+    stats_table.add_column("Win", justify="right", style="green")
+    stats_table.add_column("Loss", justify="right", style="red")
+    stats_table.add_column("Draw", justify="right", style="yellow")
+    stats_table.add_column("Total", justify="right")
+    stats_table.add_column("Win%", justify="right")
+    stats_table.add_column("Win% (no draw)", justify="right")
+    stats_table.add_column("Elo", justify="right")
+
+    for s in sorted_strategies:
+        st = total_stats[s]
+        win_rate = st["wins"] / st["total"] * 100 if st["total"] > 0 else 0
+        decided = st["wins"] + st["losses"]
+        win_rate_no_draw = st["wins"] / decided * 100 if decided > 0 else 0
+        stats_table.add_row(
+            s,
+            str(st["wins"]),
+            str(st["losses"]),
+            str(st["draws"]),
+            str(st["total"]),
+            f"{win_rate:.1f}%",
+            f"{win_rate_no_draw:.1f}%",
+            f"{elo[s]:.0f}",
+        )
+
+    console.print(stats_table)
 
     # 保存 JSON
     output_data = {
