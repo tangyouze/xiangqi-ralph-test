@@ -210,21 +210,36 @@ fn parse_captured(captured_str: &str) -> Result<CapturedInfo, String> {
 
 /// 验证被吃子是否符合视角规则
 ///
-/// 规则：viewer 方被吃的暗子不能是 '?'，因为 viewer 知道自己丢了什么
+/// 规则：
+/// - viewer 方被吃的子：只能是大写或 '?'（不能有小写，因为小写表示"我吃的我知道"）
+/// - 对方被吃的子：只能是大写或小写（不能有 '?'，因为是 viewer 吃的，viewer 知道）
 fn validate_captured_for_viewer(captured: &CapturedInfo, viewer: Color) -> Result<(), String> {
-    let viewer_captured = match viewer {
-        Color::Red => &captured.red_captured,
-        Color::Black => &captured.black_captured,
+    let (viewer_captured, opponent_captured) = match viewer {
+        Color::Red => (&captured.red_captured, &captured.black_captured),
+        Color::Black => (&captured.black_captured, &captured.red_captured),
     };
 
+    // viewer 方被吃的子：暗子只能是 '?'（piece_type 为 None）
+    // 如果 was_hidden 且 piece_type 有值，说明用了小写，这是错误的
     for piece in viewer_captured {
-        if piece.was_hidden && piece.piece_type.is_none() {
+        if piece.was_hidden && piece.piece_type.is_some() {
             return Err(
-                "Invalid FEN: viewer's captured hidden piece must have known type, not '?'"
+                "Invalid FEN: viewer's captured hidden piece should be '?' (unknown), not lowercase"
                     .to_string(),
             );
         }
     }
+
+    // 对方被吃的子：暗子必须有已知类型（小写），不能是 '?'
+    for piece in opponent_captured {
+        if piece.was_hidden && piece.piece_type.is_none() {
+            return Err(
+                "Invalid FEN: opponent's captured hidden piece must have known type (lowercase), not '?'"
+                    .to_string(),
+            );
+        }
+    }
+
     Ok(())
 }
 
@@ -429,28 +444,41 @@ mod tests {
 
     #[test]
     fn test_parse_mid_game_fen() {
-        // 红方视角，红方被吃的子必须是已知类型（不能是 ?）
-        // 黑方被吃的子可以有 ?（红方不知道吃了对方什么暗子）
-        let fen = "4k4/9/3R5/x1x3x1x/4X4/4x4/X1X3X1X/1C5C1/9/4K4 RPHC:ra?? r r";
+        // 红方视角，红方被吃的子可以是大写或 ?
+        // 黑方被吃的子必须是大写或小写（不能是 ?）
+        let fen = "4k4/9/3R5/x1x3x1x/4X4/4x4/X1X3X1X/1C5C1/9/4K4 RP??:raHC r r";
         let state = parse_fen(fen).unwrap();
 
         assert_eq!(state.turn, Color::Red);
         assert_eq!(state.viewer, Color::Red);
 
         // 检查被吃子
-        assert_eq!(state.captured.red_captured.len(), 4);
-        assert_eq!(state.captured.black_captured.len(), 4);
+        assert_eq!(state.captured.red_captured.len(), 4); // R, P, ?, ?
+        assert_eq!(state.captured.black_captured.len(), 4); // r, a, H, C
     }
 
     #[test]
-    fn test_invalid_viewer_captured_with_unknown() {
-        // 红方视角，但红方被吃子中有 ? - 应该报错
-        let fen = "4k4/9/9/9/9/9/9/9/9/4K4 R?:- r r";
+    fn test_invalid_viewer_captured_with_lowercase() {
+        // 红方视角，但红方被吃子中有小写 - 应该报错
+        // 小写表示"我吃的我知道"，但红方被吃是黑方吃的，不应该是小写
+        let fen = "4k4/9/9/9/9/9/9/9/9/4K4 Rp:- r r";
         let result = parse_fen(fen);
         assert!(result.is_err());
         assert!(result
             .unwrap_err()
-            .contains("viewer's captured hidden piece must have known type"));
+            .contains("viewer's captured hidden piece should be '?' (unknown), not lowercase"));
+    }
+
+    #[test]
+    fn test_invalid_opponent_captured_with_unknown() {
+        // 红方视角，黑方被吃子中有 ? - 应该报错
+        // ? 表示"我不知道"，但黑方被吃是红方吃的，红方应该知道
+        let fen = "4k4/9/9/9/9/9/9/9/9/4K4 -:? r r";
+        let result = parse_fen(fen);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .contains("opponent's captured hidden piece must have known type"));
     }
 
     #[test]
