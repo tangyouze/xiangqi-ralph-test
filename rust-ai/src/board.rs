@@ -693,6 +693,58 @@ impl Board {
             }
         }
 
+        // 检查象攻击（田字，需检查象眼）
+        let elephant_attacks: [((i8, i8), (i8, i8)); 4] = [
+            ((2, 2), (1, 1)),     // 右上
+            ((2, -2), (1, -1)),   // 左上
+            ((-2, 2), (-1, 1)),   // 右下
+            ((-2, -2), (-1, -1)), // 左下
+        ];
+        for ((dr, dc), (er, ec)) in elephant_attacks {
+            let elephant_pos = target_pos.offset(dr, dc);
+            let eye_pos = target_pos.offset(er, ec);
+            if let Some(piece) = self.get_piece(elephant_pos) {
+                if piece.color == attacker_color
+                    && piece.get_movement_type() == PieceType::Elephant
+                    && !self.has_piece(eye_pos)
+                {
+                    // 暗子象只能在己方区域攻击，明子象可以过河攻击
+                    if piece.is_hidden {
+                        let is_own_side = if attacker_color == Color::Red {
+                            target_pos.row <= 4
+                        } else {
+                            target_pos.row >= 5
+                        };
+                        if is_own_side {
+                            return true;
+                        }
+                    } else {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        // 检查仕攻击（斜向一格）
+        let advisor_attacks: [(i8, i8); 4] = [(1, 1), (1, -1), (-1, 1), (-1, -1)];
+        for (dr, dc) in advisor_attacks {
+            let advisor_pos = target_pos.offset(dr, dc);
+            if let Some(piece) = self.get_piece(advisor_pos) {
+                if piece.color == attacker_color
+                    && piece.get_movement_type() == PieceType::Advisor
+                {
+                    // 暗子仕只能在九宫内攻击，明子仕可以在任何位置攻击
+                    if piece.is_hidden {
+                        if target_pos.is_in_palace(attacker_color.opposite()) {
+                            return true;
+                        }
+                    } else {
+                        return true;
+                    }
+                }
+            }
+        }
+
         false
     }
 

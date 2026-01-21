@@ -32,6 +32,10 @@ enum Commands {
         /// FEN 字符串
         #[arg(long)]
         fen: String,
+
+        /// JSON 输出
+        #[arg(long)]
+        json: bool,
     },
 
     /// 选择最佳走法
@@ -261,11 +265,16 @@ fn main() {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Moves { fen } => match get_legal_moves_from_fen(&fen) {
+        Commands::Moves { fen, json } => match get_legal_moves_from_fen(&fen) {
             Ok(moves) => {
-                println!("Legal moves ({}):", moves.len());
-                for mv in &moves {
-                    println!("  {}", mv);
+                if json {
+                    let move_strs: Vec<String> = moves.iter().map(|m| m.to_string()).collect();
+                    println!("{}", serde_json::to_string(&move_strs).unwrap());
+                } else {
+                    println!("Legal moves ({}):", moves.len());
+                    for mv in &moves {
+                        println!("  {}", mv);
+                    }
                 }
             }
             Err(e) => {
