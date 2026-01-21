@@ -42,6 +42,7 @@ Thumbs.db
 
 # Rust
 rust-ai/target/
+rust-ai/src/bin/
 
 # Project specific
 logs/
