@@ -38,10 +38,26 @@ const INITIAL_COUNT: [u8; PIECE_TYPE_COUNT] = [1, 2, 2, 2, 2, 2, 5];
 /// 棋子价值
 const PIECE_VALUES: [i32; PIECE_TYPE_COUNT] = [100000, 200, 200, 400, 900, 450, 100];
 
-/// 暗子位置加成：根据 movement_type（位置类型）给予不同的保护分
-/// 鼓励揭开低价值位置的暗子，保护车位
-/// 顺序：King, Advisor, Elephant, Horse, Rook, Cannon, Pawn
-const HIDDEN_POSITION_BONUS: [i32; PIECE_TYPE_COUNT] = [0, -30, -30, -20, 20, 0, -100];
+/// 暗子位置加成：根据 movement_type（位置类型）和具体位置给予不同的保护分
+/// 鼓励揭开低价值位置的暗子，保护车位和炮位
+fn hidden_position_bonus(movement_type: PieceType, col: i8) -> i32 {
+    match movement_type {
+        PieceType::King => 0,
+        PieceType::Advisor => -10,   // 士位
+        PieceType::Elephant => -30,  // 象位
+        PieceType::Horse => -30,     // 马位
+        PieceType::Rook => 50,       // 车位
+        PieceType::Cannon => 20,     // 炮位
+        PieceType::Pawn => {
+            // 兵位：中间三个兵 (c/e/g列) vs 边上两个兵 (a/i列)
+            if col == 0i8 || col == 8i8 {
+                -30  // 边兵 (a/i, col=0,8)
+            } else {
+                -50  // 中间兵 (c/e/g, col=2,4,6)
+            }
+        }
+    }
+}
 
 /// Mate score (胜负分)
 const MATE_SCORE: f64 = 100000.0;
@@ -506,7 +522,7 @@ impl IT2AI {
                 };
                 let position_bonus = piece
                     .movement_type
-                    .map(|mt| HIDDEN_POSITION_BONUS[piece_type_to_index(mt)] as f64)
+                    .map(|mt| hidden_position_bonus(mt, pos.col) as f64)
                     .unwrap_or(0.0);
                 let value = ev + position_bonus;
 
@@ -625,10 +641,10 @@ impl IT2AI {
                 } else {
                     black_hidden_ev
                 };
-                // 根据 movement_type（位置类型）获取位置加成
+                // 根据 movement_type（位置类型）和具体位置获取位置加成
                 let position_bonus = piece
                     .movement_type
-                    .map(|mt| HIDDEN_POSITION_BONUS[piece_type_to_index(mt)] as f64)
+                    .map(|mt| hidden_position_bonus(mt, piece.position.col) as f64)
                     .unwrap_or(0.0);
                 (ev + position_bonus, 0.0)
             } else if let Some(pt) = piece.actual_type {
