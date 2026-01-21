@@ -420,7 +420,9 @@ impl Board {
 
         for (dr, dc) in directions {
             let new_pos = pos.offset(dr, dc);
-            if !new_pos.is_in_palace(piece.color) {
+            // 暗子：只能在九宫内
+            // 明子：可以出九宫（揭棋规则）
+            if piece.is_hidden && !new_pos.is_in_palace(piece.color) {
                 continue;
             }
             if self.can_move_to(piece, new_pos) {
@@ -447,8 +449,9 @@ impl Board {
             let new_pos = pos.offset(dr, dc);
             let eye_pos = pos.offset(er, ec);
 
-            // 象不能过河
-            if !new_pos.is_on_own_side(piece.color) {
+            // 暗子：象不能过河
+            // 明子：可以过河（揭棋规则）
+            if piece.is_hidden && !new_pos.is_on_own_side(piece.color) {
                 continue;
             }
 
