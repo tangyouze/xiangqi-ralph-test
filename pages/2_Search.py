@@ -224,7 +224,7 @@ def render_layer1():
 
     # 选择走法展开第 2 层
     st.divider()
-    move_options = [(i, m["move"]) for i, m in enumerate(first_moves[:15])]
+    move_options = [(i, m["move"]) for i, m in enumerate(first_moves)]
     if move_options:
         selected = st.selectbox(
             "Select move to view opponent's responses",
@@ -271,6 +271,11 @@ def render_layer2():
     with col3:
         st.metric("Score", f"{mv_info.get('score', 0):+.1f}")
 
+    # layer1 走后 FEN 复制
+    fen_after = mv_info.get("fen_after", "")
+    if fen_after:
+        st.code(fen_after, language=None)
+
     st.divider()
 
     # 对手最佳应对
@@ -294,6 +299,18 @@ def render_layer2():
                     }
                 )
             st.dataframe(data, width="stretch", hide_index=True)
+
+            # layer2 FEN 选择
+            selected_top = st.selectbox(
+                "Copy FEN for top response",
+                options=["(none)"] + [m["move"] for m in top10],
+                key="top10_fen_select",
+            )
+            if selected_top != "(none)":
+                for m in top10:
+                    if m["move"] == selected_top:
+                        st.code(m.get("fen_after", ""), language=None)
+                        break
         else:
             st.caption("No data (depth=1?)")
 
@@ -312,6 +329,18 @@ def render_layer2():
                     }
                 )
             st.dataframe(data, width="stretch", hide_index=True)
+
+            # layer2 FEN 选择
+            selected_bottom = st.selectbox(
+                "Copy FEN for bottom response",
+                options=["(none)"] + [m["move"] for m in bottom10],
+                key="bottom10_fen_select",
+            )
+            if selected_bottom != "(none)":
+                for m in bottom10:
+                    if m["move"] == selected_bottom:
+                        st.code(m.get("fen_after", ""), language=None)
+                        break
         else:
             st.caption("No data (depth=1?)")
 

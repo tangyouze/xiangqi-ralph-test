@@ -13,7 +13,7 @@ use std::time::Instant;
 use xiangqi_ai::{
     get_depth_reached, get_legal_moves_from_fen, get_node_count, reset_depth_reached,
     reset_node_count, AIConfig, AIEngine, ActionType, Board, Color, HiddenPieceDistribution,
-    IterativeDeepeningAI,
+    IterativeDeepeningAI, JieqiMove,
 };
 
 #[derive(Parser)]
@@ -128,6 +128,7 @@ struct SearchMoveInfo {
     move_type: String,
     eval: f64,
     score: f64,
+    fen_after: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     opposite_top10: Option<Vec<SearchMoveBasic>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -142,6 +143,7 @@ struct SearchMoveBasic {
     move_type: String,
     eval: f64,
     score: f64,
+    fen_after: String,
 }
 
 #[derive(Serialize, Deserialize, Default)]
@@ -605,6 +607,20 @@ fn do_search(
         // 获取对手的应对（第二层）
         let mut board_after = board.clone();
         board_after.make_move(mv);
+
+        // 揭子走法：随机选择一个合法的棋子类型用于展示
+        if is_reveal {
+            let distribution = HiddenPieceDistribution::from_board(&board, color);
+            let possible_types = distribution.possible_types();
+            if let Some((piece_type, _)) = possible_types.first() {
+                if let Some(piece) = board_after.get_piece_mut(mv.to_pos) {
+                    piece.actual_type = Some(*piece_type);
+                }
+            }
+        }
+
+        let fen_after = board_after.to_fen();
+
         let (opposite_top10, opposite_bottom10) = if depth > 1 {
             get_opposite_moves(&board_after, strategy, depth - 1)
         } else {
@@ -616,6 +632,7 @@ fn do_search(
             move_type: move_type.to_string(),
             eval: eval_after,
             score,
+            fen_after,
             opposite_top10,
             opposite_bottom10,
         });
@@ -645,41 +662,7 @@ fn get_opposite_moves(
         return (None, None);
     }
 
-    // depth=1 时直接用静态评估（叶子节点，不需要搜索）
-    if depth <= 1 {
-        let mut moves: Vec<SearchMoveBasic> = Vec::new();
-        for mv in &legal_moves {
-            let mv_str = mv.to_fen_str(None);
-            let move_type = if mv_str.starts_with('+') {
-                "chance"
-            } else {
-                "move"
-            };
-
-            let mut board_after = board.clone();
-            board_after.make_move(mv);
-            let eval =
-                -IterativeDeepeningAI::evaluate_static(&board_after, board_after.current_turn());
-
-            moves.push(SearchMoveBasic {
-                mv: mv_str,
-                move_type: move_type.to_string(),
-                eval,
-                score: eval, // 叶子节点：score = eval
-            });
-        }
-
-        moves.sort_by(|a, b| {
-            b.score
-                .partial_cmp(&a.score)
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
-        let top10: Vec<SearchMoveBasic> = moves.iter().take(10).cloned().collect();
-        let bottom10: Vec<SearchMoveBasic> = moves.iter().rev().take(10).cloned().collect();
-        return (Some(top10), Some(bottom10));
-    }
-
-    // depth > 1 时使用 AI 搜索
+    // 使用 AI 搜索（即使 depth=1，也用 AI 搜索以确保评估函数一致）
     let fen = board.to_fen();
     let config = AIConfig {
         depth,
@@ -702,26 +685,38 @@ fn get_opposite_moves(
     let mut moves: Vec<SearchMoveBasic> = Vec::new();
 
     for (mv_str, score) in search_results {
-        let move_type = if mv_str.starts_with('+') {
-            "chance"
-        } else {
-            "move"
-        };
+        let is_reveal = mv_str.starts_with('+');
+        let move_type = if is_reveal { "chance" } else { "move" };
 
-        // 解析走法获取 eval
-        let eval = if let Some(mv) = legal_moves.iter().find(|m| m.to_fen_str(None) == mv_str) {
+        // 生成走后 FEN
+        let fen_after = if let Some((mv, _)) = JieqiMove::from_fen_str(&mv_str) {
             let mut board_after = board.clone();
-            board_after.make_move(mv);
-            -IterativeDeepeningAI::evaluate_static(&board_after, board_after.current_turn())
+            board_after.make_move(&mv);
+
+            // 揭子走法：随机选择一个合法的棋子类型用于展示
+            if is_reveal {
+                let distribution = HiddenPieceDistribution::from_board(board, color);
+                let possible_types = distribution.possible_types();
+                if let Some((piece_type, _)) = possible_types.first() {
+                    if let Some(piece) = board_after.get_piece_mut(mv.to_pos) {
+                        piece.actual_type = Some(*piece_type);
+                    }
+                }
+            }
+
+            board_after.to_fen()
         } else {
-            score
+            String::new()
         };
 
+        // depth=1 时，score 就是评估值；depth>1 时，score 是搜索分数
+        // 为保持评估函数一致，eval 使用 score（AI 搜索返回的值）
         moves.push(SearchMoveBasic {
             mv: mv_str,
             move_type: move_type.to_string(),
-            eval,
+            eval: score, // 使用 AI 搜索返回的 score 作为 eval
             score,
+            fen_after,
         });
     }
 
