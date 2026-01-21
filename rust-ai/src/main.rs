@@ -134,10 +134,28 @@ struct SearchMoveInfo {
     eval: f64,
     score: f64,
     fen_after: String,
+    /// fen_after 的真实静态评估（从当前走棋方视角）
+    real_eval: f64,
+    /// 揭子走法的概率分布（仅 type=chance 时有值）
+    #[serde(skip_serializing_if = "Option::is_none")]
+    chance_breakdown: Option<Vec<ChanceOutcome>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     opposite_top10: Option<Vec<SearchMoveBasic>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     opposite_bottom10: Option<Vec<SearchMoveBasic>>,
+}
+
+/// 揭子走法的概率分布
+#[derive(Serialize, Deserialize, Clone)]
+struct ChanceOutcome {
+    /// 棋子类型 (a=仕, e=象, h=马, r=车, c=炮, p=兵)
+    piece: String,
+    /// 概率 (0.0 - 1.0)
+    prob: f64,
+    /// 揭成该类型后的静态评估
+    eval: f64,
+    /// 揭成该类型后的 FEN
+    fen: String,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -149,6 +167,11 @@ struct SearchMoveBasic {
     eval: f64,
     score: f64,
     fen_after: String,
+    /// fen_after 的真实静态评估（从当前走棋方视角）
+    real_eval: f64,
+    /// 揭子走法的概率分布（仅 type=chance 时有值）
+    #[serde(skip_serializing_if = "Option::is_none")]
+    chance_breakdown: Option<Vec<ChanceOutcome>>,
 }
 
 #[derive(Serialize, Deserialize, Default)]
@@ -684,8 +707,8 @@ fn do_search(
         let is_reveal = mv.action_type == ActionType::RevealAndMove;
         let move_type = if is_reveal { "chance" } else { "move" };
 
-        // 走完后的静态评估
-        let eval_after = if is_reveal {
+        // 走完后的静态评估（和 chance_breakdown）
+        let (eval_after, chance_breakdown) = if is_reveal {
             // 揭子走法：计算期望 eval（对所有可能类型加权平均）
             let distribution = HiddenPieceDistribution::from_board(&board, color);
             let possible_types = distribution.possible_types();
@@ -693,28 +716,38 @@ fn do_search(
             if possible_types.is_empty() {
                 let mut board_after = board.clone();
                 board_after.make_move(mv);
-                -IT2AI::evaluate_static(&board_after, board_after.current_turn())
+                (
+                    -IT2AI::evaluate_static(&board_after, board_after.current_turn()),
+                    None,
+                )
             } else {
                 let mut expected_eval = 0.0;
-                for (piece_type, probability) in possible_types {
+                let mut breakdown: Vec<ChanceOutcome> = Vec::new();
+                for (piece_type, probability) in &possible_types {
                     let mut board_after = board.clone();
                     board_after.make_move(mv);
-                    // make_move 后修正 actual_type
                     if let Some(piece) = board_after.get_piece_mut(mv.to_pos) {
-                        piece.actual_type = Some(piece_type);
+                        piece.actual_type = Some(*piece_type);
                     }
-                    let eval = -IT2AI::evaluate_static(
-                        &board_after,
-                        board_after.current_turn(),
-                    );
+                    let eval = IT2AI::evaluate_static(&board_after, Color::Red);
+                    let fen = board_after.to_fen();
                     expected_eval += probability * eval;
+                    breakdown.push(ChanceOutcome {
+                        piece: piece_type.to_fen_char().to_string(),
+                        prob: *probability,
+                        eval,
+                        fen,
+                    });
                 }
-                expected_eval
+                (expected_eval, Some(breakdown))
             }
         } else {
             let mut board_after = board.clone();
             board_after.make_move(mv);
-            -IT2AI::evaluate_static(&board_after, board_after.current_turn())
+            (
+                IT2AI::evaluate_static(&board_after, Color::Red),
+                None,
+            )
         };
 
         // 搜索分数
@@ -737,6 +770,9 @@ fn do_search(
 
         let fen_after = board_after.to_fen();
 
+        // 计算 fen_after 的真实静态评估（红方视角）
+        let real_eval = IT2AI::evaluate_static(&board_after, Color::Red);
+
         let (opposite_top10, opposite_bottom10) = if depth > 1 {
             get_opposite_moves(&board_after, strategy, depth - 1)
         } else {
@@ -749,6 +785,8 @@ fn do_search(
             eval: eval_after,
             score,
             fen_after,
+            real_eval,
+            chance_breakdown,
             opposite_top10,
             opposite_bottom10,
         });
@@ -783,23 +821,59 @@ fn get_opposite_moves(
         let mut moves: Vec<SearchMoveBasic> = Vec::new();
         for mv in &legal_moves {
             let mv_str = mv.to_fen_str(None);
-            let move_type = if mv_str.starts_with('+') {
-                "chance"
-            } else {
-                "move"
-            };
+            let is_reveal = mv.action_type == ActionType::RevealAndMove;
+            let move_type = if is_reveal { "chance" } else { "move" };
 
             let mut board_after = board.clone();
             board_after.make_move(mv);
-            let eval =
-                -IT2AI::evaluate_static(&board_after, board_after.current_turn());
+
+            // 计算 eval、real_eval、fen_after 和 chance_breakdown
+            let (eval, real_eval, fen_after, chance_breakdown) = if is_reveal {
+                let distribution = HiddenPieceDistribution::from_board(board, color);
+                let possible_types = distribution.possible_types();
+                if possible_types.is_empty() {
+                    let e = IT2AI::evaluate_static(&board_after, Color::Red);
+                    (e, e, board_after.to_fen(), None)
+                } else {
+                    let mut expected_eval = 0.0;
+                    let mut breakdown: Vec<ChanceOutcome> = Vec::new();
+                    let mut first_eval = 0.0;
+                    let mut first_fen = String::new();
+                    for (i, (piece_type, probability)) in possible_types.iter().enumerate() {
+                        let mut temp_board = board.clone();
+                        temp_board.make_move(mv);
+                        if let Some(piece) = temp_board.get_piece_mut(mv.to_pos) {
+                            piece.actual_type = Some(*piece_type);
+                        }
+                        let e = IT2AI::evaluate_static(&temp_board, Color::Red);
+                        let fen = temp_board.to_fen();
+                        expected_eval += probability * e;
+                        if i == 0 {
+                            first_eval = e;
+                            first_fen = fen.clone();
+                        }
+                        breakdown.push(ChanceOutcome {
+                            piece: piece_type.to_fen_char().to_string(),
+                            prob: *probability,
+                            eval: e,
+                            fen,
+                        });
+                    }
+                    (expected_eval, first_eval, first_fen, Some(breakdown))
+                }
+            } else {
+                let e = IT2AI::evaluate_static(&board_after, Color::Red);
+                (e, e, board_after.to_fen(), None)
+            };
 
             moves.push(SearchMoveBasic {
                 mv: mv_str,
                 move_type: move_type.to_string(),
                 eval,
-                score: eval, // 叶子节点：score = eval
-                fen_after: board_after.to_fen(),
+                score: eval, // 叶子节点：score = eval (期望值)
+                fen_after,
+                real_eval, // 第一个可能类型的静态评估
+                chance_breakdown,
             });
         }
 
@@ -839,26 +913,52 @@ fn get_opposite_moves(
         let is_reveal = mv_str.starts_with('+');
         let move_type = if is_reveal { "chance" } else { "move" };
 
-        // 生成走后 FEN
-        let fen_after = if let Some((mv, _)) = JieqiMove::from_fen_str(&mv_str) {
-            let mut board_after = board.clone();
-            board_after.make_move(&mv);
+        // 生成走后 FEN、真实评估和 chance_breakdown
+        let (fen_after, real_eval, chance_breakdown) =
+            if let Some((mv, _)) = JieqiMove::from_fen_str(&mv_str) {
+                let mut board_after = board.clone();
+                board_after.make_move(&mv);
 
-            // 揭子走法：随机选择一个合法的棋子类型用于展示
-            if is_reveal {
-                let distribution = HiddenPieceDistribution::from_board(board, color);
-                let possible_types = distribution.possible_types();
-                if let Some((piece_type, _)) = possible_types.first() {
-                    if let Some(piece) = board_after.get_piece_mut(mv.to_pos) {
-                        piece.actual_type = Some(*piece_type);
+                let (chance_breakdown, real_eval, fen_str) = if is_reveal {
+                    let distribution = HiddenPieceDistribution::from_board(board, color);
+                    let possible_types = distribution.possible_types();
+                    if possible_types.is_empty() {
+                        let e = IT2AI::evaluate_static(&board_after, Color::Red);
+                        (None, e, board_after.to_fen())
+                    } else {
+                        let mut breakdown: Vec<ChanceOutcome> = Vec::new();
+                        let mut first_eval = 0.0;
+                        let mut first_fen = String::new();
+                        for (i, (piece_type, probability)) in possible_types.iter().enumerate() {
+                            let mut temp_board = board.clone();
+                            temp_board.make_move(&mv);
+                            if let Some(piece) = temp_board.get_piece_mut(mv.to_pos) {
+                                piece.actual_type = Some(*piece_type);
+                            }
+                            let e = IT2AI::evaluate_static(&temp_board, Color::Red);
+                            let fen = temp_board.to_fen();
+                            if i == 0 {
+                                first_eval = e;
+                                first_fen = fen.clone();
+                            }
+                            breakdown.push(ChanceOutcome {
+                                piece: piece_type.to_fen_char().to_string(),
+                                prob: *probability,
+                                eval: e,
+                                fen,
+                            });
+                        }
+                        (Some(breakdown), first_eval, first_fen)
                     }
-                }
-            }
+                } else {
+                    let e = IT2AI::evaluate_static(&board_after, Color::Red);
+                    (None, e, board_after.to_fen())
+                };
 
-            board_after.to_fen()
-        } else {
-            String::new()
-        };
+                (fen_str, real_eval, chance_breakdown)
+            } else {
+                (String::new(), 0.0, None)
+            };
 
         // depth=1 时，score 就是评估值；depth>1 时，score 是搜索分数
         // 为保持评估函数一致，eval 使用 score（AI 搜索返回的值）
@@ -868,6 +968,8 @@ fn get_opposite_moves(
             eval: score, // 使用 AI 搜索返回的 score 作为 eval
             score,
             fen_after,
+            real_eval,
+            chance_breakdown,
         });
     }
 

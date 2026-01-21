@@ -49,16 +49,9 @@ pub struct Board {
     red_king_pos: Option<Position>,
     /// 缓存黑方将的位置
     black_king_pos: Option<Position>,
-    /// 红方被吃的子（按类型统计，包含暗子数量）
-    red_captured: CapturedCount,
-    /// 黑方被吃的子（按类型统计，包含暗子数量）
-    black_captured: CapturedCount,
-    /// 红方被吃的暗子数量（类型未知）
-    red_captured_hidden: u8,
-    /// 黑方被吃的暗子数量（类型未知）
-    black_captured_hidden: u8,
-    /// 被吃子字符串（红方被吃, 黑方被吃）- 用于 to_fen
+    /// 被吃子字符串（红方被吃）- 大写=明子，小写=对方暗子，?=己方暗子
     red_captured_str: String,
+    /// 被吃子字符串（黑方被吃）
     black_captured_str: String,
 }
 
@@ -111,66 +104,59 @@ impl Board {
             squares[fp.position.to_index()] = Some(piece);
         }
 
-        // 解析被吃子信息
-        let mut red_captured = [0u8; 7];
-        let mut black_captured = [0u8; 7];
-        let mut red_captured_hidden = 0u8;
-        let mut black_captured_hidden = 0u8;
-
-        // 棋子类型转索引的内联函数
-        let pt_to_idx = |pt: PieceType| -> usize {
-            match pt {
-                PieceType::King => 0,
-                PieceType::Advisor => 1,
-                PieceType::Elephant => 2,
-                PieceType::Horse => 3,
-                PieceType::Rook => 4,
-                PieceType::Cannon => 5,
-                PieceType::Pawn => 6,
-            }
-        };
-
-        for cap in &state.captured.red_captured {
-            if cap.was_hidden && cap.piece_type.is_none() {
-                // 被吃的暗子（类型未知）
-                red_captured_hidden += 1;
-            } else if let Some(pt) = cap.piece_type {
-                let idx = pt_to_idx(pt);
-                red_captured[idx] += 1;
-            }
-        }
-
-        for cap in &state.captured.black_captured {
-            if cap.was_hidden && cap.piece_type.is_none() {
-                // 被吃的暗子（类型未知）
-                black_captured_hidden += 1;
-            } else if let Some(pt) = cap.piece_type {
-                let idx = pt_to_idx(pt);
-                black_captured[idx] += 1;
-            }
-        }
-
         Ok(Board {
             squares,
             viewer: state.viewer,
             current_turn: state.turn,
             red_king_pos,
             black_king_pos,
-            red_captured,
-            black_captured,
-            red_captured_hidden,
-            black_captured_hidden,
             red_captured_str,
             black_captured_str,
         })
     }
 
-    /// 获取被吃子统计
-    pub fn get_captured(&self, color: Color) -> (&CapturedCount, u8) {
-        match color {
-            Color::Red => (&self.red_captured, self.red_captured_hidden),
-            Color::Black => (&self.black_captured, self.black_captured_hidden),
+    /// 获取被吃子统计（从字符串动态解析）
+    /// 返回：(按类型统计的数组, 暗子数量)
+    pub fn get_captured(&self, color: Color) -> (CapturedCount, u8) {
+        let cap_str = match color {
+            Color::Red => &self.red_captured_str,
+            Color::Black => &self.black_captured_str,
+        };
+
+        let mut captured = [0u8; 7];
+        let mut captured_hidden = 0u8;
+
+        // 棋子字符转类型索引
+        let char_to_idx = |c: char| -> Option<usize> {
+            match c.to_ascii_lowercase() {
+                'k' => Some(0),
+                'a' => Some(1),
+                'e' => Some(2),
+                'h' => Some(3),
+                'r' => Some(4),
+                'c' => Some(5),
+                'p' => Some(6),
+                _ => None,
+            }
+        };
+
+        for c in cap_str.chars() {
+            if c == '?' {
+                // 暗子被吃（类型未知）
+                captured_hidden += 1;
+            } else if c.is_lowercase() {
+                // 暗子被吃（viewer 知道类型，小写表示）
+                // 在暗子池计算中，这种情况也算作暗子
+                captured_hidden += 1;
+            } else if c.is_uppercase() {
+                // 明子被吃
+                if let Some(idx) = char_to_idx(c) {
+                    captured[idx] += 1;
+                }
+            }
         }
+
+        (captured, captured_hidden)
     }
 
     /// 获取当前回合
@@ -375,7 +361,7 @@ impl Board {
         self.squares[from_idx] = Some(piece);
 
         // 恢复被吃的棋子
-        if let Some(cap) = captured {
+        if let Some(ref cap) = captured {
             // 恢复将的缓存
             if cap.get_movement_type() == PieceType::King {
                 match cap.color {
@@ -383,7 +369,6 @@ impl Board {
                     Color::Black => self.black_king_pos = Some(mv.to_pos),
                 }
             }
-            self.squares[to_idx] = Some(cap);
 
             // 撤销被吃子字符串的更新（移除最后一个字符）
             match cap.color {
@@ -394,6 +379,10 @@ impl Board {
                     self.black_captured_str.pop();
                 }
             }
+        }
+
+        if let Some(cap) = captured {
+            self.squares[to_idx] = Some(cap);
         }
 
         // 恢复回合
