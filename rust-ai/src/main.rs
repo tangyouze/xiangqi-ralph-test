@@ -13,7 +13,7 @@ use std::time::Instant;
 use xiangqi_ai::{
     get_depth_reached, get_legal_moves_from_fen, get_node_count, reset_depth_reached,
     reset_node_count, AIConfig, AIEngine, ActionType, Board, Color, HiddenPieceDistribution,
-    IterativeDeepeningAI, JieqiMove,
+    IT2AI, JieqiMove,
 };
 
 #[derive(Parser)]
@@ -39,7 +39,7 @@ enum Commands {
         #[arg(long)]
         fen: String,
 
-        /// AI 策略 (random, greedy, minimax, iterative, mcts, muses, it2)
+        /// AI 策略 (random, muses2, it2)
         #[arg(long, default_value = "it2")]
         strategy: String,
 
@@ -341,7 +341,7 @@ fn main() {
         Commands::Score { fen, json } => match Board::from_fen(&fen) {
             Ok(board) => {
                 let color = board.current_turn();
-                let score = IterativeDeepeningAI::evaluate_static(&board, color);
+                let score = IT2AI::evaluate_static(&board, color);
 
                 if json {
                     println!(
@@ -503,7 +503,7 @@ fn handle_eval_request(request: &ServerRequest) -> ServerResponse {
     match Board::from_fen(&request.fen) {
         Ok(board) => {
             let color = board.current_turn();
-            let score = IterativeDeepeningAI::evaluate_static(&board, color);
+            let score = IT2AI::evaluate_static(&board, color);
             ServerResponse::success_eval(score, color_to_str(color))
         }
         Err(e) => ServerResponse::error(&format!("Invalid FEN: {}", e)),
@@ -537,7 +537,7 @@ fn do_search(
     let color = board.current_turn();
 
     // 当前局面的静态评估
-    let current_eval = IterativeDeepeningAI::evaluate_static(&board, color);
+    let current_eval = IT2AI::evaluate_static(&board, color);
 
     // 获取所有合法走法
     let legal_moves = board.get_legal_moves(color);
@@ -577,7 +577,7 @@ fn do_search(
             if possible_types.is_empty() {
                 let mut board_after = board.clone();
                 board_after.make_move(mv);
-                -IterativeDeepeningAI::evaluate_static(&board_after, board_after.current_turn())
+                -IT2AI::evaluate_static(&board_after, board_after.current_turn())
             } else {
                 let mut expected_eval = 0.0;
                 for (piece_type, probability) in possible_types {
@@ -587,7 +587,7 @@ fn do_search(
                     if let Some(piece) = board_after.get_piece_mut(mv.to_pos) {
                         piece.actual_type = Some(piece_type);
                     }
-                    let eval = -IterativeDeepeningAI::evaluate_static(
+                    let eval = -IT2AI::evaluate_static(
                         &board_after,
                         board_after.current_turn(),
                     );
@@ -598,7 +598,7 @@ fn do_search(
         } else {
             let mut board_after = board.clone();
             board_after.make_move(mv);
-            -IterativeDeepeningAI::evaluate_static(&board_after, board_after.current_turn())
+            -IT2AI::evaluate_static(&board_after, board_after.current_turn())
         };
 
         // 搜索分数
@@ -662,7 +662,42 @@ fn get_opposite_moves(
         return (None, None);
     }
 
-    // 使用 AI 搜索（即使 depth=1，也用 AI 搜索以确保评估函数一致）
+    // depth=1 时直接用静态评估（叶子节点，不需要搜索）
+    if depth <= 1 {
+        let mut moves: Vec<SearchMoveBasic> = Vec::new();
+        for mv in &legal_moves {
+            let mv_str = mv.to_fen_str(None);
+            let move_type = if mv_str.starts_with('+') {
+                "chance"
+            } else {
+                "move"
+            };
+
+            let mut board_after = board.clone();
+            board_after.make_move(mv);
+            let eval =
+                -IT2AI::evaluate_static(&board_after, board_after.current_turn());
+
+            moves.push(SearchMoveBasic {
+                mv: mv_str,
+                move_type: move_type.to_string(),
+                eval,
+                score: eval, // 叶子节点：score = eval
+                fen_after: board_after.to_fen(),
+            });
+        }
+
+        moves.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        let top10: Vec<SearchMoveBasic> = moves.iter().take(10).cloned().collect();
+        let bottom10: Vec<SearchMoveBasic> = moves.iter().rev().take(10).cloned().collect();
+        return (Some(top10), Some(bottom10));
+    }
+
+    // depth > 1 时使用 AI 搜索
     let fen = board.to_fen();
     let config = AIConfig {
         depth,

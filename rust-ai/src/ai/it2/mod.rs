@@ -338,6 +338,12 @@ impl IT2AI {
         }
     }
 
+    /// 静态评估函数（公开接口）
+    pub fn evaluate_static(board: &Board, color: Color) -> f64 {
+        let ai = IT2AI::new(&AIConfig::default());
+        ai.evaluate(board, color)
+    }
+
     /// 评估函数（从 color 视角）
     ///
     /// 内部逻辑：总是计算"红方价值 - 黑方价值"，最后根据视角翻转符号

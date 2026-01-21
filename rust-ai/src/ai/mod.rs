@@ -1,23 +1,13 @@
 //! AI 策略模块
 //!
-//! 提供多种 AI 策略实现，包括随机、贪婪、迭代加深等
+//! 提供 AI 策略实现：random, muses2, it2
 
-mod greedy;
 mod it2;
-mod iterative;
-mod mcts;
-mod muses;
 mod muses2;
-mod muses3;
 mod random;
 
-pub use greedy::GreedyAI;
 pub use it2::{HiddenPieceDistribution, IT2AI};
-pub use iterative::IterativeDeepeningAI;
-pub use mcts::MCTSAI;
-pub use muses::MusesAI;
 pub use muses2::Muses2AI;
-pub use muses3::Muses3AI;
 pub use random::RandomAI;
 
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering as AtomicOrdering};
@@ -113,45 +103,10 @@ impl AIEngine {
         }
     }
 
-    /// 创建贪婪 AI
-    pub fn greedy(config: &AIConfig) -> Self {
-        AIEngine {
-            strategy: Box::new(GreedyAI::new(config)),
-        }
-    }
-
-    /// 创建迭代加深 AI
-    pub fn iterative_deepening(config: &AIConfig) -> Self {
-        AIEngine {
-            strategy: Box::new(IterativeDeepeningAI::new(config)),
-        }
-    }
-
-    /// 创建 MCTS AI
-    pub fn mcts(config: &AIConfig) -> Self {
-        AIEngine {
-            strategy: Box::new(MCTSAI::new(config)),
-        }
-    }
-
-    /// 创建 Muses AI
-    pub fn muses(config: &AIConfig) -> Self {
-        AIEngine {
-            strategy: Box::new(MusesAI::new(config)),
-        }
-    }
-
     /// 创建 Muses2 AI
     pub fn muses2(config: &AIConfig) -> Self {
         AIEngine {
             strategy: Box::new(Muses2AI::new(config)),
-        }
-    }
-
-    /// 创建 Muses3 AI
-    pub fn muses3(config: &AIConfig) -> Self {
-        AIEngine {
-            strategy: Box::new(Muses3AI::new(config)),
         }
     }
 
@@ -166,15 +121,10 @@ impl AIEngine {
     pub fn from_strategy(name: &str, config: &AIConfig) -> Result<Self, String> {
         match name.to_lowercase().as_str() {
             "random" => Ok(Self::random(config.seed)),
-            "greedy" => Ok(Self::greedy(config)),
-            "iterative" | "iterative_deepening" => Ok(Self::iterative_deepening(config)),
-            "mcts" | "montecarlo" => Ok(Self::mcts(config)),
-            "muses" => Ok(Self::muses(config)),
             "muses2" => Ok(Self::muses2(config)),
-            "muses3" => Ok(Self::muses3(config)),
             "it2" => Ok(Self::it2(config)),
             _ => Err(format!(
-                "Unknown strategy: {}. Available: random, greedy, iterative, mcts, muses, muses2, muses3, it2",
+                "Unknown strategy: {}. Available: random, muses2, it2",
                 name
             )),
         }
@@ -206,7 +156,6 @@ mod tests {
 
     #[test]
     fn test_random_ai() {
-        // 揭棋初始局面（将帅已揭）
         let fen = "xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXKXXXX -:- r r";
         let ai = AIEngine::random(Some(42));
         let moves = ai.select_moves_fen(fen, 5).unwrap();
@@ -214,57 +163,25 @@ mod tests {
     }
 
     #[test]
-    fn test_greedy_ai() {
-        // 揭棋初始局面（将帅已揭）
-        let fen = "xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXKXXXX -:- r r";
-        let config = AIConfig::default();
-        let ai = AIEngine::greedy(&config);
-        let moves = ai.select_moves_fen(fen, 5).unwrap();
-        assert_eq!(moves.len(), 5);
-    }
-
-    #[test]
-    fn test_capture_preference() {
+    fn test_muses2_ai() {
         let fen = "4k4/9/9/9/4c4/4R4/9/9/9/4K4 -:- r r";
-        let config = AIConfig::default();
-        let ai = AIEngine::greedy(&config);
+        let config = AIConfig {
+            depth: 2,
+            ..Default::default()
+        };
+        let ai = AIEngine::muses2(&config);
         let best = ai.select_best_move_fen(fen).unwrap().unwrap();
         assert_eq!(best, "e4e5");
     }
 
     #[test]
-    fn test_iterative_deepening_ai() {
-        let fen = "4k4/9/9/9/9/4R4/9/9/9/4K4 -:- r r";
-        let config = AIConfig {
-            depth: 2,
-            ..Default::default()
-        };
-        let ai = AIEngine::iterative_deepening(&config);
-        let best = ai.select_best_move_fen(fen).unwrap();
-        assert!(best.is_some());
-    }
-
-    #[test]
-    fn test_mcts_ai() {
-        let fen = "4k4/9/9/9/9/4R4/9/9/9/4K4 -:- r r";
-        let config = AIConfig {
-            depth: 1,
-            seed: Some(42),
-            ..Default::default()
-        };
-        let ai = AIEngine::mcts(&config);
-        let best = ai.select_best_move_fen(fen).unwrap();
-        assert!(best.is_some());
-    }
-
-    #[test]
-    fn test_muses_ai() {
+    fn test_it2_ai() {
         let fen = "4k4/9/9/9/4c4/4R4/9/9/9/4K4 -:- r r";
         let config = AIConfig {
             depth: 2,
             ..Default::default()
         };
-        let ai = AIEngine::muses(&config);
+        let ai = AIEngine::it2(&config);
         let best = ai.select_best_move_fen(fen).unwrap().unwrap();
         assert_eq!(best, "e4e5");
     }
@@ -272,7 +189,7 @@ mod tests {
     #[test]
     fn test_all_strategies_from_name() {
         let config = AIConfig::default();
-        let strategies = vec!["random", "greedy", "iterative", "mcts", "muses"];
+        let strategies = vec!["random", "muses2", "it2"];
 
         for name in strategies {
             let result = AIEngine::from_strategy(name, &config);

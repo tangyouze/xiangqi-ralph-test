@@ -24,8 +24,8 @@ test-py:
 
 # === 服务命令 ===
 
-# Start streamlit dashboard (kills existing on same port)
-streamlit:
+# Start streamlit dashboard (builds Rust first, kills existing on same port)
+streamlit: build-rust
     -lsof -ti:6704 | xargs kill 2>/dev/null
     sleep 1
     uv run streamlit run streamlit_app.py --server.port 6704
