@@ -158,7 +158,8 @@ def _parse_captured_counts(captured_str: str) -> tuple[int, int, str | None]:
     red_captured = 0
     if red_lost != "-":
         for ch in red_lost:
-            if ch in "RHEACP?" or ch.isupper():
+            if ch in "RHEACP?!" or ch.isupper():
+                # ? = 暗子被吃（对方吃的），! = 暗子被吃（viewer 方但系统无法追踪）
                 red_captured += 1
             elif ch.islower():
                 # 小写也是被吃的棋子（暗子被吃，对方知道身份）
@@ -170,7 +171,8 @@ def _parse_captured_counts(captured_str: str) -> tuple[int, int, str | None]:
     black_captured = 0
     if black_lost != "-":
         for ch in black_lost:
-            if ch in "rheacp?" or ch.islower():
+            if ch in "rheacp?!" or ch.islower():
+                # ? = 暗子被吃（对方吃的），! = 暗子被吃（viewer 方但系统无法追踪）
                 black_captured += 1
             elif ch.isupper():
                 # 大写也是被吃的棋子（暗子被吃，对方知道身份）
@@ -378,13 +380,15 @@ def validate_captured_perspective(captured_str: str, viewer: Color) -> None:
     """验证被吃子是否符合视角规则。
 
     规则：viewer 方被吃的暗子不能是 '?'，因为 viewer 知道自己丢了什么。
+    - '?' = 对方吃的我的暗子，但不知道身份（理论上不应出现在 viewer 方）
+    - '!' = viewer 方的暗子被吃，但系统无法追踪类型（允许存在）
 
     Args:
         captured_str: 被吃子字符串，格式为 "红方被吃:黑方被吃"
         viewer: 视角颜色
 
     Raises:
-        ValueError: 如果视角方的被吃子中包含 '?'
+        ValueError: 如果视角方的被吃子中包含 '?'（'!' 是允许的）
     """
     parts = captured_str.split(":")
     red_captured = parts[0] if len(parts) > 0 else "-"
