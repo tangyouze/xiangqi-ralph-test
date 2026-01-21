@@ -33,6 +33,7 @@ use super::{sort_and_truncate, AIConfig, AIStrategy, ScoredMove, DEPTH_REACHED, 
 use crate::board::Board;
 use crate::types::{ActionType, Color, GameResult, JieqiMove, PieceType};
 use rand::prelude::*;
+use std::cell::Cell;
 use std::cmp::Ordering as CmpOrdering;
 use std::sync::atomic::Ordering as AtomicOrdering;
 use std::time::{Duration, Instant};
@@ -80,6 +81,8 @@ pub struct IT2AI {
     rng: StdRng,
     randomness: f64,
     time_limit: Option<Duration>,
+    /// 搜索开始时间（用于内部超时检查）
+    start_time: Cell<Option<Instant>>,
 }
 
 impl IT2AI {
@@ -99,6 +102,7 @@ impl IT2AI {
             rng,
             randomness: config.randomness,
             time_limit: config.time_limit.map(Duration::from_secs_f64),
+            start_time: Cell::new(None),
         }
     }
 
@@ -112,6 +116,16 @@ impl IT2AI {
     pub fn evaluate_detail(board: &Board, color: Color) -> EvalDetail {
         let ai = IT2AI::new(&AIConfig::default());
         ai.evaluate_breakdown(board, color)
+    }
+
+    /// 检查是否超时
+    #[inline]
+    fn is_timeout(&self) -> bool {
+        if let (Some(limit), Some(start)) = (self.time_limit, self.start_time.get()) {
+            start.elapsed() >= limit
+        } else {
+            false
+        }
     }
 
     /// 详细评估（返回各分项）
@@ -374,6 +388,11 @@ impl IT2AI {
         // 节点计数
         NODE_COUNT.fetch_add(1, AtomicOrdering::Relaxed);
 
+        // 超时检查：立即返回当前评估
+        if self.is_timeout() {
+            return self.evaluate(board, ctx.pov_color);
+        }
+
         let current_color = board.current_turn();
         let legal_moves = board.get_legal_moves(current_color);
         let is_max_node = current_color == ctx.pov_color;
@@ -489,6 +508,8 @@ impl IT2AI {
 
         let mut best_moves: Vec<(JieqiMove, f64)> = moves.iter().map(|&mv| (mv, 0.0)).collect();
         let start_time = Instant::now();
+        // 设置开始时间，供内部超时检查使用
+        self.start_time.set(Some(start_time));
 
         // 从深度 1 开始迭代
         for depth in 1..=self.max_depth {
