@@ -150,40 +150,35 @@ class TestCapturedDisplay:
         """测试暗子被吃，viewer 是被吃方（看不到身份）"""
         from engine.fen.display import _parse_captured_for_canvas
 
-        # 红方被吃了暗子（小写 r 表示暗子车）
-        # viewer 是红方，黑方吃的红方暗子，红方看不到对方看到的身份
-        result = _parse_captured_for_canvas("r:-", "red")
-
-        assert len(result["red"]) == 1
-        assert result["red"][0]["text"] == "暗"  # 红方看不到
-        assert result["red"][0]["isHidden"] is True
-        assert result["red"][0]["isUnknown"] is True
-
-    def test_unknown_hidden_piece(self):
-        """测试未知暗子被吃（?）"""
-        from engine.fen.display import _parse_captured_for_canvas
-
+        # 红方被吃了暗子（? 表示暗子，红方不知道身份）
+        # viewer 是红方，黑方吃的红方暗子，红方不知道是什么
         result = _parse_captured_for_canvas("?:-", "red")
 
         assert len(result["red"]) == 1
-        assert result["red"][0]["text"] == "暗"
+        assert result["red"][0]["text"] == "暗"  # 红方不知道
+        assert result["red"][0]["isHidden"] is True
         assert result["red"][0]["isUnknown"] is True
 
     def test_mixed_captured(self):
         """测试混合被吃子（明子+暗子）"""
         from engine.fen.display import _parse_captured_for_canvas
 
-        # 红方被吃：明车R + 暗兵p
-        # 黑方被吃：明炮C
-        result = _parse_captured_for_canvas("Rp:C", "red")
+        # 红方视角
+        # 红方被吃：明车R + 暗子?（红方不知道是什么）
+        # 黑方被吃：暗车r（红方吃的，红方知道）+ 明炮C
+        result = _parse_captured_for_canvas("R?:rC", "red")
 
         # 红方被吃的
         assert len(result["red"]) == 2
         assert result["red"][0]["text"] == "车"  # 明车
         assert result["red"][0]["isHidden"] is False
-        assert result["red"][1]["text"] == "暗"  # 暗兵（被黑方吃，红方看不到）
+        assert result["red"][1]["text"] == "暗"  # 暗子（被黑方吃，红方不知道）
         assert result["red"][1]["isUnknown"] is True
 
         # 黑方被吃的
-        assert len(result["black"]) == 1
-        assert result["black"][0]["text"] == "砲"
+        assert len(result["black"]) == 2
+        assert result["black"][0]["text"] == "車"  # 暗车（红方吃的，红方知道）
+        assert result["black"][0]["isHidden"] is True
+        assert result["black"][0]["isUnknown"] is False
+        assert result["black"][1]["text"] == "砲"  # 明炮
+        assert result["black"][1]["isHidden"] is False

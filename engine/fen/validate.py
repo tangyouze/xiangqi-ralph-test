@@ -377,23 +377,36 @@ def fix_fen_captured(fen: str) -> str:
 def validate_captured_perspective(captured_str: str, viewer: Color) -> None:
     """验证被吃子是否符合视角规则。
 
-    规则：viewer 方被吃的暗子不能是 '?'，因为 viewer 知道自己丢了什么。
+    规则：
+    - viewer 方被吃的子：只能是大写或 '?'（不能有小写，因为小写表示"我吃的我知道"）
+    - 对方被吃的子：只能是大写或小写（不能有 '?'，因为是 viewer 吃的，viewer 知道）
 
     Args:
         captured_str: 被吃子字符串，格式为 "红方被吃:黑方被吃"
         viewer: 视角颜色
 
     Raises:
-        ValueError: 如果视角方的被吃子中包含 '?'
+        ValueError: 如果不符合视角规则
     """
     parts = captured_str.split(":")
     red_captured = parts[0] if len(parts) > 0 else "-"
     black_captured = parts[1] if len(parts) > 1 else "-"
 
     viewer_captured = red_captured if viewer == Color.RED else black_captured
+    opponent_captured = black_captured if viewer == Color.RED else red_captured
 
-    if "?" in viewer_captured:
+    # viewer 方被吃的子不能有小写（小写表示"我吃的我知道"，但这是对方吃的）
+    for ch in viewer_captured:
+        if ch != "-" and ch != "?" and ch.islower():
+            raise ValueError(
+                f"Invalid FEN: viewer ({viewer.name})'s captured pieces cannot contain "
+                f"lowercase '{ch}' (lowercase means 'I captured it and I know', "
+                f"but these were captured by opponent)"
+            )
+
+    # 对方被吃的子不能有 '?'（viewer 吃的，viewer 肯定知道）
+    if "?" in opponent_captured:
         raise ValueError(
-            f"Invalid FEN: viewer ({viewer.name})'s captured pieces cannot contain '?' "
-            f"(viewer knows what they lost)"
+            f"Invalid FEN: opponent's captured pieces cannot contain '?' "
+            f"(viewer captured them and knows what they are)"
         )
