@@ -175,6 +175,18 @@ class RustBackend:
         response = self._send_request({"cmd": "eval", "fen": fen})
         return response.get("eval", 0.0), response.get("color", "red")
 
+    def get_eval_detail(self, fen: str) -> dict:
+        """详细评估（返回每个棋子的评估分项）
+
+        Returns:
+            dict 包含:
+            - pieces: 每个棋子的详细评估
+            - summary: 红/黑方汇总
+            - total: 总分
+        """
+        response = self._send_request({"cmd": "eval_detail", "fen": fen})
+        return response
+
     def get_search_tree(self, fen: str, depth: int = 3, strategy: str | None = None) -> dict:
         """获取搜索树调试信息"""
         request = {"cmd": "search", "fen": fen, "depth": depth}
@@ -267,6 +279,10 @@ class UnifiedAIEngine:
     def get_eval(self, fen: str) -> tuple[float, str]:
         """静态评估（不搜索）"""
         return self._backend.get_eval(fen)
+
+    def get_eval_detail(self, fen: str) -> dict:
+        """详细评估（返回每个棋子的评估分项）"""
+        return self._backend.get_eval_detail(fen)
 
     def get_search_tree(self, fen: str, depth: int = 3, strategy: str | None = None) -> dict:
         """获取搜索树调试信息"""

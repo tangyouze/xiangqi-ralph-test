@@ -9,6 +9,8 @@
 
 import streamlit as st
 
+from engine.ui import apply_compact_style
+
 
 def main():
     st.set_page_config(
@@ -16,6 +18,7 @@ def main():
         page_icon="♟️",
         layout="wide",
     )
+    apply_compact_style()
 
     st.title("♟️ 揭棋 AI 对战平台")
     st.markdown("点击左侧 **Game** 开始游戏")

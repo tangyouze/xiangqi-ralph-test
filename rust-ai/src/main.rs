@@ -10,6 +10,7 @@ use clap::{Parser, Subcommand};
 use serde::{Deserialize, Serialize};
 use std::io::{self, BufRead, Write};
 use std::time::Instant;
+use serde_json::json;
 use xiangqi_ai::{
     get_depth_reached, get_legal_moves_from_fen, get_node_count, reset_depth_reached,
     reset_node_count, AIConfig, AIEngine, ActionType, Board, Color, HiddenPieceDistribution,
@@ -439,6 +440,13 @@ fn run_server() {
             "best" => handle_best_request(&request),
             "moves" => handle_moves_request(&request),
             "eval" => handle_eval_request(&request),
+            "eval_detail" => {
+                // 直接返回 JSON，不经过 ServerResponse
+                let json_str = handle_eval_detail_request(&request);
+                println!("{}", json_str);
+                let _ = stdout.flush();
+                continue;
+            }
             "search" => handle_search_request(&request),
             "quit" => break,
             _ => ServerResponse::error(&format!("Unknown command: {}", request.cmd)),
@@ -507,6 +515,105 @@ fn handle_eval_request(request: &ServerRequest) -> ServerResponse {
             ServerResponse::success_eval(score, color_to_str(color))
         }
         Err(e) => ServerResponse::error(&format!("Invalid FEN: {}", e)),
+    }
+}
+
+/// 处理 eval_detail 命令（详细评估）
+fn handle_eval_detail_request(request: &ServerRequest) -> String {
+    match Board::from_fen(&request.fen) {
+        Ok(board) => {
+            let color = board.current_turn();
+            let detail = IT2AI::evaluate_detail(&board, color);
+
+            // 构建每个棋子的 JSON
+            let pieces_json: Vec<serde_json::Value> = detail
+                .pieces
+                .iter()
+                .map(|p| {
+                    json!({
+                        "position": p.position,
+                        "color": p.color,
+                        "type": p.piece_type,
+                        "is_hidden": p.is_hidden,
+                        "material": p.material,
+                        "pst": p.pst,
+                        "value": p.value
+                    })
+                })
+                .collect();
+
+            // 暗子池构成
+            let red_pool = HiddenPieceDistribution::from_board(&board, Color::Red);
+            let black_pool = HiddenPieceDistribution::from_board(&board, Color::Black);
+
+            let red_pool_json: Vec<serde_json::Value> = red_pool
+                .breakdown()
+                .iter()
+                .map(|(name, count, unit, total)| {
+                    json!({
+                        "type": name,
+                        "count": count,
+                        "unit_value": unit,
+                        "total_value": total
+                    })
+                })
+                .collect();
+
+            let black_pool_json: Vec<serde_json::Value> = black_pool
+                .breakdown()
+                .iter()
+                .map(|(name, count, unit, total)| {
+                    json!({
+                        "type": name,
+                        "count": count,
+                        "unit_value": unit,
+                        "total_value": total
+                    })
+                })
+                .collect();
+
+            json!({
+                "ok": true,
+                "fen": request.fen,
+                "pov": detail.pov,
+                "pieces": pieces_json,
+                "hidden_pool": {
+                    "red": {
+                        "count": red_pool.total_count(),
+                        "expected_value": red_pool.expected_value(),
+                        "breakdown": red_pool_json
+                    },
+                    "black": {
+                        "count": black_pool.total_count(),
+                        "expected_value": black_pool.expected_value(),
+                        "breakdown": black_pool_json
+                    }
+                },
+                "summary": {
+                    "red": {
+                        "material": detail.material_red,
+                        "pst": detail.pst_red,
+                        "hidden_ev": detail.hidden_ev_red,
+                        "capture": detail.capture_red,
+                        "total": detail.material_red + detail.pst_red + detail.hidden_ev_red + detail.capture_red
+                    },
+                    "black": {
+                        "material": detail.material_black,
+                        "pst": detail.pst_black,
+                        "hidden_ev": detail.hidden_ev_black,
+                        "capture": detail.capture_black,
+                        "total": detail.material_black + detail.pst_black + detail.hidden_ev_black + detail.capture_black
+                    }
+                },
+                "total": detail.total
+            })
+            .to_string()
+        }
+        Err(e) => json!({
+            "ok": false,
+            "error": format!("Invalid FEN: {}", e)
+        })
+        .to_string(),
     }
 }
 

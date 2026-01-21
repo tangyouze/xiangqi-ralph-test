@@ -18,6 +18,7 @@ from engine.games.midgames_revealed import ALL_MIDGAME_POSITIONS
 from engine.game import JieqiGame
 from engine.rust_ai import DEFAULT_STRATEGY, UnifiedAIEngine
 from engine.types import Color
+from engine.ui import apply_compact_style
 
 
 # =============================================================================
@@ -178,8 +179,164 @@ def render_current_position():
             st.caption(f"Current turn: {turn} | Depth: {tree.get('depth', 0)}")
         except Exception:
             pass
+
+        # 详细评估
+        render_eval_details()
     else:
         st.warning("No legal moves!")
+
+
+def render_eval_details():
+    """渲染详细评估信息"""
+    # 棋子类型中文映射
+    piece_type_cn = {
+        "King": "将/帅",
+        "Advisor": "士",
+        "Elephant": "象",
+        "Horse": "马",
+        "Rook": "车",
+        "Cannon": "炮",
+        "Pawn": "兵/卒",
+        "hidden": "暗子",
+    }
+
+    with st.expander("评估详情"):
+        try:
+            engine = UnifiedAIEngine(strategy=DEFAULT_STRATEGY)
+            detail = engine.get_eval_detail(st.session_state.search_fen)
+
+            if not detail.get("ok"):
+                st.error(detail.get("error", "Unknown error"))
+                return
+
+            # 汇总信息
+            summary = detail.get("summary", {})
+            red_sum = summary.get("red", {})
+            black_sum = summary.get("black", {})
+
+            # 减去 King 价值 (100000) 以便显示更友好
+            king_value = 100000
+            red_mat = red_sum.get("material", 0)
+            black_mat = black_sum.get("material", 0)
+            red_mat_display = red_mat - king_value if red_mat >= king_value else red_mat
+            black_mat_display = black_mat - king_value if black_mat >= king_value else black_mat
+            red_total_display = red_sum.get("total", 0) - (
+                king_value if red_mat >= king_value else 0
+            )
+            black_total_display = black_sum.get("total", 0) - (
+                king_value if black_mat >= king_value else 0
+            )
+
+            st.markdown("**分项汇总** (不含将/帅)")
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown("**红方**")
+                st.write(f"- 明子材料: {red_mat_display:,.0f}")
+                st.write(f"- 明子位置: {red_sum.get('pst', 0):+.0f}")
+                st.write(f"- 暗子总值: {red_sum.get('hidden_ev', 0):,.0f}")
+                st.write(f"- 吃子潜力: {red_sum.get('capture', 0):+.1f}")
+                st.write(f"- **小计: {red_total_display:,.0f}**")
+            with col2:
+                st.markdown("**黑方**")
+                st.write(f"- 明子材料: {black_mat_display:,.0f}")
+                st.write(f"- 明子位置: {black_sum.get('pst', 0):+.0f}")
+                st.write(f"- 暗子总值: {black_sum.get('hidden_ev', 0):,.0f}")
+                st.write(f"- 吃子潜力: {black_sum.get('capture', 0):+.1f}")
+                st.write(f"- **小计: {black_total_display:,.0f}**")
+
+            pov_cn = "红方" if detail.get("pov", "red") == "red" else "黑方"
+            st.divider()
+            st.markdown(f"**净分数（{pov_cn}视角）: {detail.get('total', 0):+.1f}**")
+
+            # 暗子池构成
+            hidden_pool = detail.get("hidden_pool", {})
+            if hidden_pool:
+                st.divider()
+                st.markdown("**暗子池构成** (期望值计算依据)")
+                col1, col2 = st.columns(2)
+
+                red_pool = hidden_pool.get("red", {})
+                black_pool = hidden_pool.get("black", {})
+
+                with col1:
+                    st.markdown(
+                        f"**红方** ({red_pool.get('count', 0)}个, 期望值={red_pool.get('expected_value', 0)})"
+                    )
+                    red_bd = red_pool.get("breakdown", [])
+                    if red_bd:
+                        pool_data = []
+                        for item in red_bd:
+                            pool_data.append(
+                                {
+                                    "类型": piece_type_cn.get(item["type"], item["type"]),
+                                    "数量": item["count"],
+                                    "单价": item["unit_value"],
+                                    "总价": item["total_value"],
+                                }
+                            )
+                        st.dataframe(pool_data, width="stretch", hide_index=True)
+
+                with col2:
+                    st.markdown(
+                        f"**黑方** ({black_pool.get('count', 0)}个, 期望值={black_pool.get('expected_value', 0)})"
+                    )
+                    black_bd = black_pool.get("breakdown", [])
+                    if black_bd:
+                        pool_data = []
+                        for item in black_bd:
+                            pool_data.append(
+                                {
+                                    "类型": piece_type_cn.get(item["type"], item["type"]),
+                                    "数量": item["count"],
+                                    "单价": item["unit_value"],
+                                    "总价": item["total_value"],
+                                }
+                            )
+                        st.dataframe(pool_data, width="stretch", hide_index=True)
+
+            st.divider()
+
+            # 每个棋子的详细信息（不含将/帅）
+            st.markdown("**棋子明细** (不含将/帅)")
+            pieces = detail.get("pieces", [])
+            if pieces:
+                # 按颜色分组，过滤掉 King
+                red_pieces = [p for p in pieces if p["color"] == "red" and p["type"] != "King"]
+                black_pieces = [p for p in pieces if p["color"] == "black" and p["type"] != "King"]
+
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.markdown("**红方棋子**")
+                    red_data = []
+                    for p in sorted(red_pieces, key=lambda x: -x["value"]):
+                        red_data.append(
+                            {
+                                "位置": p["position"],
+                                "类型": piece_type_cn.get(p["type"], p["type"]),
+                                "材料": f"{p['material']:,.0f}",
+                                "位置分": f"{p['pst']:+.0f}",
+                                "总价值": f"{p['value']:,.0f}",
+                            }
+                        )
+                    st.dataframe(red_data, width="stretch", hide_index=True)
+
+                with col2:
+                    st.markdown("**黑方棋子**")
+                    black_data = []
+                    for p in sorted(black_pieces, key=lambda x: -x["value"]):
+                        black_data.append(
+                            {
+                                "位置": p["position"],
+                                "类型": piece_type_cn.get(p["type"], p["type"]),
+                                "材料": f"{p['material']:,.0f}",
+                                "位置分": f"{p['pst']:+.0f}",
+                                "总价值": f"{p['value']:,.0f}",
+                            }
+                        )
+                    st.dataframe(black_data, width="stretch", hide_index=True)
+
+        except Exception as e:
+            st.error(f"获取评估详情失败: {e}")
 
 
 def render_layer1():
@@ -351,6 +508,8 @@ def main():
         page_icon="🔍",
         layout="wide",
     )
+
+    apply_compact_style()
 
     st.title("🔍 Search Tree Visualization")
 

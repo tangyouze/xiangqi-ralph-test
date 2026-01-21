@@ -19,6 +19,7 @@ from engine.games.endgames import ALL_ENDGAMES
 from engine.games.midgames_revealed import ALL_MIDGAME_POSITIONS
 from engine.rust_ai import UnifiedAIEngine, DEFAULT_STRATEGY
 from engine.types import Color
+from engine.ui import apply_compact_style
 
 # =============================================================================
 # 常量
@@ -480,6 +481,7 @@ def render_sidebar():
 
 def main():
     st.set_page_config(page_title="Human vs AI", layout="wide")
+    apply_compact_style()
 
     init_state()
     render_sidebar()

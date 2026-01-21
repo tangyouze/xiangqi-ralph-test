@@ -300,8 +300,7 @@ impl HiddenPieceDistribution {
             .collect()
     }
 
-    /// 计算期望价值
-    /// 除了车和炮，其他暗子价值打 7 折（鼓励揭车/炮）
+    /// 计算期望价值（暗子所有子力打8折）
     pub fn expected_value(&self) -> i32 {
         let total_remaining: u8 = self.remaining.iter().sum();
         if total_remaining == 0 {
@@ -310,18 +309,86 @@ impl HiddenPieceDistribution {
 
         let mut sum: i64 = 0;
         for i in 0..PIECE_TYPE_COUNT {
-            let base_value = PIECE_VALUES[i] as i64;
-            // 车(4)和炮(5)保持原价值，其他打7折
-            let value = if i == 4 || i == 5 {
-                base_value
-            } else {
-                base_value * 7 / 10
-            };
-            sum += (self.remaining[i] as i64) * value;
+            // 暗子所有子力打8折
+            let discounted_value = PIECE_VALUES[i] as i64 * 8 / 10;
+            sum += (self.remaining[i] as i64) * discounted_value;
         }
 
         (sum / total_remaining as i64) as i32
     }
+
+    /// 返回暗子池详细构成
+    /// 返回 Vec<(类型名, 剩余数量, 单价, 总价)>
+    pub fn breakdown(&self) -> Vec<(String, u8, i32, i32)> {
+        let type_names = ["King", "Advisor", "Elephant", "Horse", "Rook", "Cannon", "Pawn"];
+        let mut result = Vec::new();
+
+        for i in 0..PIECE_TYPE_COUNT {
+            if self.remaining[i] > 0 {
+                // 暗子所有子力打8折
+                let unit_value = PIECE_VALUES[i] * 8 / 10;
+                let total_value = (self.remaining[i] as i32) * unit_value;
+                result.push((
+                    type_names[i].to_string(),
+                    self.remaining[i],
+                    unit_value,
+                    total_value,
+                ));
+            }
+        }
+        result
+    }
+
+    /// 获取剩余暗子总数
+    pub fn total_count(&self) -> u8 {
+        self.remaining.iter().sum()
+    }
+}
+
+/// 单个棋子的评估详情
+#[derive(Debug, Clone)]
+pub struct PieceEval {
+    /// 位置（如 "e0"）
+    pub position: String,
+    /// 颜色（red/black）
+    pub color: String,
+    /// 棋子类型（如 "Rook"、"hidden"）
+    pub piece_type: String,
+    /// 是否为暗子
+    pub is_hidden: bool,
+    /// 材料价值
+    pub material: f64,
+    /// 位置评分 (PST)
+    pub pst: f64,
+    /// 总价值（material + pst）
+    pub value: f64,
+}
+
+/// 详细评估结果
+#[derive(Debug, Clone, Default)]
+pub struct EvalDetail {
+    /// 所有棋子的详细评估
+    pub pieces: Vec<PieceEval>,
+    /// 红方材料价值
+    pub material_red: f64,
+    /// 黑方材料价值
+    pub material_black: f64,
+    /// 红方位置评分 (PST)
+    pub pst_red: f64,
+    /// 黑方位置评分 (PST)
+    pub pst_black: f64,
+    /// 红方暗子期望值
+    pub hidden_ev_red: f64,
+    /// 黑方暗子期望值
+    pub hidden_ev_black: f64,
+    /// 红方吃子潜力
+    pub capture_red: f64,
+    /// 黑方吃子潜力
+    pub capture_black: f64,
+    /// 总分（从指定视角）
+    pub total: f64,
+    /// 视角颜色
+    pub pov: String,
 }
 
 /// 搜索上下文（减少参数传递）
@@ -393,6 +460,147 @@ impl IT2AI {
     pub fn evaluate_static(board: &Board, color: Color) -> f64 {
         let ai = IT2AI::new(&AIConfig::default());
         ai.evaluate(board, color)
+    }
+
+    /// 详细评估（返回各分项）
+    pub fn evaluate_detail(board: &Board, color: Color) -> EvalDetail {
+        let ai = IT2AI::new(&AIConfig::default());
+        ai.evaluate_breakdown(board, color)
+    }
+
+    /// 详细评估（返回各分项）
+    fn evaluate_breakdown(&self, board: &Board, color: Color) -> EvalDetail {
+        // 按颜色固定计算暗子期望
+        let red_hidden_ev =
+            HiddenPieceDistribution::from_board(board, Color::Red).expected_value() as f64;
+        let black_hidden_ev =
+            HiddenPieceDistribution::from_board(board, Color::Black).expected_value() as f64;
+
+        let mut material_red = 0.0;
+        let mut material_black = 0.0;
+        let mut pst_red = 0.0;
+        let mut pst_black = 0.0;
+        let mut hidden_value_red = 0.0;
+        let mut hidden_value_black = 0.0;
+        let mut pieces: Vec<PieceEval> = Vec::new();
+
+        for piece in board.get_all_pieces(None) {
+            let pos = piece.position;
+            let pos_str = format!(
+                "{}{}",
+                (b'a' + pos.col as u8) as char,
+                pos.row
+            );
+            let color_str = if piece.color == Color::Red {
+                "red"
+            } else {
+                "black"
+            };
+
+            if piece.is_hidden {
+                // 暗子：期望值 + 位置加成
+                let ev = if piece.color == Color::Red {
+                    red_hidden_ev
+                } else {
+                    black_hidden_ev
+                };
+                let position_bonus = piece
+                    .movement_type
+                    .map(|mt| HIDDEN_POSITION_BONUS[piece_type_to_index(mt)] as f64)
+                    .unwrap_or(0.0);
+                let value = ev + position_bonus;
+
+                pieces.push(PieceEval {
+                    position: pos_str,
+                    color: color_str.to_string(),
+                    piece_type: "hidden".to_string(),
+                    is_hidden: true,
+                    material: ev,
+                    pst: position_bonus,
+                    value,
+                });
+
+                if piece.color == Color::Red {
+                    hidden_value_red += value;
+                } else {
+                    hidden_value_black += value;
+                }
+            } else if let Some(pt) = piece.actual_type {
+                // 明子：实际价值 + PST
+                let pst_score = get_pst_score(
+                    pt,
+                    pos.row as usize,
+                    pos.col as usize,
+                    piece.color == Color::Red,
+                ) as f64;
+                let material = pt.value() as f64;
+                let value = material + pst_score;
+
+                let type_name = match pt {
+                    PieceType::King => "King",
+                    PieceType::Advisor => "Advisor",
+                    PieceType::Elephant => "Elephant",
+                    PieceType::Horse => "Horse",
+                    PieceType::Rook => "Rook",
+                    PieceType::Cannon => "Cannon",
+                    PieceType::Pawn => "Pawn",
+                };
+
+                pieces.push(PieceEval {
+                    position: pos_str,
+                    color: color_str.to_string(),
+                    piece_type: type_name.to_string(),
+                    is_hidden: false,
+                    material,
+                    pst: pst_score,
+                    value,
+                });
+
+                if piece.color == Color::Red {
+                    material_red += material;
+                    pst_red += pst_score;
+                } else {
+                    material_black += material;
+                    pst_black += pst_score;
+                }
+            }
+        }
+
+        // 吃子潜力
+        let capture_weight = 0.3;
+        let red_capture = self.best_capture_value(board, Color::Red, black_hidden_ev);
+        let black_capture = self.best_capture_value(board, Color::Black, red_hidden_ev);
+
+        // 计算 raw_score（红方视角）
+        let raw_score = (material_red - material_black)
+            + (pst_red - pst_black)
+            + (hidden_value_red - hidden_value_black)
+            + capture_weight * (red_capture - black_capture);
+
+        // 根据视角翻转符号
+        let total = if color == Color::Red {
+            raw_score
+        } else {
+            -raw_score
+        };
+
+        EvalDetail {
+            pieces,
+            material_red,
+            material_black,
+            pst_red,
+            pst_black,
+            hidden_ev_red: hidden_value_red,
+            hidden_ev_black: hidden_value_black,
+            capture_red: red_capture * capture_weight,
+            capture_black: black_capture * capture_weight,
+            total,
+            pov: if color == Color::Red {
+                "red".to_string()
+            } else {
+                "black".to_string()
+            },
+        }
     }
 
     /// 评估函数（从 color 视角）

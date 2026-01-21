@@ -15,6 +15,7 @@ import streamlit.components.v1 as components
 
 from engine.fen import fen_to_canvas_html
 from engine.game_log import list_logs, load_game, load_summary
+from engine.ui import apply_compact_style
 
 # =============================================================================
 # Session State
@@ -261,6 +262,7 @@ def main():
         page_icon="📋",
         layout="wide",
     )
+    apply_compact_style()
 
     st.title("📋 Game Logs")
 

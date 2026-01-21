@@ -20,6 +20,7 @@ from engine.games.endgames import ALL_ENDGAMES
 from engine.games.midgames_revealed import ALL_MIDGAME_POSITIONS
 from engine.rust_ai import DEFAULT_STRATEGY
 from engine.types import Color, PieceType
+from engine.ui import apply_compact_style
 
 # =============================================================================
 # 常量
@@ -624,6 +625,7 @@ def main():
         page_icon="🎮",
         layout="wide",
     )
+    apply_compact_style()
 
     st.title("🎮 Jieqi AI Battle")
 
