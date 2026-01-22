@@ -93,6 +93,13 @@ enum Commands {
 
     /// 启动 server 模式（stdin/stdout 通信）
     Server,
+
+    /// 列出可用的 AI 策略
+    Strategies {
+        /// JSON 输出
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 #[derive(Serialize, Deserialize)]
@@ -435,6 +442,21 @@ fn main() {
 
         Commands::Server => {
             run_server();
+        }
+
+        Commands::Strategies { json } => {
+            if json {
+                println!(
+                    "{}",
+                    serde_json::json!({
+                        "strategies": xiangqi_ai::AVAILABLE_STRATEGIES,
+                        "default": xiangqi_ai::DEFAULT_STRATEGY
+                    })
+                );
+            } else {
+                println!("Available strategies: {}", xiangqi_ai::AVAILABLE_STRATEGIES.join(", "));
+                println!("Default: {}", xiangqi_ai::DEFAULT_STRATEGY);
+            }
         }
     }
 }

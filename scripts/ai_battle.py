@@ -5,6 +5,7 @@ AI 对战脚本
 """
 
 import json
+import subprocess
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from datetime import datetime
@@ -23,19 +24,28 @@ from engine.types import ActionType, Color, GameResult, PieceType
 console = Console()
 app = typer.Typer()
 
-# 可用策略列表
-AVAILABLE_STRATEGIES = [
-    "random",
-    "greedy",
-    "iterative",
-    "mcts",
-    "muses",
-    "muses2",
-    "muses3",
-    "muses4",
-    "it2",
-    "it3",
-]
+
+def _get_strategies_from_cli() -> list[str]:
+    """从 Rust CLI 动态获取可用策略列表"""
+    try:
+        result = subprocess.run(
+            ["cargo", "run", "--release", "-q", "--", "strategies", "--json"],
+            capture_output=True,
+            text=True,
+            cwd=Path(__file__).parent.parent / "rust-ai",
+            timeout=30,
+        )
+        if result.returncode == 0:
+            data = json.loads(result.stdout)
+            return data.get("strategies", [])
+    except Exception:
+        pass
+    # Fallback：硬编码列表（如果 CLI 不可用）
+    return ["random", "muses2", "it2", "it3"]
+
+
+# 可用策略列表（从 Rust CLI 动态获取）
+AVAILABLE_STRATEGIES = _get_strategies_from_cli()
 
 # FEN 英文到中文映射
 FEN_TO_CHINESE = {
