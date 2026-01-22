@@ -488,13 +488,7 @@ impl Board {
             let new_pos = pos.offset(dr, dc);
             let eye_pos = pos.offset(er, ec);
 
-            // 暗子：象不能过河
-            // 明子：可以过河（揭棋规则）
-            if piece.is_hidden && !new_pos.is_on_own_side(piece.color) {
-                continue;
-            }
-
-            // 检查象眼
+            // 检查象眼（揭棋规则：明子象可以过河）
             if self.has_piece(eye_pos) {
                 continue;
             }
@@ -1271,36 +1265,6 @@ mod tests {
         // 检查 c4 不在走法列表中
         let blocked_pos = Position::new(4, 2); // c4
         assert!(!moves.contains(&blocked_pos), "象眼被塞时不应该能走到 c4");
-    }
-
-    #[test]
-    fn test_elephant_cannot_cross_river() {
-        // 红象在 e4（接近河界），不能过河
-        let fen = "4k4/9/9/9/9/4E4/9/9/9/4K4 -:- r r";
-        let board = Board::from_fen(fen).unwrap();
-
-        let elephant = board.get_piece(Position::new(4, 4)).unwrap();
-        let moves = board.get_elephant_moves(elephant);
-
-        // 所有走法都应该在己方半场
-        for mv in &moves {
-            assert!(mv.row <= 4, "红象不应该能过河，但可以走到 row={}", mv.row);
-        }
-    }
-
-    #[test]
-    fn test_black_elephant_cannot_cross_river() {
-        // 黑象在 e5（接近河界），不能过河
-        let fen = "4k4/9/9/9/4e4/9/9/9/9/4K4 -:- b r";
-        let board = Board::from_fen(fen).unwrap();
-
-        let elephant = board.get_piece(Position::new(5, 4)).unwrap();
-        let moves = board.get_elephant_moves(elephant);
-
-        // 所有走法都应该在己方半场
-        for mv in &moves {
-            assert!(mv.row >= 5, "黑象不应该能过河，但可以走到 row={}", mv.row);
-        }
     }
 
     // ========== 将军综合测试 ==========
