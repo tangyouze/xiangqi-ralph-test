@@ -1,12 +1,14 @@
 //! AI 策略模块
 //!
-//! 提供 AI 策略实现：random, muses2, it2
+//! 提供 AI 策略实现：random, muses2, it2, it3
 
 mod it2;
+mod it3;
 mod muses2;
 mod random;
 
 pub use it2::{EvalDetail, HiddenPieceDistribution, PieceEval, IT2AI};
+pub use it3::IT3AI;
 pub use muses2::Muses2AI;
 pub use random::RandomAI;
 
@@ -117,14 +119,22 @@ impl AIEngine {
         }
     }
 
+    /// 创建 IT3 AI (Expectimax + 优化)
+    pub fn it3(config: &AIConfig) -> Self {
+        AIEngine {
+            strategy: Box::new(IT3AI::new(config)),
+        }
+    }
+
     /// 从策略名称创建
     pub fn from_strategy(name: &str, config: &AIConfig) -> Result<Self, String> {
         match name.to_lowercase().as_str() {
             "random" => Ok(Self::random(config.seed)),
             "muses2" => Ok(Self::muses2(config)),
             "it2" => Ok(Self::it2(config)),
+            "it3" => Ok(Self::it3(config)),
             _ => Err(format!(
-                "Unknown strategy: {}. Available: random, muses2, it2",
+                "Unknown strategy: {}. Available: random, muses2, it2, it3",
                 name
             )),
         }
@@ -189,7 +199,7 @@ mod tests {
     #[test]
     fn test_all_strategies_from_name() {
         let config = AIConfig::default();
-        let strategies = vec!["random", "muses2", "it2"];
+        let strategies = vec!["random", "muses2", "it2", "it3"];
 
         for name in strategies {
             let result = AIEngine::from_strategy(name, &config);
