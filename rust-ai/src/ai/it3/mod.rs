@@ -36,6 +36,9 @@ use std::cmp::Ordering as CmpOrdering;
 use std::sync::atomic::Ordering as AtomicOrdering;
 use std::time::{Duration, Instant};
 
+/// 暗子的固定价值（用于 MVV-LVA 排序）
+const HIDDEN_PIECE_VALUE: i32 = 320;
+
 /// 搜索上下文（减少参数传递）
 #[derive(Clone, Copy)]
 struct SearchContext {
@@ -124,6 +127,47 @@ impl IT3AI {
         } else {
             false
         }
+    }
+
+    /// 获取棋子价值（用于 MVV-LVA）
+    #[inline]
+    fn get_piece_value(piece: &crate::board::Piece) -> i32 {
+        if piece.is_hidden {
+            HIDDEN_PIECE_VALUE
+        } else {
+            piece.actual_type.map_or(0, |pt| pt.value())
+        }
+    }
+
+    /// MVV-LVA 评分
+    /// 分数 = victim_value × 10 - attacker_value
+    /// 乘 10 是为了让"吃什么"比"用什么吃"更重要
+    #[inline]
+    fn mvv_lva_score(board: &Board, mv: &JieqiMove) -> i32 {
+        let victim = board.get_piece(mv.to_pos).map_or(0, Self::get_piece_value);
+        let attacker = board.get_piece(mv.from_pos).map_or(0, Self::get_piece_value);
+        victim * 10 - attacker
+    }
+
+    /// 走法排序：吃子走法优先，按 MVV-LVA 分数降序
+    fn order_moves(board: &Board, moves: &[JieqiMove]) -> Vec<JieqiMove> {
+        let mut scored: Vec<(JieqiMove, i32)> = moves
+            .iter()
+            .map(|&mv| {
+                let score = if board.get_piece(mv.to_pos).is_some() {
+                    // 吃子走法：基础分 1_000_000 + MVV-LVA 分数
+                    1_000_000 + Self::mvv_lva_score(board, &mv)
+                } else {
+                    // 非吃子走法：分数为 0
+                    0
+                };
+                (mv, score)
+            })
+            .collect();
+
+        // 按分数降序排序
+        scored.sort_by(|a, b| b.1.cmp(&a.1));
+        scored.into_iter().map(|(mv, _)| mv).collect()
     }
 
     /// 详细评估（返回各分项）
@@ -393,6 +437,7 @@ impl IT3AI {
 
         let current_color = board.current_turn();
         let legal_moves = board.get_legal_moves(current_color);
+        let ordered_moves = Self::order_moves(board, &legal_moves); // MVV-LVA 排序
         let is_max_node = current_color == ctx.pov_color;
 
         // 终止条件：用 pov_color 评估
@@ -403,7 +448,7 @@ impl IT3AI {
         if is_max_node {
             // MAX 节点：取最大值
             let mut max_eval = f64::NEG_INFINITY;
-            for mv in &legal_moves {
+            for mv in &ordered_moves {
                 let eval = if mv.action_type == ActionType::RevealAndMove {
                     self.chance_node(board, mv, ctx, current_color)
                 } else {
@@ -418,7 +463,7 @@ impl IT3AI {
         } else {
             // MIN 节点：取最小值
             let mut min_eval = f64::INFINITY;
-            for mv in &legal_moves {
+            for mv in &ordered_moves {
                 let eval = if mv.action_type == ActionType::RevealAndMove {
                     self.chance_node(board, mv, ctx, current_color)
                 } else {
