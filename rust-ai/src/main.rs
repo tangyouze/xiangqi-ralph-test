@@ -14,7 +14,7 @@ use std::time::Instant;
 use xiangqi_ai::{
     get_depth_reached, get_legal_moves_from_fen, get_node_count, reset_depth_reached,
     reset_node_count, AIConfig, AIEngine, ActionType, Board, Color, HiddenPieceDistribution,
-    JieqiMove, IT2AI,
+    JieqiMove, DEFAULT_STRATEGY, IT2AI,
 };
 
 #[derive(Parser)]
@@ -44,8 +44,8 @@ enum Commands {
         #[arg(long)]
         fen: String,
 
-        /// AI 策略 (random, muses2, it2)
-        #[arg(long, default_value = "it2")]
+        /// AI 策略（见 AVAILABLE_STRATEGIES）
+        #[arg(long, default_value = DEFAULT_STRATEGY)]
         strategy: String,
 
         /// 时间限制（秒）
@@ -78,8 +78,8 @@ enum Commands {
         #[arg(long)]
         fen: String,
 
-        /// AI 策略
-        #[arg(long, default_value = "it2")]
+        /// AI 策略（见 AVAILABLE_STRATEGIES）
+        #[arg(long, default_value = DEFAULT_STRATEGY)]
         strategy: String,
 
         /// 搜索深度

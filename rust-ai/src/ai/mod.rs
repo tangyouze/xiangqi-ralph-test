@@ -14,6 +14,17 @@ pub use random::RandomAI;
 
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering as AtomicOrdering};
 
+/// 可用策略列表（添加新策略时只需修改这里）
+pub const AVAILABLE_STRATEGIES: &[&str] = &["random", "muses2", "it2", "it3"];
+
+/// 默认策略
+pub const DEFAULT_STRATEGY: &str = "it2";
+
+/// 获取可用策略的帮助字符串
+pub fn strategies_help() -> String {
+    AVAILABLE_STRATEGIES.join(", ")
+}
+
 /// 全局节点计数器
 pub static NODE_COUNT: AtomicU64 = AtomicU64::new(0);
 
@@ -134,8 +145,9 @@ impl AIEngine {
             "it2" => Ok(Self::it2(config)),
             "it3" => Ok(Self::it3(config)),
             _ => Err(format!(
-                "Unknown strategy: {}. Available: random, muses2, it2, it3",
-                name
+                "Unknown strategy: {}. Available: {}",
+                name,
+                strategies_help()
             )),
         }
     }
