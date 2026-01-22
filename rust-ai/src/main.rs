@@ -8,13 +8,13 @@
 
 use clap::{Parser, Subcommand};
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use std::io::{self, BufRead, Write};
 use std::time::Instant;
-use serde_json::json;
 use xiangqi_ai::{
     get_depth_reached, get_legal_moves_from_fen, get_node_count, reset_depth_reached,
     reset_node_count, AIConfig, AIEngine, ActionType, Board, Color, HiddenPieceDistribution,
-    IT2AI, JieqiMove,
+    JieqiMove, IT2AI,
 };
 
 #[derive(Parser)]
@@ -744,10 +744,7 @@ fn do_search(
         } else {
             let mut board_after = board.clone();
             board_after.make_move(mv);
-            (
-                IT2AI::evaluate_static(&board_after, Color::Red),
-                None,
-            )
+            (IT2AI::evaluate_static(&board_after, Color::Red), None)
         };
 
         // 搜索分数

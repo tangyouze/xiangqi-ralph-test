@@ -6,7 +6,7 @@ mod it2;
 mod muses2;
 mod random;
 
-pub use it2::{EvalDetail, HiddenPieceDistribution, IT2AI, PieceEval};
+pub use it2::{EvalDetail, HiddenPieceDistribution, PieceEval, IT2AI};
 pub use muses2::Muses2AI;
 pub use random::RandomAI;
 

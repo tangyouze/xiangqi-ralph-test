@@ -2,7 +2,7 @@
 //!
 //! 检查揭将后的局面和黑方合法走法
 
-use xiangqi_ai::{Board, Color, IT2AI, PieceType};
+use xiangqi_ai::{Board, Color, PieceType, IT2AI};
 
 fn main() {
     // 揭棋初始局面（将帅已揭）

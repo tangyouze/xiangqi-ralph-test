@@ -769,8 +769,7 @@ impl Board {
         for (dr, dc) in advisor_attacks {
             let advisor_pos = target_pos.offset(dr, dc);
             if let Some(piece) = self.get_piece(advisor_pos) {
-                if piece.color == attacker_color
-                    && piece.get_movement_type() == PieceType::Advisor
+                if piece.color == attacker_color && piece.get_movement_type() == PieceType::Advisor
                 {
                     // 暗子仕只能在九宫内攻击，明子仕可以在任何位置攻击
                     if piece.is_hidden {

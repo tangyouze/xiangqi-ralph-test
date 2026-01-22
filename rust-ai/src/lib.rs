@@ -10,7 +10,7 @@ pub mod types;
 
 pub use ai::{
     get_depth_reached, get_node_count, reset_depth_reached, reset_node_count, AIConfig, AIEngine,
-    AIStrategy, EvalDetail, HiddenPieceDistribution, IT2AI, PieceEval, ScoredMove,
+    AIStrategy, EvalDetail, HiddenPieceDistribution, PieceEval, ScoredMove, IT2AI,
 };
 pub use board::{get_legal_moves_from_fen, Board};
 pub use fen::{apply_move_to_fen, parse_fen, pieces_to_fen, FenState};
