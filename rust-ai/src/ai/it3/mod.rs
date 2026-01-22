@@ -454,6 +454,11 @@ impl IT3AI {
         let next_ctx = ctx.next_ply();
 
         for (piece_type, probability) in possible_types {
+            // 超时检查：避免外层循环继续处理剩余 piece_type
+            if self.is_timeout() {
+                return self.evaluate(board, ctx.pov_color);
+            }
+
             // 1. 模拟揭成该类型
             let reveal_state = board.simulate_reveal(mv.from_pos, piece_type);
 
