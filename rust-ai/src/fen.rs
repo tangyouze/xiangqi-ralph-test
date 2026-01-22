@@ -109,8 +109,17 @@ fn parse_board(board_str: &str) -> Result<Vec<FenPiece>, String> {
                 col += (ch as i8) - ('0' as i8);
             } else if ch == 'X' {
                 // 红方暗子
+                let pos = Position::new(row, col);
+                if get_position_piece_type(pos).is_none() {
+                    return Err(format!(
+                        "Invalid hidden piece position: {} (row={}, col={})",
+                        pos.to_fen_str(),
+                        row,
+                        col
+                    ));
+                }
                 pieces.push(FenPiece {
-                    position: Position::new(row, col),
+                    position: pos,
                     color: Color::Red,
                     is_hidden: true,
                     piece_type: None,
@@ -118,8 +127,17 @@ fn parse_board(board_str: &str) -> Result<Vec<FenPiece>, String> {
                 col += 1;
             } else if ch == 'x' {
                 // 黑方暗子
+                let pos = Position::new(row, col);
+                if get_position_piece_type(pos).is_none() {
+                    return Err(format!(
+                        "Invalid hidden piece position: {} (row={}, col={})",
+                        pos.to_fen_str(),
+                        row,
+                        col
+                    ));
+                }
                 pieces.push(FenPiece {
-                    position: Position::new(row, col),
+                    position: pos,
                     color: Color::Black,
                     is_hidden: true,
                     piece_type: None,
@@ -446,7 +464,8 @@ mod tests {
     fn test_parse_mid_game_fen() {
         // 红方视角，红方被吃的子可以是大写或 ?
         // 黑方被吃的子必须是大写或小写（不能是 ?）
-        let fen = "4k4/9/3R5/x1x3x1x/4X4/4x4/X1X3X1X/1C5C1/9/4K4 RP??:raHC r r";
+        // 使用全明子局面（暗子只能在初始位置）
+        let fen = "4k4/9/3R5/p1p3p1p/4P4/4p4/P1P3P1P/1C5C1/9/4K4 RP??:raHC r r";
         let state = parse_fen(fen).unwrap();
 
         assert_eq!(state.turn, Color::Red);
