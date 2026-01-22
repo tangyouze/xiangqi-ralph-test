@@ -1,6 +1,6 @@
 //! 详细分析 e 列上的棋子
 
-use xiangqi_ai::{Board, Color, Position};
+use xiangqi_ai::{Board, Position};
 
 fn main() {
     // 揭棋初始局面（将帅已揭）

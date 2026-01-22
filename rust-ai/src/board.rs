@@ -1058,11 +1058,9 @@ mod tests {
         // 测试炮隔了1个棋子的情况 - 可以攻击
         // 红炮在e2，红兵在e3，黑将在e4（测试用的特殊局面）
         let fen = "5k3/9/9/9/9/4K4/9/4p4/4C4/9 -:- r r";
-        let board = Board::from_fen(fen).unwrap();
+        let _board = Board::from_fen(fen).unwrap();
 
-        // 检查炮是否能攻击e3的黑兵（隔着e4的黑将？不对，让我重新设计）
-        // 实际：e2炮 → e3黑兵 → e4空...
-        // 让我用更简单的例子
+        // TODO: 完成这个测试
     }
 
     #[test]
@@ -1187,9 +1185,9 @@ mod tests {
             ("c4", Some("d5"), false), // 左下，d5蹩腿
         ];
 
-        for (king_pos, leg_block, can_attack) in test_cases {
-            let blocker = if leg_block.is_some() { "p" } else { "1" };
-            // 简化测试：只测试一个方向
+        for (_king_pos, leg_block, _can_attack) in test_cases {
+            let _blocker = if leg_block.is_some() { "p" } else { "1" };
+            // TODO: 完成这个测试，使用 king_pos, blocker, can_attack
             let fen = format!("9/9/9/4H4/9/9/9/9/9/4K4 -:- b r");
             let board = Board::from_fen(&fen).unwrap();
             // 这个测试验证马的基本功能

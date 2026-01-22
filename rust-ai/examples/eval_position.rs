@@ -4,7 +4,7 @@
 //!   cargo run --release --example eval_position -- --fen "..." --strategy minimax
 
 use clap::Parser;
-use xiangqi_ai::{AIConfig, AIEngine, Board};
+use xiangqi_ai::Board;
 
 #[derive(Parser)]
 #[command(about = "评估指定局面的静态分数")]

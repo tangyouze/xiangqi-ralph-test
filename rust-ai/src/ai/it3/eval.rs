@@ -315,6 +315,7 @@ impl HiddenPieceDistribution {
 
     /// 返回暗子池详细构成
     /// 返回 Vec<(类型名, 剩余数量, 单价, 总价)>
+    #[allow(dead_code)]
     pub fn breakdown(&self) -> Vec<(String, u8, i32, i32)> {
         let type_names = [
             "King", "Advisor", "Elephant", "Horse", "Rook", "Cannon", "Pawn",
@@ -338,6 +339,7 @@ impl HiddenPieceDistribution {
     }
 
     /// 获取剩余暗子总数
+    #[allow(dead_code)]
     pub fn total_count(&self) -> u8 {
         self.remaining.iter().sum()
     }
