@@ -27,21 +27,17 @@ app = typer.Typer()
 
 def _get_strategies_from_cli() -> list[str]:
     """从 Rust CLI 动态获取可用策略列表"""
-    try:
-        result = subprocess.run(
-            ["cargo", "run", "--release", "-q", "--", "strategies", "--json"],
-            capture_output=True,
-            text=True,
-            cwd=Path(__file__).parent.parent / "rust-ai",
-            timeout=30,
-        )
-        if result.returncode == 0:
-            data = json.loads(result.stdout)
-            return data.get("strategies", [])
-    except Exception:
-        pass
-    # Fallback：硬编码列表（如果 CLI 不可用）
-    return ["random", "muses2", "it2", "it3"]
+    result = subprocess.run(
+        ["cargo", "run", "--release", "-q", "--", "strategies", "--json"],
+        capture_output=True,
+        text=True,
+        cwd=Path(__file__).parent.parent / "rust-ai",
+        timeout=30,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"Failed to get strategies from CLI: {result.stderr}")
+    data = json.loads(result.stdout)
+    return data["strategies"]
 
 
 # 可用策略列表（从 Rust CLI 动态获取）
