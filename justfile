@@ -85,6 +85,14 @@ fast-battle RED="muses2" BLACK="muses" GAMES="10" MODE="jieqi":
 battle-verbose RED="muses" BLACK="iterative" TIME="0.1" MODE="jieqi":
     uv run python scripts/ai_battle.py battle --games 1 --verbose --red {{RED}} --black {{BLACK}} --time {{TIME}} --mode {{MODE}}
 
+# 从指定局面开始对战（支持局面 ID 或 FEN）
+battle-position RED="muses" BLACK="it2" TIME="0.1" POSITION="JIEQI":
+    uv run python scripts/ai_battle.py battle --games 1 --verbose --red {{RED}} --black {{BLACK}} --time {{TIME}} --position "{{POSITION}}"
+
+# 列出可用局面
+list-positions *ARGS:
+    uv run python scripts/ai_battle.py list-positions {{ARGS}}
+
 # === Rust AI CLI ===
 
 # Get legal moves for a position

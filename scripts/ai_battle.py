@@ -19,16 +19,22 @@ from rich.table import Table
 from engine.rust_ai import UnifiedAIEngine
 from engine.fen import parse_move, to_fen
 from engine.game import JieqiGame
+from engine.positions import (
+    JIEQI,
+    JIEQI_FEN,
+    REVEALED,
+    REVEALED_FEN,
+    GamePosition,
+    get_categories,
+    get_position,
+    list_positions as positions_list,
+)
 from engine.types import ActionType, Color, GameResult, PieceType
 
 console = Console()
 app = typer.Typer()
 
-# 开局 FEN
-# 揭棋模式：暗子开局
-JIEQI_FEN = "xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXKXXXX -:- r r"
-# 明棋模式：所有棋子开局即明（揭棋规则：象和士可以过河）
-REVEALED_FEN = "rheakaehr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RHEAKAEHR -:- r r"
+# 开局 FEN 现在从 engine.positions 模块导入
 
 
 def _get_strategies_from_cli() -> list[str]:
@@ -448,6 +454,7 @@ def run_single_game_with_log(
     game_index: int = 0,
     verbose: bool = False,
     mode: str = "jieqi",
+    start_fen: str | None = None,
 ) -> tuple[str, int, dict, str]:
     """运行单场对战并记录日志
 
@@ -461,6 +468,7 @@ def run_single_game_with_log(
         game_index: 游戏索引（用于生成唯一 game_id）
         verbose: 是否输出每步详情
         mode: 游戏模式，"jieqi"（揭棋）或 "revealed"（明棋）
+        start_fen: 起始局面 FEN（如果提供则忽略 mode）
 
     Returns:
         (result, moves, stats, game_id)
@@ -482,6 +490,7 @@ def run_single_game_with_log(
             game_index,
             verbose,
             mode,
+            start_fen,
         )
     finally:
         # 确保关闭 Rust server 进程
@@ -503,15 +512,20 @@ def _run_game_impl(
     game_index: int = 0,
     verbose: bool = False,
     mode: str = "jieqi",
+    start_fen: str | None = None,
 ) -> tuple[str, int, dict, str]:
     """实际执行对战逻辑
 
     Args:
         mode: 游戏模式，"jieqi"（揭棋，暗子开局）或 "revealed"（明棋开局）
+        start_fen: 起始局面 FEN（如果提供则忽略 mode）
     """
 
     # 创建游戏
-    if mode == "revealed":
+    # 注意：JIEQI_FEN 需要使用 JieqiGame() 初始化，因为它需要正确设置暗子池
+    if start_fen and start_fen != JIEQI_FEN:
+        game = JieqiGame.from_fen(start_fen)
+    elif mode == "revealed":
         game = JieqiGame.from_fen(REVEALED_FEN)
     else:
         game = JieqiGame()
@@ -748,16 +762,16 @@ def run_single_game_task(args: tuple) -> tuple[str, str, str, int, str]:
     """运行单局对战（用于多进程，每局一个任务）
 
     Args:
-        args: (red, black, time_limit, max_moves, seed, log_dir, game_index, mode)
+        args: (red, black, time_limit, max_moves, seed, log_dir, game_index, mode, start_fen)
 
     Returns:
         (red, black, result, moves, game_id)
     """
-    red, black, time_limit, max_moves, seed, log_dir_str, game_index, mode = args
+    red, black, time_limit, max_moves, seed, log_dir_str, game_index, mode, start_fen = args
     log_dir = Path(log_dir_str) if log_dir_str else None
 
     result, moves, _stats, game_id = run_single_game_with_log(
-        red, black, time_limit, max_moves, seed, log_dir, game_index, mode=mode
+        red, black, time_limit, max_moves, seed, log_dir, game_index, mode=mode, start_fen=start_fen
     )
     return red, black, result, moves, game_id
 
@@ -766,12 +780,12 @@ def run_matchup_games(args: tuple) -> tuple[str, str, list[str], dict, list[str]
     """运行一组对战（用于多进程）
 
     Args:
-        args: (red, black, num_games, max_moves, seed, time_limit, log_dir, mode)
+        args: (red, black, num_games, max_moves, seed, time_limit, log_dir, mode, start_fen)
 
     Returns:
         (red, black, results, stats, game_ids)
     """
-    red, black, num_games, max_moves, seed, time_limit, log_dir_str, mode = args
+    red, black, num_games, max_moves, seed, time_limit, log_dir_str, mode, start_fen = args
     log_dir = Path(log_dir_str) if log_dir_str else None
 
     results = []
@@ -783,7 +797,7 @@ def run_matchup_games(args: tuple) -> tuple[str, str, list[str], dict, list[str]
     for i in range(num_games):
         game_seed = (seed + i * 2) if seed else None
         result, moves, game_stats, game_id = run_single_game_with_log(
-            red, black, time_limit, max_moves, game_seed, log_dir, i, mode=mode
+            red, black, time_limit, max_moves, game_seed, log_dir, i, mode=mode, start_fen=start_fen
         )
         results.append(result)
         game_ids.append(game_id)
@@ -811,6 +825,9 @@ def battle(
     log_dir: str | None = typer.Option(None, "--log-dir", help="Log directory"),
     verbose: bool = typer.Option(False, "--verbose", help="Show each move in detail"),
     mode: str = typer.Option("jieqi", "--mode", help="Game mode: jieqi (hidden) or revealed"),
+    position: str | None = typer.Option(
+        None, "--position", "-p", help="Position ID (e.g., END0001) or FEN string"
+    ),
 ):
     """Run AI vs AI battle with logging"""
     # 验证策略
@@ -820,6 +837,20 @@ def battle(
     if ai_black not in AVAILABLE_STRATEGIES:
         console.print(f"[red]Unknown AI: {ai_black}. Available: {AVAILABLE_STRATEGIES}[/red]")
         raise typer.Exit(1)
+
+    # 处理 --position 参数
+    start_fen: str | None = None
+    position_info = ""
+    if position:
+        pos = get_position(position)
+        if pos is None:
+            console.print(f"[red]Unknown position: {position}[/red]")
+            console.print("[dim]Use 'list-positions' to see available positions[/dim]")
+            raise typer.Exit(1)
+        start_fen = pos.fen
+        position_info = f" [{pos.id}] {pos.name}"
+        # 如果 position 指定了，mode 由 position.has_hidden 决定
+        mode = "jieqi" if pos.has_hidden else "revealed"
 
     # 设置日志目录
     if log_dir:
@@ -831,7 +862,10 @@ def battle(
     console.print("\n[bold]Jieqi AI Battle[/bold]")
     console.print(f"Red: [red]{ai_red}[/red] vs Black: [blue]{ai_black}[/blue]")
     console.print(f"Games: {num_games}, Max moves: {max_moves}, Time: {time_limit}s")
-    console.print(f"Mode: [cyan]{mode}[/cyan]")
+    if position_info:
+        console.print(f"Position: [cyan]{position_info}[/cyan]")
+    else:
+        console.print(f"Mode: [cyan]{mode}[/cyan]")
     console.print(f"Log dir: {log_path}")
     if verbose:
         console.print("[yellow]Verbose mode: ON[/yellow]")
@@ -858,6 +892,7 @@ def battle(
                 i,
                 verbose=True,
                 mode=mode,
+                start_fen=start_fen,
             )
             results[result] += 1
             total_moves += moves
@@ -884,7 +919,15 @@ def battle(
             for i in range(num_games):
                 game_seed = (seed + i * 2) if seed else None
                 result, moves, stats, game_id = run_single_game_with_log(
-                    ai_red, ai_black, time_limit, max_moves, game_seed, log_path, i, mode=mode
+                    ai_red,
+                    ai_black,
+                    time_limit,
+                    max_moves,
+                    game_seed,
+                    log_path,
+                    i,
+                    mode=mode,
+                    start_fen=start_fen,
                 )
                 results[result] += 1
                 total_moves += moves
@@ -931,6 +974,39 @@ def list_ai():
     console.print(table)
 
 
+@app.command("list-positions")
+def list_positions_cmd(
+    category: str | None = typer.Option(None, "--category", "-c", help="Filter by category"),
+    hidden: bool | None = typer.Option(
+        None, "--hidden", help="Filter by hidden pieces (true/false)"
+    ),
+):
+    """List all available positions"""
+    positions = positions_list(category=category, has_hidden=hidden)
+
+    # 按分类分组显示
+    categories = get_categories()
+
+    for cat in categories:
+        cat_positions = [p for p in positions if p.category == cat]
+        if not cat_positions:
+            continue
+
+        table = Table(title=f"[bold]{cat}[/bold]")
+        table.add_column("ID", style="cyan")
+        table.add_column("Name")
+        table.add_column("Hidden", justify="center")
+
+        for pos in cat_positions:
+            hidden_str = "[yellow]Yes[/yellow]" if pos.has_hidden else "[dim]No[/dim]"
+            table.add_row(pos.id, pos.name, hidden_str)
+
+        console.print(table)
+        console.print()
+
+    console.print(f"[dim]Total: {len(positions)} positions[/dim]")
+
+
 @app.command()
 def compare(
     num_games: int = typer.Option(10, "--games", help="Number of games per direction"),
@@ -944,8 +1020,24 @@ def compare(
     workers: int = typer.Option(10, "--workers", help="Number of parallel workers"),
     log_dir: str | None = typer.Option(None, "--log-dir", help="Log directory"),
     mode: str = typer.Option("jieqi", "--mode", help="Game mode: jieqi (hidden) or revealed"),
+    position: str | None = typer.Option(
+        None, "--position", "-p", help="Position ID (e.g., END0001) or FEN string"
+    ),
 ):
     """Run round-robin comparison between AI strategies (red vs black and black vs red)"""
+    # 处理 --position 参数
+    start_fen: str | None = None
+    position_info = ""
+    if position:
+        pos = get_position(position)
+        if pos is None:
+            console.print(f"[red]Unknown position: {position}[/red]")
+            console.print("[dim]Use 'list-positions' to see available positions[/dim]")
+            raise typer.Exit(1)
+        start_fen = pos.fen
+        position_info = f" [{pos.id}] {pos.name}"
+        mode = "jieqi" if pos.has_hidden else "revealed"
+
     # 获取策略列表
     if strategies_filter:
         selected = [s.strip() for s in strategies_filter.split(",")]
@@ -975,7 +1067,10 @@ def compare(
     console.print(f"Total matchups: {num_pairs} (each pair plays both directions)")
     console.print(f"Total games: {total_games}")
     console.print(f"Time limit: {time_limit}s/move, Workers: {workers}")
-    console.print(f"Mode: [cyan]{mode}[/cyan]")
+    if position_info:
+        console.print(f"Position: [cyan]{position_info}[/cyan]")
+    else:
+        console.print(f"Mode: [cyan]{mode}[/cyan]")
     console.print(f"Log dir: {log_path}")
     console.print()
 
@@ -994,7 +1089,17 @@ def compare(
                 for i in range(num_games):
                     game_seed = (seed + idx * 1000 + jdx * 100 + i * 2) if seed else None
                     game_args.append(
-                        (s1, s2, time_limit, max_moves, game_seed, str(log_path), game_index, mode)
+                        (
+                            s1,
+                            s2,
+                            time_limit,
+                            max_moves,
+                            game_seed,
+                            str(log_path),
+                            game_index,
+                            mode,
+                            start_fen,
+                        )
                     )
                     game_index += 1
 
