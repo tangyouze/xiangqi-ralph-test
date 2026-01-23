@@ -31,6 +31,12 @@ pub static NODE_COUNT: AtomicU64 = AtomicU64::new(0);
 /// 全局搜索深度记录器
 pub static DEPTH_REACHED: AtomicU32 = AtomicU32::new(0);
 
+/// 每层节点计数（最大支持 50 层）
+pub static DEPTH_NODES: [AtomicU64; 50] = {
+    const INIT: AtomicU64 = AtomicU64::new(0);
+    [INIT; 50]
+};
+
 /// 重置节点计数器
 pub fn reset_node_count() {
     NODE_COUNT.store(0, AtomicOrdering::Relaxed);
@@ -49,6 +55,37 @@ pub fn reset_depth_reached() {
 /// 获取搜索达到的深度
 pub fn get_depth_reached() -> u32 {
     DEPTH_REACHED.load(AtomicOrdering::Relaxed)
+}
+
+/// 重置每层节点计数
+pub fn reset_depth_nodes() {
+    for counter in DEPTH_NODES.iter() {
+        counter.store(0, AtomicOrdering::Relaxed);
+    }
+}
+
+/// 增加指定深度的节点计数
+#[inline]
+pub fn add_depth_node(depth: usize) {
+    if depth < DEPTH_NODES.len() {
+        DEPTH_NODES[depth].fetch_add(1, AtomicOrdering::Relaxed);
+    }
+}
+
+/// 获取每层节点统计（返回非零层的 Vec<(depth, count)>）
+pub fn get_depth_nodes_stats() -> Vec<(usize, u64)> {
+    DEPTH_NODES
+        .iter()
+        .enumerate()
+        .filter_map(|(i, c)| {
+            let count = c.load(AtomicOrdering::Relaxed);
+            if count > 0 {
+                Some((i, count))
+            } else {
+                None
+            }
+        })
+        .collect()
 }
 
 use crate::board::Board;

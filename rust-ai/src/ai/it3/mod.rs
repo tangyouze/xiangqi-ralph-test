@@ -27,7 +27,9 @@ mod eval;
 use eval::{get_pst_score, hidden_position_bonus, MATE_SCORE, PLY_PENALTY};
 use eval::{EvalDetail, HiddenPieceDistribution, PieceEval};
 
-use super::{sort_and_truncate, AIConfig, AIStrategy, ScoredMove, DEPTH_REACHED, NODE_COUNT};
+use super::{
+    add_depth_node, sort_and_truncate, AIConfig, AIStrategy, ScoredMove, DEPTH_REACHED, NODE_COUNT,
+};
 use crate::board::Board;
 use crate::types::{ActionType, Color, GameResult, JieqiMove, PieceType};
 use rand::prelude::*;
@@ -431,6 +433,7 @@ impl IT3AI {
     fn expectimax(&self, board: &mut Board, ctx: SearchContext) -> f64 {
         // 节点计数
         NODE_COUNT.fetch_add(1, AtomicOrdering::Relaxed);
+        add_depth_node(ctx.ply as usize);
 
         // 超时检查：立即返回当前评估
         if self.is_timeout() {

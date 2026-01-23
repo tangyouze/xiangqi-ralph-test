@@ -12,9 +12,9 @@ use serde_json::json;
 use std::io::{self, BufRead, Write};
 use std::time::Instant;
 use xiangqi_ai::{
-    get_depth_reached, get_legal_moves_from_fen, get_node_count, reset_depth_reached,
-    reset_node_count, AIConfig, AIEngine, ActionType, Board, Color, HiddenPieceDistribution,
-    JieqiMove, DEFAULT_STRATEGY, IT2AI,
+    get_depth_nodes_stats, get_depth_reached, get_legal_moves_from_fen, get_node_count,
+    reset_depth_nodes, reset_depth_reached, reset_node_count, AIConfig, AIEngine, ActionType,
+    Board, Color, HiddenPieceDistribution, JieqiMove, DEFAULT_STRATEGY, IT2AI,
 };
 
 #[derive(Parser)]
@@ -338,6 +338,7 @@ fn main() {
             // 重置计数器
             reset_node_count();
             reset_depth_reached();
+            reset_depth_nodes();
             let start = Instant::now();
 
             match ai.select_moves_fen(&fen, n) {
@@ -346,6 +347,7 @@ fn main() {
                     let nodes = get_node_count();
                     let depth = get_depth_reached();
                     let nps = calc_nps(nodes, elapsed);
+                    let depth_stats = get_depth_nodes_stats();
 
                     if json {
                         let response = MovesResponse {
@@ -360,6 +362,13 @@ fn main() {
                             "Stats: depth={}, nodes={}, time={:.3}s, nps={:.0}",
                             depth, nodes, elapsed, nps
                         );
+                        // 输出每层统计
+                        let ply_stats: String = depth_stats
+                            .iter()
+                            .map(|(ply, count)| format!("ply{}:{}", ply, count))
+                            .collect::<Vec<_>>()
+                            .join(" ");
+                        eprintln!("Per-ply: {}", ply_stats);
                     } else {
                         println!("Best moves (strategy={}):", strategy);
                         for (mv, score) in moves {
@@ -369,6 +378,11 @@ fn main() {
                             "\nStats: depth={}, nodes={}, time={:.3}s, nps={:.0}",
                             depth, nodes, elapsed, nps
                         );
+                        // 输出每层统计
+                        println!("Per-ply nodes:");
+                        for (ply, count) in &depth_stats {
+                            println!("  ply {}: {}", ply, count);
+                        }
                     }
                 }
                 Err(e) => {
@@ -454,7 +468,10 @@ fn main() {
                     })
                 );
             } else {
-                println!("Available strategies: {}", xiangqi_ai::AVAILABLE_STRATEGIES.join(", "));
+                println!(
+                    "Available strategies: {}",
+                    xiangqi_ai::AVAILABLE_STRATEGIES.join(", ")
+                );
                 println!("Default: {}", xiangqi_ai::DEFAULT_STRATEGY);
             }
         }
