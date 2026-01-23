@@ -5,6 +5,7 @@ from __future__ import annotations
 from engine.fen.board import fen_from_pieces
 from engine.fen.parse import parse_fen, parse_move
 from engine.fen.types import CapturedInfo, CapturedPieceInfo, FenPiece
+from engine.hidden_pool import random_reveal
 from engine.types import ActionType, Color, PieceType
 
 
@@ -77,9 +78,34 @@ def apply_move_to_fen(fen: str, move_str: str, revealed_type: PieceType | None =
     )
 
     if captured_piece is not None:
+        # 如果吃的是暗子，需要揭示其类型
+        cap_piece_type = captured_piece.piece_type
+        if captured_piece.is_hidden and cap_piece_type is None:
+            # 暗子被吃，需要揭示类型
+            color_str = "red" if captured_piece.color == Color.RED else "black"
+            revealed_char = random_reveal(fen, color_str)
+            # 转换字符为 PieceType
+            char_to_type = {
+                "R": PieceType.ROOK,
+                "r": PieceType.ROOK,
+                "H": PieceType.HORSE,
+                "h": PieceType.HORSE,
+                "E": PieceType.ELEPHANT,
+                "e": PieceType.ELEPHANT,
+                "A": PieceType.ADVISOR,
+                "a": PieceType.ADVISOR,
+                "K": PieceType.KING,
+                "k": PieceType.KING,
+                "C": PieceType.CANNON,
+                "c": PieceType.CANNON,
+                "P": PieceType.PAWN,
+                "p": PieceType.PAWN,
+            }
+            cap_piece_type = char_to_type.get(revealed_char.upper())
+
         # 添加到被吃子列表
         cap_info = CapturedPieceInfo(
-            piece_type=captured_piece.piece_type,
+            piece_type=cap_piece_type,
             was_hidden=captured_piece.is_hidden,
         )
         if captured_piece.color == Color.RED:
