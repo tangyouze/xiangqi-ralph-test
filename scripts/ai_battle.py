@@ -20,40 +20,17 @@ from engine.rust_ai import UnifiedAIEngine
 from engine.fen import parse_move, to_fen
 from engine.game import JieqiGame
 from engine.positions import (
-    JIEQI,
     JIEQI_FEN,
-    REVEALED,
     REVEALED_FEN,
-    GamePosition,
     get_categories,
     get_position,
     list_positions as positions_list,
 )
+from engine.strategies import AVAILABLE_STRATEGIES
 from engine.types import ActionType, Color, GameResult, PieceType
 
 console = Console()
 app = typer.Typer()
-
-# 开局 FEN 现在从 engine.positions 模块导入
-
-
-def _get_strategies_from_cli() -> list[str]:
-    """从 Rust CLI 动态获取可用策略列表"""
-    result = subprocess.run(
-        ["cargo", "run", "--release", "-q", "--", "strategies", "--json"],
-        capture_output=True,
-        text=True,
-        cwd=Path(__file__).parent.parent / "rust-ai",
-        timeout=30,
-    )
-    if result.returncode != 0:
-        raise RuntimeError(f"Failed to get strategies from CLI: {result.stderr}")
-    data = json.loads(result.stdout)
-    return data["strategies"]
-
-
-# 可用策略列表（从 Rust CLI 动态获取）
-AVAILABLE_STRATEGIES = _get_strategies_from_cli()
 
 # FEN 英文到中文映射
 FEN_TO_CHINESE = {

@@ -18,24 +18,13 @@ from engine.battle import run_battle, run_single_step
 from engine.fen import fen_to_canvas_html
 from engine.games.endgames import ALL_ENDGAMES
 from engine.games.midgames_revealed import ALL_MIDGAME_POSITIONS
-from engine.rust_ai import DEFAULT_STRATEGY
+from engine.strategies import AVAILABLE_STRATEGIES, DEFAULT_STRATEGY
 from engine.types import Color, PieceType
 from engine.ui import apply_compact_style
 
 # =============================================================================
 # 常量
 # =============================================================================
-
-AVAILABLE_STRATEGIES = [
-    "it2",
-    "muses3",
-    "muses2",
-    "muses",
-    "iterative",
-    "mcts",
-    "greedy",
-    "random",
-]
 
 # 棋子中文名映射
 PIECE_TYPE_TO_CHINESE = {

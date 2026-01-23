@@ -17,15 +17,14 @@ from engine.fen import get_legal_moves_from_fen, apply_move_with_capture, parse_
 from engine.hidden_pool import get_hidden_pool, random_reveal
 from engine.games.endgames import ALL_ENDGAMES
 from engine.games.midgames_revealed import ALL_MIDGAME_POSITIONS
-from engine.rust_ai import UnifiedAIEngine, DEFAULT_STRATEGY
+from engine.rust_ai import UnifiedAIEngine
+from engine.strategies import AVAILABLE_STRATEGIES, DEFAULT_STRATEGY
 from engine.types import Color
 from engine.ui import apply_compact_style
 
 # =============================================================================
 # 常量
 # =============================================================================
-
-AVAILABLE_STRATEGIES = ["it2", "muses3", "muses2", "muses", "iterative", "greedy", "random"]
 
 # 棋子符号（中文）
 PIECE_CN = {
