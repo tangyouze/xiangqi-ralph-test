@@ -76,6 +76,8 @@ def init_state():
         st.session_state.time_limit = 1.0
     if "endgame_idx" not in st.session_state:
         st.session_state.endgame_idx = -1
+    if "ai_stats" not in st.session_state:
+        st.session_state.ai_stats = None  # 存储 AI 思考统计
 
 
 def reset_game():
@@ -177,8 +179,17 @@ def ai_move():
 
     fen = st.session_state.fen
     ai = UnifiedAIEngine(strategy=st.session_state.strategy, time_limit=st.session_state.time_limit)
-    # 获取多个候选走法，避免选择会导致和棋的走法
-    moves = ai.get_best_moves(fen, n=5)
+    # 获取多个候选走法及统计信息，避免选择会导致和棋的走法
+    stats = ai.get_best_moves_full_stats(fen, n=5)
+    moves = stats["moves"]
+
+    # 保存 AI 统计信息
+    st.session_state.ai_stats = {
+        "depth": stats["depth"],
+        "nodes": stats["nodes"],
+        "nps": stats["nps"],
+        "elapsed_ms": stats["elapsed_ms"],
+    }
 
     chosen_move = None
     chosen_score = 0
@@ -476,6 +487,39 @@ def render_sidebar():
         # AI 设置
         st.session_state.strategy = st.selectbox("AI Strategy", AVAILABLE_STRATEGIES)
         st.session_state.time_limit = st.slider("Think Time (s)", 0.1, 3.0, 1.0, step=0.1)
+
+        # AI 思考信息
+        if st.session_state.ai_stats:
+            st.divider()
+            st.subheader("AI Stats")
+            stats = st.session_state.ai_stats
+            depth = stats.get("depth", 0)
+            nodes = stats.get("nodes", 0)
+            nps = stats.get("nps", 0)
+            elapsed = stats.get("elapsed_ms", 0)
+
+            # 格式化显示
+            if nodes >= 1_000_000:
+                nodes_str = f"{nodes / 1_000_000:.2f}M"
+            elif nodes >= 1_000:
+                nodes_str = f"{nodes / 1_000:.1f}K"
+            else:
+                nodes_str = str(nodes)
+
+            if nps >= 1_000_000:
+                nps_str = f"{nps / 1_000_000:.2f}M"
+            elif nps >= 1_000:
+                nps_str = f"{nps / 1_000:.1f}K"
+            else:
+                nps_str = f"{nps:.0f}"
+
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric("Depth", depth)
+                st.metric("Time", f"{elapsed:.0f}ms")
+            with col2:
+                st.metric("Nodes", nodes_str)
+                st.metric("NPS", nps_str)
 
 
 def main():
