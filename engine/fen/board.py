@@ -58,31 +58,55 @@ def fen_from_pieces(
     if captured is None:
         captured_str = "-:-"
     else:
-        # 生成红方被吃的字符串
+        # 根据 viewer 视角生成被吃子字符串
+        # viewer 被吃的子（对方吃的）：不知道身份用 ?，知道用大写
+        # 对方被吃的子（viewer 吃的）：暗子用小写（我吃的我知道），明子用大写
+
+        # 生成红方被吃的字符串（黑方吃的红子）
         red_parts: list[str] = []
         for cap in captured.red_captured:
-            if cap.piece_type is None:
-                # 暗子被吃，不知道身份
-                red_parts.append("?")
-            elif cap.was_hidden:
-                # 暗子被吃，知道身份 - 小写
-                red_parts.append(PIECE_TO_CHAR[cap.piece_type].lower())
+            if viewer == Color.RED:
+                # viewer 是红方，这些是对方吃我的子
+                if cap.piece_type is None:
+                    # 暗子被吃，不知道身份
+                    red_parts.append("?")
+                else:
+                    # 知道身份，大写
+                    red_parts.append(PIECE_TO_CHAR[cap.piece_type].upper())
             else:
-                # 明子被吃 - 大写
-                red_parts.append(PIECE_TO_CHAR[cap.piece_type].upper())
+                # viewer 是黑方，这些是我吃的对方的子
+                if cap.piece_type is None:
+                    # 不应该发生，我吃的我肯定知道
+                    red_parts.append("?")
+                elif cap.was_hidden:
+                    # 暗子被吃，小写（我吃的我知道）
+                    red_parts.append(PIECE_TO_CHAR[cap.piece_type].lower())
+                else:
+                    # 明子被吃 - 大写
+                    red_parts.append(PIECE_TO_CHAR[cap.piece_type].upper())
 
-        # 生成黑方被吃的字符串
+        # 生成黑方被吃的字符串（红方吃的黑子）
         black_parts: list[str] = []
         for cap in captured.black_captured:
-            if cap.piece_type is None:
-                # 暗子被吃，不知道身份
-                black_parts.append("?")
-            elif cap.was_hidden:
-                # 暗子被吃，知道身份 - 小写
-                black_parts.append(PIECE_TO_CHAR[cap.piece_type].lower())
+            if viewer == Color.BLACK:
+                # viewer 是黑方，这些是对方吃我的子
+                if cap.piece_type is None:
+                    # 暗子被吃，不知道身份
+                    black_parts.append("?")
+                else:
+                    # 知道身份，大写
+                    black_parts.append(PIECE_TO_CHAR[cap.piece_type].upper())
             else:
-                # 明子被吃 - 大写
-                black_parts.append(PIECE_TO_CHAR[cap.piece_type].upper())
+                # viewer 是红方，这些是我吃的对方的子
+                if cap.piece_type is None:
+                    # 不应该发生，我吃的我肯定知道
+                    black_parts.append("?")
+                elif cap.was_hidden:
+                    # 暗子被吃，小写（我吃的我知道）
+                    black_parts.append(PIECE_TO_CHAR[cap.piece_type].lower())
+                else:
+                    # 明子被吃 - 大写
+                    black_parts.append(PIECE_TO_CHAR[cap.piece_type].upper())
 
         red_str = "".join(red_parts) if red_parts else "-"
         black_str = "".join(black_parts) if black_parts else "-"
