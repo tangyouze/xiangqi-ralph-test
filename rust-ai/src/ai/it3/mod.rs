@@ -145,7 +145,9 @@ impl IT3AI {
     #[inline]
     fn mvv_lva_score(board: &Board, mv: &JieqiMove) -> i32 {
         let victim = board.get_piece(mv.to_pos).map_or(0, Self::get_piece_value);
-        let attacker = board.get_piece(mv.from_pos).map_or(0, Self::get_piece_value);
+        let attacker = board
+            .get_piece(mv.from_pos)
+            .map_or(0, Self::get_piece_value);
         victim * 10 - attacker
     }
 
@@ -445,17 +447,42 @@ impl IT3AI {
             return self.terminal_eval(board, ctx.pov_color, ctx.ply);
         }
 
+        // 使用可变的 alpha/beta
+        let mut alpha = ctx.alpha;
+        let mut beta = ctx.beta;
+
         if is_max_node {
             // MAX 节点：取最大值
             let mut max_eval = f64::NEG_INFINITY;
             for mv in &ordered_moves {
                 let eval = if mv.action_type == ActionType::RevealAndMove {
-                    self.chance_node(board, mv, ctx, current_color)
+                    // RevealAndMove: 传递原始 ctx（带当前 alpha/beta），让 chance_node 内部做 next_ply
+                    // 这样 depth 只减少一次
+                    let ctx_for_chance = SearchContext {
+                        depth: ctx.depth,
+                        ply: ctx.ply,
+                        alpha,
+                        beta,
+                        pov_color: ctx.pov_color,
+                    };
+                    self.chance_node(board, mv, ctx_for_chance, current_color)
                 } else {
-                    self.apply_move_and_recurse(board, mv, ctx)
+                    // 普通走法: 构造 child_ctx (depth-1, ply+1)
+                    let child_ctx = SearchContext {
+                        depth: ctx.depth - 1,
+                        ply: ctx.ply + 1,
+                        alpha,
+                        beta,
+                        pov_color: ctx.pov_color,
+                    };
+                    self.apply_move_and_recurse(board, mv, child_ctx)
                 };
+
                 max_eval = max_eval.max(eval);
-                if max_eval >= ctx.beta {
+
+                // Alpha-Beta 剪枝优化
+                alpha = alpha.max(max_eval);
+                if beta <= alpha {
                     break; // Beta 剪枝
                 }
             }
@@ -465,12 +492,30 @@ impl IT3AI {
             let mut min_eval = f64::INFINITY;
             for mv in &ordered_moves {
                 let eval = if mv.action_type == ActionType::RevealAndMove {
-                    self.chance_node(board, mv, ctx, current_color)
+                    let ctx_for_chance = SearchContext {
+                        depth: ctx.depth,
+                        ply: ctx.ply,
+                        alpha,
+                        beta,
+                        pov_color: ctx.pov_color,
+                    };
+                    self.chance_node(board, mv, ctx_for_chance, current_color)
                 } else {
-                    self.apply_move_and_recurse(board, mv, ctx)
+                    let child_ctx = SearchContext {
+                        depth: ctx.depth - 1,
+                        ply: ctx.ply + 1,
+                        alpha,
+                        beta,
+                        pov_color: ctx.pov_color,
+                    };
+                    self.apply_move_and_recurse(board, mv, child_ctx)
                 };
+
                 min_eval = min_eval.min(eval);
-                if min_eval <= ctx.alpha {
+
+                // Alpha-Beta 剪枝优化
+                beta = beta.min(min_eval);
+                if beta <= alpha {
                     break; // Alpha 剪枝
                 }
             }
@@ -496,6 +541,11 @@ impl IT3AI {
         }
 
         let mut expected_value = 0.0;
+
+        // NOTE: 理论上 Chance 节点应该重置 alpha/beta 窗口，因为期望值计算不适合用 Min/Max 的边界剪枝。
+        // 但在揭棋中，RevealAndMove 走法非常多，重置窗口会导致几乎无法剪枝，搜索效率严重下降。
+        // 这里我们选择和 IT2 一样，继续传递 alpha/beta，用效率换取一点不精确性。
+        // 使用 next_ply() 确保 depth-1, ply+1
         let next_ctx = ctx.next_ply();
 
         for (piece_type, probability) in possible_types {
@@ -516,7 +566,7 @@ impl IT3AI {
             let was_hidden = reveal_state.is_some();
             let captured = board.make_move(&virtual_move);
 
-            // 3. 递归搜索（固定 POV，不翻转）
+            // 3. 递归搜索（使用重置了窗口的 context）
             let child_value = self.expectimax(board, next_ctx);
 
             // 4. 撤销走棋
@@ -539,8 +589,9 @@ impl IT3AI {
         let was_hidden = board.get_piece(mv.from_pos).map_or(false, |p| p.is_hidden);
         let captured = board.make_move(mv);
 
-        // next_ply: depth-1, ply+1（固定 POV，不翻转）
-        let value = self.expectimax(board, ctx.next_ply());
+        // 这里不再做 next_ply，因为 expectimax 中构造 child_ctx 时已经处理了 depth/ply
+        // 传入的 ctx 已经是准备好给下一层的了
+        let value = self.expectimax(board, ctx);
 
         board.undo_move(mv, captured, was_hidden);
 
@@ -724,5 +775,252 @@ mod tests {
         // 修复后：它应该保持 Pawn (因为我们 simulate_reveal 设置了 Pawn)
         assert_eq!(moved_piece.actual_type, Some(PieceType::Pawn));
         assert!(!moved_piece.is_hidden);
+    }
+}
+
+// ============================================================================
+// 搜索正确性验证：Brute-Force 参考实现
+// ============================================================================
+
+#[cfg(test)]
+impl IT3AI {
+    /// Brute-force Expectimax（无剪枝版本）
+    /// 用于验证 Alpha-Beta 剪枝的正确性
+    fn expectimax_brute_force(&self, board: &mut Board, ctx: SearchContext) -> f64 {
+        NODE_COUNT.fetch_add(1, AtomicOrdering::Relaxed);
+
+        let current_color = board.current_turn();
+        let legal_moves = board.get_legal_moves(current_color);
+        let ordered_moves = Self::order_moves(board, &legal_moves);
+        let is_max_node = current_color == ctx.pov_color;
+
+        // 终止条件
+        if ctx.depth <= 0 || legal_moves.is_empty() {
+            return self.terminal_eval(board, ctx.pov_color, ctx.ply);
+        }
+
+        if is_max_node {
+            // MAX 节点：遍历所有分支，不剪枝
+            let mut max_eval = f64::NEG_INFINITY;
+            for mv in &ordered_moves {
+                let eval = if mv.action_type == ActionType::RevealAndMove {
+                    let ctx_for_chance = SearchContext {
+                        depth: ctx.depth,
+                        ply: ctx.ply,
+                        alpha: f64::NEG_INFINITY,
+                        beta: f64::INFINITY,
+                        pov_color: ctx.pov_color,
+                    };
+                    self.chance_node_brute_force(board, mv, ctx_for_chance, current_color)
+                } else {
+                    let child_ctx = SearchContext {
+                        depth: ctx.depth - 1,
+                        ply: ctx.ply + 1,
+                        alpha: f64::NEG_INFINITY,
+                        beta: f64::INFINITY,
+                        pov_color: ctx.pov_color,
+                    };
+                    self.apply_move_brute_force(board, mv, child_ctx)
+                };
+                max_eval = max_eval.max(eval);
+                // 无剪枝：不 break
+            }
+            max_eval
+        } else {
+            // MIN 节点：遍历所有分支，不剪枝
+            let mut min_eval = f64::INFINITY;
+            for mv in &ordered_moves {
+                let eval = if mv.action_type == ActionType::RevealAndMove {
+                    let ctx_for_chance = SearchContext {
+                        depth: ctx.depth,
+                        ply: ctx.ply,
+                        alpha: f64::NEG_INFINITY,
+                        beta: f64::INFINITY,
+                        pov_color: ctx.pov_color,
+                    };
+                    self.chance_node_brute_force(board, mv, ctx_for_chance, current_color)
+                } else {
+                    let child_ctx = SearchContext {
+                        depth: ctx.depth - 1,
+                        ply: ctx.ply + 1,
+                        alpha: f64::NEG_INFINITY,
+                        beta: f64::INFINITY,
+                        pov_color: ctx.pov_color,
+                    };
+                    self.apply_move_brute_force(board, mv, child_ctx)
+                };
+                min_eval = min_eval.min(eval);
+                // 无剪枝：不 break
+            }
+            min_eval
+        }
+    }
+
+    /// Brute-force Chance 节点
+    fn chance_node_brute_force(
+        &self,
+        board: &mut Board,
+        mv: &JieqiMove,
+        ctx: SearchContext,
+        color: Color,
+    ) -> f64 {
+        let distribution = HiddenPieceDistribution::from_board(board, color);
+        let possible_types = distribution.possible_types();
+
+        if possible_types.is_empty() {
+            return self.apply_move_brute_force(board, mv, ctx);
+        }
+
+        let mut expected_value = 0.0;
+        let next_ctx = ctx.next_ply();
+
+        for (piece_type, probability) in possible_types {
+            let reveal_state = board.simulate_reveal(mv.from_pos, piece_type);
+
+            let mut virtual_move = *mv;
+            virtual_move.action_type = ActionType::Move;
+
+            let was_hidden = reveal_state.is_some();
+            let captured = board.make_move(&virtual_move);
+
+            let child_value = self.expectimax_brute_force(board, next_ctx);
+
+            board.undo_move(&virtual_move, captured, was_hidden);
+
+            if let Some(state) = reveal_state {
+                board.restore_simulated_reveal(mv.from_pos, state);
+            }
+
+            expected_value += probability * child_value;
+        }
+
+        expected_value
+    }
+
+    /// Brute-force 普通走法递归
+    fn apply_move_brute_force(&self, board: &mut Board, mv: &JieqiMove, ctx: SearchContext) -> f64 {
+        let was_hidden = board.get_piece(mv.from_pos).map_or(false, |p| p.is_hidden);
+        let captured = board.make_move(mv);
+        let value = self.expectimax_brute_force(board, ctx);
+        board.undo_move(mv, captured, was_hidden);
+        value
+    }
+}
+
+/// 搜索正确性测试
+#[cfg(test)]
+mod search_correctness_tests {
+    use super::*;
+    use serde::Deserialize;
+    use std::fs;
+    use std::path::Path;
+
+    /// JSON 测试数据结构
+    #[derive(Deserialize)]
+    struct TestPositionsData {
+        positions: Vec<TestPosition>,
+    }
+
+    #[derive(Deserialize, Clone)]
+    struct TestPosition {
+        id: String,
+        fen: String,
+        has_hidden: bool,
+    }
+
+    /// 加载测试局面
+    fn load_test_positions() -> Vec<TestPosition> {
+        let possible_paths = ["data/test_positions.json", "../data/test_positions.json"];
+
+        for path in &possible_paths {
+            if Path::new(path).exists() {
+                let content = fs::read_to_string(path).expect("Failed to read test positions file");
+                let data: TestPositionsData =
+                    serde_json::from_str(&content).expect("Failed to parse test positions JSON");
+                return data.positions;
+            }
+        }
+
+        // 如果找不到文件，返回内置局面
+        vec![
+            TestPosition {
+                id: "INLINE1".to_string(),
+                fen: "4k4/9/9/9/4c4/4R4/9/9/9/4K4 -:- r r".to_string(),
+                has_hidden: false,
+            },
+            TestPosition {
+                id: "INLINE2".to_string(),
+                fen: "4k4/9/9/9/9/4R4/9/9/9/4K4 -:- r r".to_string(),
+                has_hidden: false,
+            },
+            TestPosition {
+                id: "INLINE3".to_string(),
+                fen: "4k4/9/9/9/4c4/4R4/9/9/9/4K4 -:- b b".to_string(),
+                has_hidden: false,
+            },
+        ]
+    }
+
+    fn create_test_ai() -> IT3AI {
+        let config = AIConfig {
+            depth: 10,
+            time_limit: None, // 禁用超时
+            ..Default::default()
+        };
+        IT3AI::new(&config)
+    }
+
+    fn compare_at_depth(ai: &IT3AI, fen: &str, depth: i32) -> Result<(), String> {
+        let board = match Board::from_fen(fen) {
+            Ok(b) => b,
+            Err(e) => return Err(format!("Invalid FEN: {:?}", e)),
+        };
+
+        let pov_color = board.current_turn();
+        let ctx = SearchContext::new(depth, pov_color);
+
+        let mut board_pruned = board.clone();
+        let mut board_brute = board.clone();
+
+        let pruned_score = ai.expectimax(&mut board_pruned, ctx);
+        let brute_score = ai.expectimax_brute_force(&mut board_brute, ctx);
+
+        if (pruned_score - brute_score).abs() >= 1e-9 {
+            return Err(format!(
+                "Mismatch: pruned={}, brute={}",
+                pruned_score, brute_score
+            ));
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_search_correctness_from_json() {
+        let positions = load_test_positions();
+        let ai = create_test_ai();
+        let mut errors = Vec::new();
+
+        for pos in &positions {
+            // 有暗子的局面只测 depth 1-2（太慢）
+            let max_depth = if pos.has_hidden { 2 } else { 3 };
+
+            for depth in 1..=max_depth {
+                if let Err(e) = compare_at_depth(&ai, &pos.fen, depth) {
+                    errors.push(format!("{} (depth={}): {}", pos.id, depth, e));
+                }
+            }
+        }
+
+        if !errors.is_empty() {
+            panic!(
+                "Search correctness failures ({}/{} positions failed):\n{}",
+                errors.len(),
+                positions.len(),
+                errors.join("\n")
+            );
+        }
+
+        println!("Tested {} positions successfully", positions.len());
     }
 }

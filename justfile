@@ -22,6 +22,14 @@ test-rust:
 test-py:
     uv run pytest tests/ -v
 
+# Export test positions to JSON
+export-positions:
+    uv run python scripts/export_positions.py
+
+# Run search correctness tests (compares alpha-beta vs brute-force)
+test-correctness:
+    cd rust-ai && cargo test search_correctness --release -- --nocapture
+
 # === 服务命令 ===
 
 # Start streamlit dashboard (builds Rust first, kills existing on same port)
