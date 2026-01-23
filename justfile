@@ -76,17 +76,13 @@ battle *ARGS:
     uv run python scripts/ai_battle.py {{ARGS}}
 
 # 快速对战测试（10局, 0.1秒, 10并发）
-# MODE: jieqi (揭棋，暗子开局) 或 revealed (明棋开局)
-fast-battle RED="muses2" BLACK="muses" GAMES="10" MODE="jieqi":
-    uv run python scripts/ai_battle.py compare --filter {{RED}},{{BLACK}} --games {{GAMES}} --time 0.1 --workers 10 --mode {{MODE}}
+# POSITION: 局面 ID（JIEQI/REVEALED/END0001 等）或 FEN 字符串
+fast-battle RED="muses2" BLACK="muses" GAMES="10" POSITION="JIEQI":
+    uv run python scripts/ai_battle.py compare --filter {{RED}},{{BLACK}} --games {{GAMES}} --time 0.1 --workers 10 --position "{{POSITION}}"
 
-# Run single AI battle with verbose output
-# MODE: jieqi (揭棋，暗子开局) 或 revealed (明棋开局)
-battle-verbose RED="muses" BLACK="iterative" TIME="0.1" MODE="jieqi":
-    uv run python scripts/ai_battle.py battle --games 1 --verbose --red {{RED}} --black {{BLACK}} --time {{TIME}} --mode {{MODE}}
-
-# 从指定局面开始对战（支持局面 ID 或 FEN）
-battle-position RED="muses" BLACK="it2" TIME="0.1" POSITION="JIEQI":
+# 单局详细对战（支持局面 ID 或 FEN）
+# POSITION: 局面 ID（JIEQI/REVEALED/END0001 等）或 FEN 字符串
+battle-verbose RED="muses" BLACK="iterative" TIME="0.1" POSITION="JIEQI":
     uv run python scripts/ai_battle.py battle --games 1 --verbose --red {{RED}} --black {{BLACK}} --time {{TIME}} --position "{{POSITION}}"
 
 # 列出可用局面
@@ -94,26 +90,31 @@ list-positions *ARGS:
     uv run python scripts/ai_battle.py list-positions {{ARGS}}
 
 # === Rust AI CLI ===
+# POSITION 参数支持局面 ID（如 END0001、JIEQI）或 FEN 字符串
+
+# 辅助函数：将 POSITION 转换为 FEN
+_get-fen POSITION:
+    @uv run python scripts/get_fen.py '{{POSITION}}'
 
 # Get legal moves for a position
-rustai-moves FEN:
-    cd rust-ai && cargo run --release -- moves --fen "{{FEN}}"
+rustai-moves POSITION:
+    cd rust-ai && cargo run --release -- moves --fen "$(cd .. && uv run python scripts/get_fen.py '{{POSITION}}')"
 
 # Get best move(s) for a position
-rustai-best FEN STRATEGY="muses" TIME="0.5" N="10":
-    cd rust-ai && cargo run --release -- best --fen "{{FEN}}" --strategy {{STRATEGY}} --time-limit {{TIME}} --n {{N}} --json
+rustai-best POSITION STRATEGY="muses" TIME="0.5" N="10":
+    cd rust-ai && cargo run --release -- best --fen "$(cd .. && uv run python scripts/get_fen.py '{{POSITION}}')" --strategy {{STRATEGY}} --time-limit {{TIME}} --n {{N}} --json
 
 # Evaluate position score (static, no search)
-rustai-score FEN:
-    cd rust-ai && cargo run --release -- score --fen "{{FEN}}"
+rustai-score POSITION:
+    cd rust-ai && cargo run --release -- score --fen "$(cd .. && uv run python scripts/get_fen.py '{{POSITION}}')"
 
 # Static evaluation via eval command
-rustai-eval FEN:
-    cd rust-ai && cargo run --release -- score --fen "{{FEN}}" --json
+rustai-eval POSITION:
+    cd rust-ai && cargo run --release -- score --fen "$(cd .. && uv run python scripts/get_fen.py '{{POSITION}}')" --json
 
 # Search tree debug (two-layer info)
-rustai-search FEN STRATEGY="it2" DEPTH="2":
-    cd rust-ai && cargo run --release -- search --fen "{{FEN}}" --strategy {{STRATEGY}} --depth {{DEPTH}} --json
+rustai-search POSITION STRATEGY="it2" DEPTH="2":
+    cd rust-ai && cargo run --release -- search --fen "$(cd .. && uv run python scripts/get_fen.py '{{POSITION}}')" --strategy {{STRATEGY}} --depth {{DEPTH}} --json
 
 # Show help for Rust AI CLI
 rustai-help:
