@@ -74,6 +74,61 @@ class JieqiGame:
         if self.config.track_repetitions:
             self._record_position()
 
+    @classmethod
+    def from_fen(cls, fen: str, config: GameConfig | None = None) -> "JieqiGame":
+        """从 FEN 创建游戏
+
+        Args:
+            fen: FEN 字符串
+            config: 游戏配置
+
+        Returns:
+            新的 JieqiGame 实例
+        """
+        from engine.fen import parse_fen
+        from engine.piece import create_jieqi_piece
+
+        # 创建游戏（但不使用默认初始化的棋盘）
+        game = cls.__new__(cls)
+        game.game_id = str(uuid4())
+        game.config = config or GameConfig()
+        game.move_history = []
+        game.result = GameResult.ONGOING
+        game.captured_pieces = []
+        game._position_counts = {}
+
+        # 解析 FEN
+        fen_state = parse_fen(fen)
+
+        # 创建空棋盘（不初始化棋子）
+        game.board = JieqiBoard.__new__(JieqiBoard)
+        game.board._pieces = {}
+        game.board._seed = game.config.seed
+        game.board._delay_reveal = game.config.delay_reveal
+        game.board._hidden_pool = None
+
+        # 根据 FEN 重建棋盘
+        for piece in fen_state.pieces:
+            pos = piece.position
+            if piece.is_hidden:
+                # 暗子：piece_type 为 None，需要从位置推断走法类型
+                # 但 actual_type 也需要设置（对于非延迟分配模式）
+                # 这里简单处理：暗子的 actual_type 设为 None（延迟分配）
+                game.board._pieces[pos] = create_jieqi_piece(piece.color, None, pos, revealed=False)
+            else:
+                # 明子
+                game.board._pieces[pos] = create_jieqi_piece(
+                    piece.color, piece.piece_type, pos, revealed=True
+                )
+
+        game.current_turn = fen_state.turn
+
+        # 记录初始局面
+        if game.config.track_repetitions:
+            game._record_position()
+
+        return game
+
     def make_move(
         self,
         move: JieqiMove,

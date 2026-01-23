@@ -24,6 +24,12 @@ from engine.types import ActionType, Color, GameResult, PieceType
 console = Console()
 app = typer.Typer()
 
+# 开局 FEN
+# 揭棋模式：暗子开局
+JIEQI_FEN = "xxxxkxxxx/9/1x5x1/x1x1x1x1x/9/9/X1X1X1X1X/1X5X1/9/XXXXKXXXX -:- r r"
+# 明棋模式：所有棋子开局即明（揭棋规则：象和士可以过河）
+REVEALED_FEN = "rheakaehr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RHEAKAEHR -:- r r"
+
 
 def _get_strategies_from_cli() -> list[str]:
     """从 Rust CLI 动态获取可用策略列表"""
@@ -441,6 +447,7 @@ def run_single_game_with_log(
     log_dir: Path | None,
     game_index: int = 0,
     verbose: bool = False,
+    mode: str = "jieqi",
 ) -> tuple[str, int, dict, str]:
     """运行单场对战并记录日志
 
@@ -453,6 +460,7 @@ def run_single_game_with_log(
         log_dir: 日志目录
         game_index: 游戏索引（用于生成唯一 game_id）
         verbose: 是否输出每步详情
+        mode: 游戏模式，"jieqi"（揭棋）或 "revealed"（明棋）
 
     Returns:
         (result, moves, stats, game_id)
@@ -473,6 +481,7 @@ def run_single_game_with_log(
             log_dir,
             game_index,
             verbose,
+            mode,
         )
     finally:
         # 确保关闭 Rust server 进程
@@ -493,11 +502,19 @@ def _run_game_impl(
     log_dir: Path | None,
     game_index: int = 0,
     verbose: bool = False,
+    mode: str = "jieqi",
 ) -> tuple[str, int, dict, str]:
-    """实际执行对战逻辑"""
+    """实际执行对战逻辑
+
+    Args:
+        mode: 游戏模式，"jieqi"（揭棋，暗子开局）或 "revealed"（明棋开局）
+    """
 
     # 创建游戏
-    game = JieqiGame()
+    if mode == "revealed":
+        game = JieqiGame.from_fen(REVEALED_FEN)
+    else:
+        game = JieqiGame()
 
     # 生成唯一的 game_id
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -731,16 +748,16 @@ def run_single_game_task(args: tuple) -> tuple[str, str, str, int, str]:
     """运行单局对战（用于多进程，每局一个任务）
 
     Args:
-        args: (red, black, time_limit, max_moves, seed, log_dir, game_index)
+        args: (red, black, time_limit, max_moves, seed, log_dir, game_index, mode)
 
     Returns:
         (red, black, result, moves, game_id)
     """
-    red, black, time_limit, max_moves, seed, log_dir_str, game_index = args
+    red, black, time_limit, max_moves, seed, log_dir_str, game_index, mode = args
     log_dir = Path(log_dir_str) if log_dir_str else None
 
     result, moves, _stats, game_id = run_single_game_with_log(
-        red, black, time_limit, max_moves, seed, log_dir, game_index
+        red, black, time_limit, max_moves, seed, log_dir, game_index, mode=mode
     )
     return red, black, result, moves, game_id
 
@@ -749,12 +766,12 @@ def run_matchup_games(args: tuple) -> tuple[str, str, list[str], dict, list[str]
     """运行一组对战（用于多进程）
 
     Args:
-        args: (red, black, num_games, max_moves, seed, time_limit, log_dir)
+        args: (red, black, num_games, max_moves, seed, time_limit, log_dir, mode)
 
     Returns:
         (red, black, results, stats, game_ids)
     """
-    red, black, num_games, max_moves, seed, time_limit, log_dir_str = args
+    red, black, num_games, max_moves, seed, time_limit, log_dir_str, mode = args
     log_dir = Path(log_dir_str) if log_dir_str else None
 
     results = []
@@ -766,7 +783,7 @@ def run_matchup_games(args: tuple) -> tuple[str, str, list[str], dict, list[str]
     for i in range(num_games):
         game_seed = (seed + i * 2) if seed else None
         result, moves, game_stats, game_id = run_single_game_with_log(
-            red, black, time_limit, max_moves, game_seed, log_dir, i
+            red, black, time_limit, max_moves, game_seed, log_dir, i, mode=mode
         )
         results.append(result)
         game_ids.append(game_id)
@@ -793,6 +810,7 @@ def battle(
     time_limit: float = typer.Option(0.1, "--time", help="AI thinking time per move (seconds)"),
     log_dir: str | None = typer.Option(None, "--log-dir", help="Log directory"),
     verbose: bool = typer.Option(False, "--verbose", help="Show each move in detail"),
+    mode: str = typer.Option("jieqi", "--mode", help="Game mode: jieqi (hidden) or revealed"),
 ):
     """Run AI vs AI battle with logging"""
     # 验证策略
@@ -813,6 +831,7 @@ def battle(
     console.print("\n[bold]Jieqi AI Battle[/bold]")
     console.print(f"Red: [red]{ai_red}[/red] vs Black: [blue]{ai_black}[/blue]")
     console.print(f"Games: {num_games}, Max moves: {max_moves}, Time: {time_limit}s")
+    console.print(f"Mode: [cyan]{mode}[/cyan]")
     console.print(f"Log dir: {log_path}")
     if verbose:
         console.print("[yellow]Verbose mode: ON[/yellow]")
@@ -830,7 +849,15 @@ def battle(
                 console.print(f"\n[bold cyan]--- Game {i + 1}/{num_games} ---[/bold cyan]")
             game_seed = (seed + i * 2) if seed else None
             result, moves, stats, game_id = run_single_game_with_log(
-                ai_red, ai_black, time_limit, max_moves, game_seed, log_path, i, verbose=True
+                ai_red,
+                ai_black,
+                time_limit,
+                max_moves,
+                game_seed,
+                log_path,
+                i,
+                verbose=True,
+                mode=mode,
             )
             results[result] += 1
             total_moves += moves
@@ -857,7 +884,7 @@ def battle(
             for i in range(num_games):
                 game_seed = (seed + i * 2) if seed else None
                 result, moves, stats, game_id = run_single_game_with_log(
-                    ai_red, ai_black, time_limit, max_moves, game_seed, log_path, i
+                    ai_red, ai_black, time_limit, max_moves, game_seed, log_path, i, mode=mode
                 )
                 results[result] += 1
                 total_moves += moves
@@ -916,6 +943,7 @@ def compare(
     time_limit: float = typer.Option(0.1, "--time", help="AI thinking time per move (seconds)"),
     workers: int = typer.Option(10, "--workers", help="Number of parallel workers"),
     log_dir: str | None = typer.Option(None, "--log-dir", help="Log directory"),
+    mode: str = typer.Option("jieqi", "--mode", help="Game mode: jieqi (hidden) or revealed"),
 ):
     """Run round-robin comparison between AI strategies (red vs black and black vs red)"""
     # 获取策略列表
@@ -947,6 +975,7 @@ def compare(
     console.print(f"Total matchups: {num_pairs} (each pair plays both directions)")
     console.print(f"Total games: {total_games}")
     console.print(f"Time limit: {time_limit}s/move, Workers: {workers}")
+    console.print(f"Mode: [cyan]{mode}[/cyan]")
     console.print(f"Log dir: {log_path}")
     console.print()
 
@@ -965,7 +994,7 @@ def compare(
                 for i in range(num_games):
                     game_seed = (seed + idx * 1000 + jdx * 100 + i * 2) if seed else None
                     game_args.append(
-                        (s1, s2, time_limit, max_moves, game_seed, str(log_path), game_index)
+                        (s1, s2, time_limit, max_moves, game_seed, str(log_path), game_index, mode)
                     )
                     game_index += 1
 
@@ -1159,6 +1188,7 @@ def compare(
         "num_games_per_direction": num_games,
         "max_moves": max_moves,
         "time_limit": time_limit,
+        "mode": mode,
         "total_games": total_games,
         "log_dir": str(log_path),
         "results": {

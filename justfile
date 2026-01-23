@@ -68,12 +68,14 @@ battle *ARGS:
     uv run python scripts/ai_battle.py {{ARGS}}
 
 # 快速对战测试（10局, 0.1秒, 10并发）
-fast-battle RED="muses2" BLACK="muses" GAMES="10":
-    uv run python scripts/ai_battle.py compare --filter {{RED}},{{BLACK}} --games {{GAMES}} --time 0.1 --workers 10
+# MODE: jieqi (揭棋，暗子开局) 或 revealed (明棋开局)
+fast-battle RED="muses2" BLACK="muses" GAMES="10" MODE="jieqi":
+    uv run python scripts/ai_battle.py compare --filter {{RED}},{{BLACK}} --games {{GAMES}} --time 0.1 --workers 10 --mode {{MODE}}
 
 # Run single AI battle with verbose output
-battle-verbose RED="muses" BLACK="iterative" TIME="0.1":
-    uv run python scripts/ai_battle.py battle --games 1 --verbose --red {{RED}} --black {{BLACK}} --time {{TIME}}
+# MODE: jieqi (揭棋，暗子开局) 或 revealed (明棋开局)
+battle-verbose RED="muses" BLACK="iterative" TIME="0.1" MODE="jieqi":
+    uv run python scripts/ai_battle.py battle --games 1 --verbose --red {{RED}} --black {{BLACK}} --time {{TIME}} --mode {{MODE}}
 
 # === Rust AI CLI ===
 
